@@ -83,6 +83,9 @@ web.forEach=function(input,fn,bind,arg){
 
 
 web.log=_.bind(console.log,console);
+web.log.error=_.bind(console.error,console);
+web.log.warn=_.bind(console.warn,console);
+
 web.join=function(delimiter /*args*/){
 	var string='';
 	delimiter=Array.prototype.shift.call(arguments)
@@ -470,7 +473,45 @@ web.toJSON=function(input){
 		if(char1=='{'||char1=='['){
 			JSON.parse(input)
 		}else if(char1=='<'){
-			if(!x2js){x2js = new X2JS({'attributePrefix':"@"});}
+			if(!x2js){x2js = new X2JS({
+					// Escaping XML characters. Default is true from v1.1.0+
+			        escapeMode : true,                              
+			        // XML attributes prefix. Default is "_"
+			        attributePrefix : "@",
+			        // Array access form (none|property). Use property if you want X2JS generate additional property <element>_asArray to access in array form any element
+			        // Default is none from v1.1.0+
+			        arrayAccessForm : "none",
+			        // Handling empty nodes (text|object). 
+			        // When X2JS found empty node like <test></test> it will be transformed to test : '' for 'text' mode, 
+			        // or to Object for 'object' mode  
+			        // Default is 'text'
+			        emptyNodeForm  : "text",
+
+			        // Enable/Disable auxiliary function in generated JSON object to print text nodes with __text/__cdata
+			        // Default is true
+			        enableToStringFunc : true,
+			        
+			        // Array access paths (array). 
+			        // Use this option to configure paths to XML elements always in "array form". 
+			        // You can configure beforehand paths to all your array elements based on XSD or your knowledge
+			        // about XML structure
+			        // Every path could be a simple string (like 'parent.child1.child2'), a regex (like /.*\.child2/), or a custom function
+			        arrayAccessFormPaths : [],
+
+			        // Skip empty text tags for nodes with children
+			        skipEmptyTextNodesForObj : true,
+
+			        // Strip whitespaces (trimming text nodes)
+			        stripWhitespaces : true,
+
+			        // DateTime access paths (array). 
+			        // Use this option to configure paths to XML elements for "datetimes form". 
+			        // You can configure beforehand paths to all your array elements based on XSD or your knowledge
+			        // about XML structure
+			        // Every path could be a simple string (like 'parent.child1.child2'), a regex (like /.*\.child2/), or a custom function
+			        // Default is empty array
+			        datetimeAccessFormPaths : []
+				});}
 			return x2js.xml_str2json(input)
 		}
 
@@ -638,16 +679,43 @@ web.getRandomInt=function (min, max) {
 web.endsWith=function(string,suffix) {
 	return string.indexOf(suffix, string.length - suffix.length) !== -1;
 };
-web.padding=function(str,padding,char){
+web.concat=function(in1,in2){
+	if(web.isArray(in1)){
+		in1.push(in2);
+		return in1;
+	}else if(isString(in1)){
+		return in1+in2
+	}else if(in1==null){
+		return in2
+	}else{
+		console.error('web.concat does not know how to handle ',in1)
+	}
+}
+
+web.padding=function(str,padding,char,additional){
 	char=char||' '
+	if(web.isArray(str)){
+		var a=[]
+		for(var i=0,l=str.length;i<l;i++){
+			a.push(web.padding(str[i],padding,char))
+		}
+		return a;
+	}
+
+	var output;
 	if(!padding||padding==0){
-		return str
+		output=str
 	}else if(padding>0){
 		//TODO optimize this
-		return ((Array(padding).join(char)) + str).slice(-padding);
+		output=((Array(padding).join(char)) + str).slice(-padding);
 	}else{
 		throw 'not implemented yet'
 	}
+
+	if(additional!=null){
+		output+=web.padding.apply(web.padding,web.toArray(arguments).slice(3))
+	}
+	return output;
 }
 
 //TODO replace with this https://github.com/alexei/sprintf.js
@@ -693,9 +761,20 @@ web.extendMapList=function(obj,key,value){
 	}
 	return value;
 }
+/*
+convert an object into an array.
+if given a list of keys as array or string this will dictate
+the order of the new array
+
+If keys are null/undefined it is assumed that obj is arraylike
+{1:something,2:something,3:something} //like an arguments object
+and will be converted using slice method.
+*/
 web.toArray=function(obj,keys){
 	if(typeof keys=='string'){
 		keys = keys.split(',')
+	}else if(keys==null){ //assume obj is array like so make it array
+		return Array.prototype.slice.call(obj, 0);
 	}
 	var array = []
 	for(var i=0,l=keys.length;i<l;i++){
@@ -1570,6 +1649,43 @@ web.fullScreen.setProperty=function(){
 
 web.isWindow=function( obj ) {
     return obj != null && obj == obj.window;
+}
+
+web.Object=function(){return web.create('object')}
+web.create=web.new=function(constructor /*arguments*/){
+
+
+}
+
+var recycledObjects={}
+
+web.free=function(obj,instance,obj2){
+	obj.clear&&obj.clear()
+	obj.reset&&obj.reset()
+	if(instance==null){
+		if(web.isArray(obj)){
+			if(recursive){
+				for(var i=0,l=obj.length;i<l;i++){
+
+				}
+			}else{
+				obj.length=0
+			}
+		}else if(web.isObject(obj)){ //it is an obj
+			if(recursive){
+				web.extendMapList(recycledObjects,'object',obj)
+			}
+		}else{
+			web.warn('freed an object that was unhandled is ',obj)
+		}	
+	}else{
+		//handle instance object here
+	}
+
+
+	if(obj2){
+		web.free.apply(web.free,web.toArray(arguments).slice(2))
+	}
 }
 
 var setContext = function(scope,arg1){
