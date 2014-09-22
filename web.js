@@ -46,6 +46,25 @@ var web=(function(web,global,environmentFlags,undefined){
 	global.web=web
 	web.environment=environmentFlags;
 
+//https://www.inkling.com/read/javascript-definitive-guide-david-flanagan-6th/chapter-7/array-like-objects
+
+// Determine if o is an array-like object.
+// Strings and functions have numeric length properties, but are 
+// excluded by the typeof test. In client-side JavaScript, DOM text
+// nodes have a numeric length property, and may need to be excluded 
+// with an additional o.nodeType != 3 test.
+web.isArraylike=function isArrayLike(o) {
+    if (o &&                                // o is not null, undefined, etc.
+        typeof o === "object" &&            // o is an object
+        isFinite(o.length) &&               // o.length is a finite number
+        o.length >= 0 &&                    // o.length is non-negative
+        o.length===Math.floor(o.length) &&  // o.length is an integer
+        o.length < 4294967296)              // o.length < 2^32
+        return true;                        // Then o is array-like
+    else
+        return false;                       // Otherwise it is not
+}
+
 
 
 	
@@ -60,24 +79,34 @@ web.regExp={alphabetical:/[a-zA-Z]/g,
 			majorAtoms:/[a-gi-zA-GI-Z]/g}
 
 //adds readability to _.forEach
-web.continue=undefined;
-web.break=false;
+_.continue=undefined;
+_.break=false;
+
+web.forRange=web.range=function(input,fn,bind,arg){
+	var max=input,i=0,step=1;
+	if(web.isArray(input)){
+		i=input[0],max=input[1],step=input[2];
+	}
+	if(fn==null){
+		return _.range(i,max,step);
+	}
+	if(typeof fn=='number'){ //max index (if given)
+		//shift all inputs
+		i=input,max=fn,fn=bind,bind=arg
+	}
+	do{
+		if(fn.call(bind,i)===_.break){ 
+			break;
+		}
+	}while(i++<max)
+}
 
 //forEach with a do range functionallity
 web.forEach=function(input,fn,bind,arg){
-	if(typeof input == 'number'){ //start index
-		var max=input,i=0;
-		if(typeof fn=='number'){ //max index (if given)
-			//shift all inputs
-			i=input,max=fn,fn=bind,bind=arg
-		}
-		do{
-			if(fn.call(bind,i)===web.break){ 
-				break;
-			}
-		}while(i++<max)
-	}else{
+	if(!web.isString(input) && (web.isArrayLike(input)||web.isObject(input))){
 		return _.forEach(input,fn,bind)
+	}else{
+		fn.call(bind,input,0);
 	}
 }
 
@@ -1688,7 +1717,7 @@ web.free=function(obj,instance,obj2){
 	}
 }
 
-var setContext = function(scope,arg1){
+var _scope = function(scope,arg1){
 	return (scope===web || scope===web.global)?arg1:scope;
 }
 
@@ -1717,7 +1746,7 @@ var setImmediate =web.setImmediate=(function() {
 		  throw new TypeError;
 		}
 		var args = Array.prototype.slice.call(arguments, 1);
-		var fn = function(){func.apply(setContext(this,func),args)};
+		var fn = function(){func.apply(_scope(this,func),args)};
 		if(web.enviornment.isNode){
 			return setTimeout(fn,0);
 	    }
@@ -1774,6 +1803,22 @@ web.checksum=function(input,args,callback){
 		stream.removeAllListeners();
 		})
 };
+
+
+web.buttonGroup=function(objMap){
+	web.forEach(objMap,function(obj,i){
+		var button=$('<button type="button" class="btn btn-default"/>')
+		web.forEach(obj,function(obj,j){
+			if(web.isFunction(obj)){
+				button.click(obj)
+			}else if(web.isString(obj)){
+
+			}
+		})
+	})
+
+}
+
 
 
 return web;
