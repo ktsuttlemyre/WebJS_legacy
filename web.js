@@ -46,8 +46,37 @@ var web=(function(web,global,environmentFlags,undefined){
 	global.web=web
 	web.environment=environmentFlags;
 
-//https://www.inkling.com/read/javascript-definitive-guide-david-flanagan-6th/chapter-7/array-like-objects
+web.isWindow=function( obj ) {
+    return obj != null && obj == obj.window;
+}
+//http://stackoverflow.com/users/36866/some
+//http://stackoverflow.com/questions/384286/javascript-isdom-how-do-you-check-if-a-javascript-object-is-a-dom-object
+//Returns true if it is a DOM node
+web.isNode=function(o){
+  return (
+    typeof Node === "object" ? o instanceof Node : 
+    o && typeof o === "object" && typeof o.nodeType === "number" && typeof o.nodeName==="string"
+  );
+}
 
+//Returns true if it is a DOM element    
+web.isElement=function(o){
+  return (
+    typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
+    o && typeof o === "object" && o !== null && o.nodeType === 1 && typeof o.nodeName==="string"
+);
+}
+
+var isFunction = web.isFunction = function(value) {
+	return typeof value == 'function';
+}
+web.isArray=Array.isArray;
+
+web.isObject=function(obj){
+	return Object.prototype.toString.call(obj) =="[object Object]" /*excludes array and null*/
+
+}
+//https://www.inkling.com/read/javascript-definitive-guide-david-flanagan-6th/chapter-7/array-like-objects
 // Determine if o is an array-like object.
 // Strings and functions have numeric length properties, but are 
 // excluded by the typeof test. In client-side JavaScript, DOM text
@@ -65,6 +94,22 @@ web.isArraylike=function isArrayLike(o) {
         return false;                       // Otherwise it is not
 }
 
+web.Object=web.Object||{};
+web.Object.putAdd=function(obj,key,value){
+    obj[key]=(obj[key]!==undefined)?obj[key]+value:value;
+    return obj;
+}
+
+/*
+see if an object equals any of the other types
+*/
+web.isA=function(obj,arg0,arg1,arg2,arg3,arg4){
+	var args=(Object.prototype.toString.call( arg0 ) === '[object Array]')?arg0:[arg0,arg1,arg2,arg3,arg4];
+
+	return args.some(function(e){
+		return (typeof e == 'string')?typeof obj == e:obj instanceof e;
+	})
+}
 
 
 	
@@ -74,7 +119,7 @@ web.event=null;
 var errorSilently=web.errorSilently={
 	removeIndex:true
 }
-web.isArray=Array.isArray;
+
 web.regExp={alphabetical:/[a-zA-Z]/g,
 			majorAtoms:/[a-gi-zA-GI-Z]/g}
 
@@ -101,13 +146,57 @@ web.forRange=web.range=function(input,fn,bind,arg){
 	}while(i++<max)
 }
 
+web.continue=function(){return web.continue}
+web.break=function(){return web.break}
+
 //forEach with a do range functionallity
 web.forEach=function(input,fn,bind,arg){
-	if(!web.isString(input) && (web.isArrayLike(input)||web.isObject(input))){
-		return _.forEach(input,fn,bind)
-	}else{
-		fn.call(bind,input,0);
-	}
+	if(!web.isString(input)){
+		var i=0,l;
+		var next = web.next=function(arg){
+			if(arg){
+				var abrev=(arg.slice(0,3).toLowerCase();
+				if(web.startsWith(abrev,'nex')){
+					return input[++i]
+				}else if(web.startsWith(abrev,'pre')){
+					return input[--i]
+				}else if(web.startsWith(abrev,'rem'){
+					web.removeAt(input,i)
+				}else{
+					return web[arg]
+				}
+			}
+			//default action
+			return input[++i]
+		}
+		if(web.isArrayLike(input)){
+			l=input.length;
+
+			for(;i<l;i++){
+				if(fn(input[i],i,input,next)===false){
+					return false
+				}
+			}
+			return true
+		}else if(web.isObject(input)){
+			var keys=web.keys(input);
+			l=keys.length;
+
+			for(var key;i<l;i++){
+				key=keys[i]
+				if(fn(input[key],key,input,next)===false){
+					return false;
+				}
+			}
+			return true
+		}
+		//fallthrough
+	}//fallthough
+	return !!fn.call(bind,input,0,undefined)
+}
+
+web.forPartition=function(collection,fn,bind){
+
 }
 
 
@@ -145,6 +234,9 @@ web.startsWith=function(str,prefix,caseInsensitive){
 		if(caseInsensitive){
 			str=str.toLowerCase()
 			prefix=prefix.toLowerCase();
+		}
+		if(str.length==prefix.length){
+			return str==prefix
 		}
 		return str.slice(0, prefix.length) == prefix;
 	}
@@ -342,10 +434,6 @@ return w.break;
 });
 */
 
-web.isObject=function(obj){
-	return Object.prototype.toString.call(obj) =="[object Object]" /*excludes array and null*/
-
-}
 
 web.capitalize = function(string){
  		return string.charAt(0).toUpperCase() + string.slice(1);
@@ -488,7 +576,9 @@ web.removeAt=function(o,i){
 		}
 	}else{
 		if(o[i]){
-			delete o[i]
+			//delete o[i]
+			//don't delete
+			o[i]=null;
 		}
 	}
 	return array
@@ -627,6 +717,14 @@ web.swapState=function(elem,states){
 	return state
 
 }
+
+web.get=web.take=function(array,n,n1){
+	if(n1){
+		return array.slice(n,n1)
+	}
+	array.slice(,n)
+}
+
 web.appendToHashArray = function(obj,key,value){
 		var array = obj[key];
 		(!array) && (obj[key]=array=[])
@@ -945,9 +1043,7 @@ web.test.ScopeGuard(window,'window');
 //////////////////////////////////////
 // Turn a syncronius function to Async
 ////////////////////////////////////
-var isFunction = web.isFunction = function(value) {
-	return typeof value == 'function';
-}
+
 web.toAsync=function(fn,context,opt){
 	if (!isFunction(fn)) {
 		throw new TypeError;
@@ -1024,24 +1120,6 @@ web.DOM.lockPosition=function(id,type,hoistToBody){//id can be selector, dom ele
 		,pos=change.position();
 	hoistToBody&&change.appendTo('body');
 	return change.css({top: pos.top, left: pos.left, position: (type||'absolute')});
-}
-
-//http://stackoverflow.com/users/36866/some
-//http://stackoverflow.com/questions/384286/javascript-isdom-how-do-you-check-if-a-javascript-object-is-a-dom-object
-//Returns true if it is a DOM node
-web.isNode=function(o){
-  return (
-    typeof Node === "object" ? o instanceof Node : 
-    o && typeof o === "object" && typeof o.nodeType === "number" && typeof o.nodeName==="string"
-  );
-}
-
-//Returns true if it is a DOM element    
-web.isElement=function(o){
-  return (
-    typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
-    o && typeof o === "object" && o !== null && o.nodeType === 1 && typeof o.nodeName==="string"
-);
 }
 
 
@@ -1139,11 +1217,6 @@ web.String.frequency=function(string,opt) {
     return freq;
 };
 
-web.Object=web.Object||{};
-web.Object.putAdd=function(obj,key,value){
-    obj[key]=(obj[key]!==undefined)?obj[key]+value:value;
-    return obj;
-}
 
 
 web.socket=true;
@@ -1152,17 +1225,6 @@ web.worker=true;
 
 
 var args=[];
-web.isa=function(element,arg0,arg1,arg2,arg3,arg4){
-	if(Object.prototype.toString.call( arg0 ) === '[object Array]'){
-		args=arg0;
-	}else{
-		args=[arg0,arg1,arg2,arg3,arg4];
-	}
-	return args.some(function(e){
-		return (typeof e == 'string')?typeof element == e:element instanceof e;
-	})
-}
-
 
 web.endsWith =function(str, suffix) {
     return str.indexOf(suffix, str.length - suffix.length) !== -1;
@@ -1676,14 +1738,25 @@ web.fullScreen.setProperty=function(){
 
 
 
-web.isWindow=function( obj ) {
-    return obj != null && obj == obj.window;
-}
+
 
 web.Object=function(){return web.create('object')}
+web.Array=function(){return web.create('array')}
+
 web.create=web.new=function(constructor /*arguments*/){
-
-
+	if(!web.isString(constructor)){
+		//get constructor name and then go to recycledObjects to grab one
+		var name = constructor.name;
+		return recycledObjects[name].pop() || constructor.apply({},arguments);
+	}
+	
+	if(constructor=='array'||constructor=='Array'||constructor=='[]'){
+		return recycledObjects.array.pop()||[]
+	}else if(constructor=='object'||constructor=='Object'||constructor=='{}'){
+		return recycledObjects.object.pop()||{}
+	}else{
+		return recycledObjects[constructor].pop()||{}
+	}		
 }
 
 var recycledObjects={}
