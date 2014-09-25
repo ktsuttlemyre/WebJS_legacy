@@ -49,6 +49,13 @@ var web=(function(web,global,environmentFlags,undefined){
 web.isWindow=function( obj ) {
     return obj != null && obj == obj.window;
 }
+web.isString=function(obj){
+	return typeof obj == 'string';
+}
+web.isStringObject=function(value){
+	return value && typeof value == 'object' && type(value) == 'String';
+}
+
 //http://stackoverflow.com/users/36866/some
 //http://stackoverflow.com/questions/384286/javascript-isdom-how-do-you-check-if-a-javascript-object-is-a-dom-object
 //Returns true if it is a DOM node
@@ -73,7 +80,7 @@ var isFunction = web.isFunction = function(value) {
 web.isArray=Array.isArray;
 
 web.isObject=function(obj){
-	return Object.prototype.toString.call(obj) =="[object Object]" /*excludes array and null*/
+	return type(obj) =="Object" /*excludes array and null*/
 
 }
 //https://www.inkling.com/read/javascript-definitive-guide-david-flanagan-6th/chapter-7/array-like-objects
@@ -82,7 +89,7 @@ web.isObject=function(obj){
 // excluded by the typeof test. In client-side JavaScript, DOM text
 // nodes have a numeric length property, and may need to be excluded 
 // with an additional o.nodeType != 3 test.
-web.isArraylike=function isArrayLike(o) {
+web.isArrayLike=function(o) {
     if (o &&                                // o is not null, undefined, etc.
         typeof o === "object" &&            // o is an object
         isFinite(o.length) &&               // o.length is a finite number
@@ -92,6 +99,10 @@ web.isArraylike=function isArrayLike(o) {
         return true;                        // Then o is array-like
     else
         return false;                       // Otherwise it is not
+}
+
+web.duckType=function(obj,compare){
+	if(true){return}
 }
 
 web.Object=web.Object||{};
@@ -104,7 +115,7 @@ web.Object.putAdd=function(obj,key,value){
 see if an object equals any of the other types
 */
 web.isA=function(obj,arg0,arg1,arg2,arg3,arg4){
-	var args=(Object.prototype.toString.call( arg0 ) === '[object Array]')?arg0:[arg0,arg1,arg2,arg3,arg4];
+	var args=(type( arg0 ) === 'Array')?arg0:[arg0,arg1,arg2,arg3,arg4];
 
 	return args.some(function(e){
 		return (typeof e == 'string')?typeof obj == e:obj instanceof e;
@@ -120,8 +131,11 @@ var errorSilently=web.errorSilently={
 	removeIndex:true
 }
 
-web.regExp={alphabetical:/[a-zA-Z]/g,
-			majorAtoms:/[a-gi-zA-GI-Z]/g}
+web.regExp={alphabetical:/[a-zA-Z]/g
+			,majorAtoms:/[a-gi-zA-GI-Z]/g
+			,validJSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
+			,validJSIdentifier:
+		}
 
 //adds readability to _.forEach
 _.continue=undefined;
@@ -148,22 +162,28 @@ web.forRange=web.range=function(input,fn,bind,arg){
 
 web.continue=function(){return web.continue}
 web.break=function(){return web.break}
+web.stop=function(){return web.stop}
 
 //forEach with a do range functionallity
-web.forEach=function(input,fn,bind,arg){
+web.forEach=function(input,fn,bind,args){
 	if(!web.isString(input)){
-		var i=0,l;
-		var next = web.next=function(arg){
-			if(arg){
-				var abrev=(arg.slice(0,3).toLowerCase();
-				if(web.startsWith(abrev,'nex')){
+		var i=0,l,stop=false;
+		var next = web.next=function(command,arg1,arg2,arg3){
+			if(command && typeof command=='string'){ //first condition check skips ''
+				var abrev=command.slice(0,3).toUpperCase();
+				if(abrev=='REC'){
+					return web.forEach(arg1,fn,arg2||bind,arg3||args)
+				}else if(abrev=='NEX'){
 					return input[++i]
-				}else if(web.startsWith(abrev,'pre')){
+				}else if(abrev=='PRE'){
 					return input[--i]
-				}else if(web.startsWith(abrev,'rem'){
+				}else if(abrev=='REM'){
 					web.removeAt(input,i)
+				}else if(abrev=='STO'){
+					stop=true
+					return web.stop
 				}else{
-					return web[arg]
+					return web[command]
 				}
 			}
 			//default action
@@ -194,6 +214,95 @@ web.forEach=function(input,fn,bind,arg){
 	}//fallthough
 	return !!fn.call(bind,input,0,undefined)
 }
+web.isValidJSIdentifier=function(string,strict){
+	if(strict){
+		throw "really? do you really want to do this?"
+	}
+	return web.RegExps.validJSASCIIIdentifier.test(string)
+}
+web.toPropertyNotation=function(array,favorBracket){
+	var a='';
+	_.forEach(array,function(value){
+		a+=(web.isValidJSIdentifier(value))?'.'+value:"['"+value+"']"
+	})
+	return a
+}
+
+
+function Traverser (collection,fn,bind,args){
+	this.collection=collection
+	,this.fn=fn
+	,this.scope=this.bind=bind
+	,this.index=0
+	,this.root=collection
+	,this.pwd=[]
+}
+Traverser.prototype.next=function(){
+	return this.collection[++this.index]
+}
+Traverser.prototype.recurse=function(collection,fn,bind,args){
+	return web.forEach(collection,fn||this.fn,bind||this.bind,args||this.args)
+}
+Traverser.prototype.previous=function(){
+	return this.collection[--this.index]
+}
+Traverser.prototype.remove=function(){
+	return web.removeAt(this.collection,this.index)
+}
+Traverser.prototype.stop=function(){
+	this.stop=true
+	return Traverser.prototype.stop;
+}
+Traverser.prototype.replace=function(value){
+	var tmp=this.collection[this.index]
+	this.collection[this.index]=value
+	return tmp
+}
+Traverser.prototype.move=function(region,value){
+	throw '//TODO!!!'
+	return web.assign(region,value)
+}
+Traverser.prototype.location=function(asString){
+	if(asString){
+		return web.toPropertyNotation(this.pwd)
+	}
+	return this.pwd
+}
+Traverser.prototype.goTo=function(asString){
+	throw '//TODO!!!'
+}
+
+
+web.traverse=function(collection,fn,bind,args){
+	bind=bind||collection
+	if(!web.isString(collection)){
+		var i=0,l,stop=false;
+		var e=new Traverser(collection,fn,bind,args)
+		if(web.isArrayLike(collection)){
+			for(;e.index<collection.length;e.index++){
+				e.value=collection[i];
+				if(fn.call(bind,e)===Traverser.prototype.break){
+					return Traverser.prototype.break
+				}
+			}
+			return true
+		}else if(web.isObject(collection)){
+			var keys=e.keys=web.keys(collection);
+			for(;e.index<keys.length;e.index++){
+				e.key=keys[i];
+				e.value=collection[e.key]
+				if(fn.call(bind,e)===Traverser.prototype.break){
+					return Traverser.prototype.break;
+				}
+			}
+			return true
+		}
+		//fallthrough
+	}//fallthough
+	e.value=collection[key],e.index=0,e.key=undefined;
+	return !!fn.call(bind,e)
+}
+
 
 web.forPartition=function(collection,fn,bind){
 
@@ -216,9 +325,13 @@ web.join=function(delimiter /*args*/){
 	}
 
 }
-web.toString=function(str,fallback){
-	return (str==null)?fallback:str.toString();
+web.toDataString=function(str,fallback){
+	var dataString= (str==null)?fallback:str.toString();
+	return dataString
 }
+
+
+
 
 web.onlyOne=function(target,silentForce){
 	return (target.length==1||silentForce)?
@@ -450,19 +563,19 @@ web.camelCase=function(string,agressive) {
     })
 }
 //Test alert(camelCase('FOo BarBA-_fo_under'));
-var toString=web.toString = function(obj){return Object.prototype.toString.call(obj);};
-
 
 /*jquery's type operations extracted for use before jquery is loaded*/
 var class2type = {
-	"[object Boolean]": "boolean",
-	"[object Number]": "number",
-	"[object String]": "string",
-	"[object Function]": "function",
-	"[object Array]": "array",
-	"[object Date]": "date",
-	"[object RegExp]": "regexp",
-	"[object Object]": "object"
+	"[object Boolean]": "Boolean",
+	"[object Number]": "Number",
+	"[object String]": "String",
+	"[object Function]": "Function",
+	"[object Array]": "Array",
+	"[object Date]": "Date",
+	"[object RegExp]": "Regexp",
+	"[object Object]": "Object",
+	"[object Undefined]":"Undefined",
+	"[object Null]":"Null"
 }
 
 /*
@@ -471,9 +584,44 @@ var class2type = {
  * @return {[type]}     [description]
  */
 
- var type=function (obj){
- 	return obj == null ? String(obj) : class2type[toString(obj)] || "object";
+ var type=web.isType=function(obj,equals){
+ 	if(equals){
+ 		return /*obj == null ? String(obj) :*/ (class2type[Object.prototype.toString.call(obj)] || "Object")==equals;	
+ 	}
+ 	return /*obj == null ? String(obj) :*/ class2type[Object.prototype.toString.call(obj)] || "Object";
  }
+ var isType=type;
+
+ var petigree=function(obj,parent){
+ 	if(parent){
+ 		if(!isString(parent)){
+ 			return obj instanceof parent;
+ 		}else{
+
+ 		}
+ 	}//else return an array
+
+
+ }
+
+ //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
+ 	web.put=function(path,value,container){
+ 	container=container||web.global;
+
+	  path = path.split('.');
+	  var arrayPattern = /(.+)\[(\d+)\]/;
+	  for (var i = 0; i < path.length; i++) {
+	    var match = arrayPattern.exec(path[i]);
+	    if (match) {
+	      obj = obj[match[1]][parseInt(match[2])];
+	    } else {
+	      obj = obj[path[i]];
+	    }
+	  }
+
+	  return obj;
+}
+
 
 	web.namespace=function(name,delimiter,container,onError){
 		web.assign(name,container,onError)
@@ -503,7 +651,7 @@ var class2type = {
 					var o = container || window;
 					if(!name){return o;}
 					var ns = (type(name)!="Array")?
-					toString(name).split(delimiter):
+					web.toDataString(name).split(delimiter):
 					name;
 					switch(onError){ //all cases should be lowercase
 						case 'CREATE':
@@ -584,6 +732,16 @@ web.removeAt=function(o,i){
 	return array
 }
 
+web.attributes=function(obj){
+	var prop = obj[''];
+	return prop && prop['@']
+}
+web.text=function(obj){
+	var prop = obj[''];
+	return prop && prop['text']
+}
+
+//xml.pathway().reaction(1).compound(2,'attributes').name
 var x2js =null;
 web.toJSON=function(input){
 	if(typeof input == 'string'){
@@ -674,6 +832,15 @@ web.scale = function(num, minA, maxA, minB, maxB){
 		/*normalize*/	+  minB
 }
 
+//not done
+web.lastCall=function(fn,i){
+	return function(){
+		if(--i){
+			return fn()
+		}
+	}
+}
+
 
 
 web.function=function(){};
@@ -722,7 +889,7 @@ web.get=web.take=function(array,n,n1){
 	if(n1){
 		return array.slice(n,n1)
 	}
-	array.slice(,n)
+	array.slice(0,n)
 }
 
 web.appendToHashArray = function(obj,key,value){
@@ -1164,9 +1331,9 @@ web.csv.stats=function(input,filter){
 	//psudo code http://stackoverflow.com/questions/761932/how-should-i-detect-which-delimiter-is-used-in-a-text-file
 	var histogram = {},
 		rows;
-	if(Object.prototype.toString.call( input ) != '[object Array]'){
+	if(type( input ) != 'Array'){
 		rows=input;
-	}else if(typeof input =='string'){
+	}else if(type(input) =='String'){
 		rows=input.split('\n');
 	}else{
 		throw 'csv.sniffDelimiter only accepts strings for now'
