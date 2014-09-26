@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<!--useful links
+
+Typeahead = https://twitter.github.io/typeahead.js/examples/
+	Bloodhound = https://github.com/twitter/typeahead.js/blob/master/doc/bloodhound.md#tokens
+
+D3
+	http://www.digital-geography.com/d3-basics-all-you-need-is-a-selection/
+	http://www.d3noob.org/2014_03_01_archive.html
+	https://www.dashingd3js.com/svg-basic-shapes-and-d3js
+	http://jsfiddle.net/Y9Qq3/2/
+	https://www.dashingd3js.com/data-structures-d3js-accepts
+
+
+Databases
+BIOCYC
+   DOCS = http://biocyc.org/web-services.shtml
+   list organisms/db = http://biocyc.org/xmlquery?dbs
+   List pathways for Human 
+   			Detail full = http://biocyc.org/xmlquery?[x:x%3C-HUMAN^^pathways]&detail=full
+   			Detail none = http://biocyc.org/xmlquery?[x:x%3C-HUMAN^^pathways]&detail=none
+   Get pathway = http://websvc.biocyc.org/getxml?HUMAN:PWY66-398
+   Get rxn = http://websvc.biocyc.org/getxml?HUMAN:FUMHYDR-RXN
+	Page for mappings = http://biocyc.org/HUMAN/NEW-IMAGE?type=NIL&object=FUMHYDR-RXN&redirect=T
+	Call to get mappings = http://biocyc.org/HUMAN/download-atom-mappings?object=FUMHYDR-RXN
+-->
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<!-- Bootstrap -->
+	<link rel="stylesheet" href="./AtomTracer_files/bootstrap.min.css">
+
+
+
+	<!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+	<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+      <![endif]-->
+
+
+
+      <!-- D3 Lib-->
+      <script src="./AtomTracer_files/d3.js"></script>
+      <!--<script src="./vendor/PapaParse/papaparse.min.js"></script>-->
+      <!--D3 styles-->
+      <style>
+
+      	path.link {
+      		fill: none;
+      		stroke: #666;
+      		stroke-width: 1.5px;
+      	}
+
+      	circle {
+      		fill: #ccc;
+      		stroke: #fff;
+      		stroke-width: 1.5px;
+      	}
+      	circle.selected{
+      		stroke:#55a !important;
+      	}
+      	g {
+      		pointer-events:auto;
+      	}
+      	g.expanded{
+
+      	}
+      	g.expanded circle{
+      		pointer-events:none;
+      	}
+      	svg {
+      		pointer-events:none;
+      	}
+
+
+      	.node text {
+      		fill: #000;
+      		font: 10px sans-serif;
+      		-webkit-touch-callout: none;
+			-webkit-user-select: none;
+			-khtml-user-select: none;
+			-moz-user-select: none;
+			-ms-user-select: none;
+			user-select: none;
+			cursor:default;
+      	}
+
+
+      	input[disabled],
+      	select[disabled],
+      	textarea[disabled]{
+      		cursor: not-allowed;
+      		background-color:#eee !important;
+      	}
+
+
+      </style>
+
+
+      <!--typeahead style-->
+      <!--http://stackoverflow.com/questions/20198247/twitters-typeahead-js-suggestions-are-not-styled-have-no-border-transparent-b-->
+      <style>
+      	.twitter-typeahead .tt-query,
+      	.twitter-typeahead .tt-hint {
+      		margin-bottom: 0;
+      	}
+      	.tt-hint {
+      		display: block;
+      		width: 100%;
+      		padding: 8px 12px;
+      		font-size: 14px;
+      		line-height: 1.428571429;
+      		color: #999;
+      		vertical-align: middle;
+      		background-color: #ffffff;
+      		border: 1px solid #cccccc;
+      		border-radius: 4px;
+      		-webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+      		box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+      		-webkit-transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+      		transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+      	}
+      	.tt-dropdown-menu {
+      		min-width: 160px;
+      		margin-top: 2px;
+      		padding: 5px 0;
+      		background-color: #ffffff;
+      		border: 1px solid #cccccc;
+      		border: 1px solid rgba(0, 0, 0, 0.15);
+      		border-radius: 4px;
+      		-webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+      		box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+      		background-clip: padding-box;
+
+      	}
+      	.tt-suggestion {
+      		display: block;
+      		padding: 3px 20px;
+      	}
+      	.tt-suggestion.tt-is-under-cursor {
+      		color: #fff;
+      		background-color: #dfdfdf;
+      	}
+      	.tt-suggestion.tt-is-under-cursor a {
+      		color: #fff;
+      	}
+      	.tt-suggestion p {
+      		margin: 0;
+      	}
+      </style>
+
+      <script src="./AtomTracer_files/jquery-1.11.0.min.js"></script>
+      <script>
+      	(function($) {
+    	$.fn.disabled = function(bool){
+		        return this.each(function(){
+		        	if(bool===undefined){
+		            	this.disabled = !this.disabled;
+		            }else{
+		            	this.disabled = bool;
+		            }
+		        });
+		    };
+		    $.fn.readOnly = function(bool){
+		        return this.each(function(){
+		        	if(bool===undefined){
+		            	this.readOnly = !this.readOnly;
+		            }else{
+		            	this.readOnly = bool;
+		            }
+		        });
+		    };
+		})(jQuery);
+
+      </script>
+      <!--if you have problems with jquery or jquery plugins then uncomment this-->
+      <!--http://jquery.com/download/-->
+      <!--<script src="//code.jquery.com/jquery-migrate-1.2.1.min.js"></script>-->
+
+
+
+
+
+      <script type="text/javascript" language="javascript" src="./JSME_2014-06-28/jsme/jsme.nocache.js"></script>
+
+      <script type="text/javascript" language="javascript" src="./AtomTracer_files/lodash.js"></script>
+
+      <script type='text/javascript' src="./AtomTracer_files/xml2json.js"></script>
+      <script type='text/javascript' src="./vendor/WebJS/web.js"></script>
+
+     
+<style>
+.unselectable {
+    -moz-user-select: -moz-none;
+    -khtml-user-select: none;
+    -webkit-user-select: none;
+    -o-user-select: none;
+    user-select: none;
+}
+#main {
+    width:100%;
+    height:100%;
+    position: relative;
+}
+#main .left {
+    width:auto;
+    height:100%;
+    overflow:hidden;
+}
+#main .right {
+    height:100%;
+	min-width:0px !important; /*adjust right panel via width here*/
+	max-width:0px !important; /*adjust right panel via width here*/
+	width:0px !important; /*adjust right panel via width here*/
+    float:right;
+}
+#main .right.expanded{
+	height:100%;
+	min-width:300px !important; /*adjust right panel via width here*/
+	max-width:300px !important; /*adjust right panel via width here*/
+	width:300px !important; /*adjust right panel via width here*/
+    float:right;
+    background-color: #EEF
+}
+.circle .jsa-resetDiv{border-radius: 50%}
+#compoundBench{
+	width:300px !important;
+	max-width:300px !important;
+	width:300px !important;
+	height:100%;
+	background-color: gray;
+    float:right;
+    display: inline-block;
+}
+</style>
+
+</head>
+
+
+<body>
+
+<div style="position:fixed;top:1em;left:1em;bottom:1em;right:1em;">
+
+	<form class="form-inline" role="form" name="pathway-search-form" id="pathway-search-form" action="./" method="GET" style="z-index:100" >
+	<h1 style="display:inline-block">AtomTracer <sup><small>(alpha v0.1.8)</small></sup>:</h1>
+		<div class="form-group" id="search-organism">
+			<label class="sr-only" for="search-organism">Organism</label>
+			<input class="typeahead form-control" type="text" placeholder="Organism">
+		</div>
+
+		<div class="form-group" id="search-pathway">
+			<label class="sr-only" for="search-pathway">Pathway</label>
+			<input class="typeahead form-control"  type="text" placeholder="Pathway">
+		</div>
+		<div class="checkbox" style="display:none">
+			<label>
+				<input type="checkbox"> Remember me
+			</label>
+		</div>
+		<button type="submit" class="btn btn-default" style="display:none">Load</button>
+	</form>
+	<div id="pathway-title"></div>
+	<div id="main" class="unselectable">
+		<div class="right" style=""><div id="MoleculeEditor"></div></div>
+		<div id="drawArea" class="left" style="position:relative">
+			<div id="drawBackground" style="z-index:5;width:100%;height:100%;position:absolute"></div>
+			<div id="drawForground" style="z-index:99;width:100%;height:100%;position:absolute;pointer-events:none"></div>
+		</div>
+	</div>
+</div>
+
+	<div id="toolbar" style="position:fixed;bottom:1em;left:1em;display:none">
+		<div class="btn-group dropup">
+			<button id="allNodesSelect" type="button" class="btn btn-default">
+				Select All Nodes
+			</button>
+			<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+				<span class="caret"></span>
+				<span class="sr-only">Toggle Dropdown</span>
+			</button>
+			<ul class="dropdown-menu" role="menu">
+				<!--<li><a id="batchNodesSetX">Set X</a></li>
+				<li><a id="batchNodesSetY">Set Y</a></li>-->
+				<li><a id="batchNodesDelete">Delete</a></li>
+				<li><a id="batchNodesUnselectAtoms">UnselectAtoms</a></li>
+				<li><a id="batchNodesHideCompound">Hide Compounds</a></li>
+				<li><a id="batchNodesShowCompound">Show Compounds</a></li>
+				<li><a id="batchNodesFreePosition">Free Positions</a></li>
+			 </ul>
+		</div>
+	</div><!--end toolbar-->
+
+
+	
+
+	<!--Bootstrap-->
+	<!-- Latest compiled and minified JavaScript -->
+	<script src="./AtomTracer_files/bootstrap.min.js"></script>
+	<script src="./AtomTracer_files/typeahead.bundle.min.js"></script>
+	<script src="./AtomTracer_files/handlebars.min.js"></script>
+
+</body>
+</html>

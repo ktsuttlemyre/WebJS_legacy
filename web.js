@@ -25,6 +25,9 @@ if (!Object.keys) Object.keys = function(o) {
 }
 
 
+
+
+
 /*************************
 end pollyfills
 *************************/
@@ -45,6 +48,65 @@ var web=(function(web,global,environmentFlags,undefined){
 	web.global = global;
 	global.web=web
 	web.environment=environmentFlags;
+
+
+
+function parseQueryString(query){
+	if(!query){
+		query = {'?':location.search.slice(1)
+		,'#':'?'+location.hash.slice(1)
+	}
+}
+
+
+_.forEach(query,function(value,key){
+	var q={}
+	value.replace(
+		new RegExp("([^?=&]+)(=([^&]*))?", "g"),
+		function($0, $1, $2, $3) { 
+			if(q[$1]){
+				q[$1].append($3);
+			}else{
+				q[$1]=[$3]; 
+			}
+		}
+		);
+	query[key]=q;
+})
+return query;
+}
+web.queryParams=parseQueryString()||{};
+
+		/*		function parseQueryString(arg){
+			var query = {}
+			var args = Array.prototype.slice.call(arguments, 0);
+			if(args.length==0){
+				args = [location.search]
+			}
+			for(var i=0,l=args.length;i<l;i++){
+				args[i].replace(
+					new RegExp("([^?=&]+)(=([^&]*))?", "g"),
+					function($0, $1, $2, $3) { 
+						if(query[$1]){
+							query[$1].append($3);
+						} else{
+							query[$1]=[$3]; 
+						}
+					}
+					);
+			}
+			return query;
+		}
+		web.queryParams=parseQueryString(location.search,location.hash)||{};*/
+
+
+web.camelCaseToReadable=function(str,strict){
+	if(strict){
+		return str.replace(/[A-Z]/g,function(a){return " "+a}).trim()
+	}
+	return str.replace(/[A-Z][^A-Z]/g,function(a){return " "+a}).trim()
+}
+
 
 web.isWindow=function( obj ) {
     return obj != null && obj == obj.window;
@@ -134,7 +196,7 @@ var errorSilently=web.errorSilently={
 web.regExp={alphabetical:/[a-zA-Z]/g
 			,majorAtoms:/[a-gi-zA-GI-Z]/g
 			,validJSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
-			,validJSIdentifier:
+			
 		}
 
 //adds readability to _.forEach
@@ -274,6 +336,10 @@ Traverser.prototype.goTo=function(asString){
 
 
 web.traverse=function(collection,fn,bind,args){
+	if(web.isObject(fn)){
+		sortComparator=fn.sortComparator
+		fn=fn.callback
+	}
 	bind=bind||collection
 	if(!web.isString(collection)){
 		var i=0,l,stop=false;
@@ -288,6 +354,10 @@ web.traverse=function(collection,fn,bind,args){
 			return true
 		}else if(web.isObject(collection)){
 			var keys=e.keys=web.keys(collection);
+			if(sortComparator){
+
+				keys=keys.sort(sortComparator);
+			}
 			for(;e.index<keys.length;e.index++){
 				e.key=keys[i];
 				e.value=collection[e.key]
@@ -547,6 +617,9 @@ return w.break;
 });
 */
 
+web.Buttons=web.Buttons||{}
+web.Buttons.close=function(){return $('<button type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>')}
+
 
 web.capitalize = function(string){
  		return string.charAt(0).toUpperCase() + string.slice(1);
@@ -604,23 +677,68 @@ var class2type = {
 
  }
 
+
+
  //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
- 	web.put=function(path,value,container){
- 	container=container||web.global;
+ 	web.put=function(path,value,obj){ //path only supports dotNotation and now brakets! :-D
+ 	obj=obj||web.global;
+ 	console.log(web.global)
+
+
+ 	var partionChar='@' //TODO find the programmers secret delimiter trick from C++
+	  var bracketsPattern=/\[(\D*?)\]/g
+	  var arrayPattern = /(.+)\[(\d+)\]/;
+	  var bracketVariables=[];
+
+	  path=path.replace(bracketsPattern,function(a){
+	  	bracketVariables.push(a.slice(2,a.length-2))
+	  	return '.'+partionChar
+	  })
+
+	  if(path.charAt(0)=='.'){
+	  	path=path.slice(1)
+	  }
 
 	  path = path.split('.');
-	  var arrayPattern = /(.+)\[(\d+)\]/;
+	  console.log(path,bracketVariables)
+
+
+
+	  var key =path.pop()
+	  if(key==partionChar){
+	  	key=bracketVariables.pop()
+	  }
+
+	  //traverse
 	  for (var i = 0; i < path.length; i++) {
-	    var match = arrayPattern.exec(path[i]);
+	  	var variable=path[i]
+	  	if(variable==partionChar){
+	  		variable=bracketVariables.shift()
+	  	}
+
+	    var match = arrayPattern.exec(variable);
 	    if (match) {
-	      obj = obj[match[1]][parseInt(match[2])];
+	      obj = obj[match[1]][parseFloat(match[2])];
 	    } else {
-	      obj = obj[path[i]];
+	      obj = obj[variable] = obj[variable]||{}
 	    }
 	  }
 
+	  //assign
+		var match = arrayPattern.exec(key);
+		if (match) {
+			obj[match[1]][parseFloat(match[2])]=value;
+		} else {
+			obj[key]=value;
+		}
+
 	  return obj;
 }
+
+web.supportsWorkers=function(){
+	return !!web.global.Worker;
+}
+
 
 
 	web.namespace=function(name,delimiter,container,onError){
@@ -740,16 +858,22 @@ web.text=function(obj){
 	var prop = obj[''];
 	return prop && prop['text']
 }
+web.pop=function(input){
+	return input && input.slice && input.slice(-1);
+}
 
 //xml.pathway().reaction(1).compound(2,'attributes').name
 var x2js =null;
-web.toJSON=function(input){
-	if(typeof input == 'string'){
-		input = input.trim()
-		var char1 = input[0]
-		if(char1=='{'||char1=='['){
-			JSON.parse(input)
-		}else if(char1=='<'){
+web.toObject=function(input,type,callback){
+	if(web.isType(input) == 'String'){
+		//trim first to remove whitespace for testing
+		var detectionString = input.trim()
+		var char0 = detectionString[0]
+		var charLast=web.get(detectionString,-1)
+
+		if((char0=='{'||char0=='[') && (charLast==']'||charLast=='}')){
+			JSON.parse(detectionString)
+		}else if(char0=='<' && charLast=='>'){
 			if(!x2js){x2js = new X2JS({
 					// Escaping XML characters. Default is true from v1.1.0+
 			        escapeMode : true,                              
@@ -790,6 +914,13 @@ web.toJSON=function(input){
 			        datetimeAccessFormPaths : []
 				});}
 			return x2js.xml_str2json(input)
+		}else{
+			Papa.parse(input, {
+				worker: web.supportsWorkers() && !!callback,
+				complete: function(results) {
+					callback(null,results.data,results)
+				}
+			});
 		}
 
 
@@ -885,11 +1016,17 @@ web.swapState=function(elem,states){
 
 }
 
-web.get=web.take=function(array,n,n1){
+web.take=function(array,n,n1){
 	if(n1){
 		return array.slice(n,n1)
 	}
 	array.slice(0,n)
+}
+web.get=function(input,index,index2){
+	if(web.isString(input)){
+		input[(index<0)?input.length+index:index]
+	}
+
 }
 
 web.appendToHashArray = function(obj,key,value){
@@ -1903,6 +2040,33 @@ web.fullScreen.setProperty=function(){
 	}
 };
 
+web.inputText=function(callback){
+	var location;
+	if(web.isString(callback)){
+		location=callback
+		callback=function(e,data){
+			web.put(location,data)
+		}
+	}
+
+
+
+	var textArea=$('<textarea class="form-control" style="position:absolute;width:100%;height:100%""></textarea>')
+	var button=$('<button type="submit" class="btn btn-default" style="position:absolute;bottom:1em;right:1em;">Submit</button>')
+	var form=$('<form role="form" style="position:absolute;bottom:0;right:0;height:80%;width:80%"></form>')
+	var close = web.Buttons.close()
+	close.click(function(){
+		form.remove()		
+	})
+
+	form.append(textArea).append(button).append(close).submit(function(e,q){
+		var value = e.target[0].value;
+		callback(null,value)
+		return false
+	}).append(close)
+
+	$(document.body).append(form)
+}
 
 
 
