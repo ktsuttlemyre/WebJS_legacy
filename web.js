@@ -625,6 +625,15 @@ web.capitalize = function(string){
  		return string.charAt(0).toUpperCase() + string.slice(1);
  	}
 
+web.charAt=function(input,i1,i2){
+	if(i2!=null){
+		alert('not implemented')
+	}
+
+	return (i1<0)?input.charAt(input.length-i1-1):input.charAt(i1);	
+
+}
+
 web.camelCase=function(string,agressive) {
     var lower=true
     return string.replace(/./g, function(m) {
@@ -682,9 +691,7 @@ var class2type = {
  //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
  	web.put=function(path,value,obj){ //path only supports dotNotation and now brakets! :-D
  	obj=obj||web.global;
- 	console.log(web.global)
-
-
+ 
  	var partionChar='@' //TODO find the programmers secret delimiter trick from C++
 	  var bracketsPattern=/\[(\D*?)\]/g
 	  var arrayPattern = /(.+)\[(\d+)\]/;
@@ -695,43 +702,54 @@ var class2type = {
 	  	return '.'+partionChar
 	  })
 
-	  if(path.charAt(0)=='.'){
+	  if(path.charAt(0)=='.'){ //remove  
 	  	path=path.slice(1)
 	  }
 
 	  path = path.split('.');
-	  console.log(path,bracketVariables)
+	  console.log(path)
 
-
-
-	  var key =path.pop()
-	  if(key==partionChar){
-	  	key=bracketVariables.pop()
-	  }
-
+	  var match,caret,variable;
 	  //traverse
-	  for (var i = 0; i < path.length; i++) {
-	  	var variable=path[i]
-	  	if(variable==partionChar){
-	  		variable=bracketVariables.shift()
-	  	}
+		for (var i = 0, l=path.length; i < l; i++) {
+			caret=path[i];
 
-	    var match = arrayPattern.exec(variable);
-	    if (match) {
-	      obj = obj[match[1]][parseFloat(match[2])];
-	    } else {
-	      obj = obj[variable] = obj[variable]||{}
-	    }
-	  }
+			/*if(variable.charAt(variable.length-1)==']'){
+				obj=obj@@@@[parseFloat(variable.slice(variable.lastIndexOf('[',variable.length-2)+1,variable.length-1))]
+			}*/
+			if(!caret){
+				throw 'syntax error'
+			}
 
-	  //assign
-		var match = arrayPattern.exec(key);
-		if (match) {
-			obj[match[1]][parseFloat(match[2])]=value;
-		} else {
-			obj[key]=value;
+			match = arrayPattern.exec(caret);
+			
+			if(caret.charAt(0)==partionChar){
+				variable=bracketVariables.shift()
+				match && (match[1]=variable)
+			}else{
+				variable=caret;
+			}
+
+			console.log(caret,variable,match)
+
+			if(i!=path.length-1){
+				if (match) {
+					obj = obj[match[1]] = obj[match[1]] || []
+					match[2]=parseFloat(match[2])
+					obj = obj[match[2]] = obj[match[2]] || {}; //TODO see if the next object is an array
+					continue
+				}
+				obj = obj[variable] = obj[variable]||{}
+				continue
+			}
+			//assign
+			if (match) {
+				obj = obj[match[1]] = obj[match[1]] || []
+				obj[parseFloat(match[2])]=value;
+			} else {
+				obj[variable]=value;
+			}
 		}
-
 	  return obj;
 }
 
@@ -872,7 +890,7 @@ web.toObject=function(input,type,callback){
 		var charLast=web.get(detectionString,-1)
 
 		if((char0=='{'||char0=='[') && (charLast==']'||charLast=='}')){
-			JSON.parse(detectionString)
+			return (callback)?callback(null,JSON.parse(detectionString)):JSON.parse(detectionString);
 		}else if(char0=='<' && charLast=='>'){
 			if(!x2js){x2js = new X2JS({
 					// Escaping XML characters. Default is true from v1.1.0+
@@ -915,18 +933,24 @@ web.toObject=function(input,type,callback){
 				});}
 			return x2js.xml_str2json(input)
 		}else{
-			Papa.parse(input, {
+			return Papa.parse(input, {
 				worker: web.supportsWorkers() && !!callback,
-				complete: function(results) {
+				complete: (callback)?function(results) {
 					callback(null,results.data,results)
-				}
+				}:undefined
 			});
 		}
 
 
 	}
 }
-
+web.toCSV=function(array){
+	return Papa.unparse(array/*,{
+		quotes: false,
+		delimiter: ",",
+		newline: "\r\n"
+	}*/)
+}
 
 //DO NOT USE yet
 web.keyboard=function(element, keyCombo,callback){
@@ -1182,6 +1206,7 @@ web.proxy=function(type,url,queryString,callback){
 	if(queryString){
 		throw "web.proxy does not support queryObject yet"
 	}
+	console.log(url)
 	$[type.toLowerCase()](location.origin+location.pathname+'/?proxy='+encodeURIComponent(url),callback)
 }
 web.extendMapList=function(obj,key,value){
@@ -1275,7 +1300,10 @@ web.removeWhitespace=function(str,trim){
 	return ((trim)?str.trim():str).split(web.regExp.concurrentWhitespace)
 }
 
-
+web.insert=function(array,index,value){
+	array.splice(index, 0, value);
+	return array
+}
 /**********************************************************************
 ***********************************************************************
 ***********************************************************************/
