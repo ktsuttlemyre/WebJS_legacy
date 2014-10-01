@@ -1622,7 +1622,7 @@ web.toBinary=function(int,padding,asArray) { // asArray should be 0||null||undef
 
 //http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript
 web.random=web.random||{};
-web.random.GUID=function(format){
+web.GUID=function(format,source,callback){
 	format=format||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
 	return format.replace(/[xy]/g, function(c) {
 		var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
@@ -2069,6 +2069,7 @@ web.fullScreen.setProperty=function(){
 };
 
 web.inputText=function(callback){
+	var id=web.GUID();
 	var location;
 	if(web.isString(callback)){
 		location=callback
@@ -2079,7 +2080,7 @@ web.inputText=function(callback){
 
 
 
-	var textArea=$('<textarea class="form-control" style="position:absolute;width:100%;height:100%""></textarea>')
+	var textArea=$('<textarea id='+id+' class="form-control" style="position:absolute;width:100%;height:100%""></textarea>')
 	var button=$('<button type="submit" class="btn btn-default" style="position:absolute;bottom:1em;right:1em;">Submit</button>')
 	var form=$('<form role="form" style="position:absolute;bottom:0;right:0;height:80%;width:80%"></form>')
 	var close = web.Buttons.close()
@@ -2094,8 +2095,24 @@ web.inputText=function(callback){
 	}).append(close)
 
 	$(document.body).append(form)
+	return form;
 }
+web.getColumn=function(matrix,header,callback){
+	if(isString(header)){
+		throw '//TODO implement'
+	}
 
+	var array = web.Array()
+	for(var i=0,l=matrix.length;i<l;i++){
+		if(callback){
+			callback(null,header)
+		}else{
+			array.push(matrix[i][header])
+		}
+	}
+	return array;
+
+}
 
 
 
