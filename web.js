@@ -163,8 +163,24 @@ web.isArrayLike=function(o) {
         return false;                       // Otherwise it is not
 }
 
-web.duckType=function(obj,compare){
-	if(true){return}
+web.duckType=function(obj,compare,threshold){
+	var score=total=0
+	,properties=(web.isArray(compare)?compare:web.keys(compare);
+	if(threshold==null||threshold==1){
+		for(var i=0,l=properties.length;i<l;i++){
+			if(!obj[properties[i]]){
+				return false
+			}
+		}
+		return true
+	}
+	for(var i=0,l=properties.length;i<l;i++){
+		total++
+		if(obj[properties[i]]){
+			score++
+		}
+	}
+	return (threshold)?(score/total)>threshold:(score/total)
 }
 
 web.Object=web.Object||{};
@@ -407,6 +423,9 @@ web.onlyOne=function(target,silentForce){
 	return (target.length==1||silentForce)?
 			target[0]:
 			console.error("Expected to get only one ouput for the array",target)
+}
+web.top=function(){
+	
 }
 web.contains=function(str,word){
 	return (str.indexOf(word)>=0)
@@ -1304,6 +1323,25 @@ web.insert=function(array,index,value){
 	array.splice(index, 0, value);
 	return array
 }
+
+
+web.screenshot=function(targetElement,type,callback){
+	if(targetElement===null){//interactive
+
+	}else if(web.isArray(targetElement)){
+		//region
+	}else{
+		var promise = html2canvas(targetElement||document.body)
+		if(callback){
+				promise.then(callback||function(canvas) {
+	    		document.body.appendChild(canvas);
+			})
+		}
+		return promise
+	}
+}
+
+
 /**********************************************************************
 ***********************************************************************
 ***********************************************************************/
