@@ -164,8 +164,7 @@ web.isArrayLike=function(o) {
 }
 
 web.duckType=function(obj,compare,threshold){
-	var score=total=0
-	,properties=(web.isArray(compare)?compare:web.keys(compare);
+	var score=0,total=0,properties=(web.isArray(compare))?compare:web.keys(compare);
 	if(threshold==null||threshold==1){
 		for(var i=0,l=properties.length;i<l;i++){
 			if(!obj[properties[i]]){
@@ -708,7 +707,12 @@ var class2type = {
 
 
  //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
- 	web.put=function(path,value,obj){ //path only supports dotNotation and now brakets! :-D
+ 	web.put=function(obj,path,value){ //path only supports dotNotation and now brakets! :-D
+ 	if(web.isString(obj)){
+		value=path
+		path=obj
+		obj=web.global
+	}
  	obj=obj||web.global;
  
  	var partionChar='@' //TODO find the programmers secret delimiter trick from C++
@@ -959,12 +963,31 @@ web.toObject=function(input,type,callback){
 				}:undefined
 			});
 		}
-
-
 	}
 }
-web.toCSV=function(array){
-	return Papa.unparse(array/*,{
+web.toJSON=function(obj){
+	return JSON.stringify(obj)
+}
+web.toBSON=function(){
+
+}
+web.toXML=function(){
+
+}
+web.transpose=function(matrix){
+	return matrix[0].map(function(col, i) {
+	  return matrix.map(function(row) { 
+	    return row[i] 
+	  })
+	});
+}
+web.toCSV=function(array,options){
+	//TODO ensure array is matrix
+	//if(web.isArray(array)){
+
+		
+	//}
+	return Papa.unparse(array,options/*,{
 		quotes: false,
 		delimiter: ",",
 		newline: "\r\n"
@@ -1018,8 +1041,8 @@ web.lastCall=function(fn,i){
 
 
 web.function=function(){};
-web.ifExists=function(name,context,ret){
-var ns = name.split('.'),o =(context=context||window);
+web.ifExists=function(context,path,ret){
+var ns = path.split('.'),o =(context=context||window);
 for(var i = 0, l = ns.length; i < l; i++){
 	if(o[ns[i]]){
 		context=o;
@@ -1030,8 +1053,8 @@ for(var i = 0, l = ns.length; i < l; i++){
 }
 return (_.isFunction(o))?_.bind(o,context):o;
 }
-web.set=function(name, context, value){
-  var ns = name.split('.'), o =(context=context||window);
+web.set=function(context,path,value){
+  var ns = path.split('.'), o =(context=context||window);
   var prop = ns.pop();
   for(var i = 0, l = ns.length; i < l; i++){
     o = o[ns[i]] = o[ns[i]] || {};
@@ -1067,7 +1090,7 @@ web.take=function(array,n,n1){
 }
 web.get=function(input,index,index2){
 	if(web.isString(input)){
-		input[(index<0)?input.length+index:index]
+		return input[(index<0)?input.length+index:index]
 	}
 
 }
@@ -1225,7 +1248,7 @@ web.proxy=function(type,url,queryString,callback){
 	if(queryString){
 		throw "web.proxy does not support queryObject yet"
 	}
-	console.log(url)
+	//console.log(url)
 	$[type.toLowerCase()](location.origin+location.pathname+'/?proxy='+encodeURIComponent(url),callback)
 }
 web.extendMapList=function(obj,key,value){
@@ -2136,7 +2159,7 @@ web.inputText=function(callback){
 	return form;
 }
 web.getColumn=function(matrix,header,callback){
-	if(isString(header)){
+	if(web.isString(header)){
 		throw '//TODO implement'
 	}
 
@@ -2165,9 +2188,9 @@ web.create=web.new=function(constructor /*arguments*/){
 	}
 	
 	if(constructor=='array'||constructor=='Array'||constructor=='[]'){
-		return recycledObjects.array.pop()||[]
+		return (recycledObjects.array && recycledObjects.array.pop()) ||[]
 	}else if(constructor=='object'||constructor=='Object'||constructor=='{}'){
-		return recycledObjects.object.pop()||{}
+		return (recycledObjects.object && recycledObjects.object.pop()) ||{}
 	}else{
 		return recycledObjects[constructor].pop()||{}
 	}		
@@ -2228,16 +2251,17 @@ var setImmediate =web.setImmediate=(function() {
     // Like setTimeout, but only takes a function argument.  There's
     // no time argument (always zero) and no arguments (you have to
     // use a closure).
-	function setImmediate(func){
-		if (!web.isFunction(func)) {
-		  throw new TypeError;
+	function setImmediate(){
+		var func,callback=function(){func.apply(func,args)},args=Array.prototype.slice.call(arguments, 0);
+		if(this!==web||this!==web.global){
+			func=this
+		}else{
+			func=args.shift()
 		}
-		var args = Array.prototype.slice.call(arguments, 1);
-		var fn = function(){func.apply(_scope(this,func),args)};
-		if(web.enviornment.isNode){
-			return setTimeout(fn,0);
+		if(web.isNode){
+			return setTimeout(callback,0);
 	    }
-        return timeouts.push(fn),window.postMessage(messageName, "*");
+        return timeouts.push(callback),window.postMessage(messageName, "*");
     }
 
     function handleMessage(event) {
