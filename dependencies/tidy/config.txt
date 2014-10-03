@@ -1,0 +1,23 @@
+// sample Tidy configuration options
+doctype: auto
+drop-empty-paras: yes
+fix-backslash: yes
+fix-bad-comments: yes
+fix-uri: yes
+join-styles: yes
+lower-literals: yes
+ncr: yes
+output-xhtml: yes
+quote-ampersand: yes
+quote-nbsp: yes
+indent: auto
+wrap: 90
+wrap-asp: yes
+wrap-jste: yes
+wrap-php: yes
+wrap-sections: yes
+ascii-chars: yes
+char-encoding: ascii
+input-encoding: latin1
+error-file: errs.txt
+

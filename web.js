@@ -201,7 +201,21 @@ web.isA=function(obj,arg0,arg1,arg2,arg3,arg4){
 
 
 	
-web.error=null;
+web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
+	if(!err&&!callback){
+		return web.error.last;
+	}
+	if(err){
+		var line = (new Error).stack.split("\n")[2]
+		console.error('Error '+line.trim()+' :'+err);
+	}
+	if(callback){
+		web.error.last=err
+		callback && callback(arg,arg1,arg2,arg3,arg4,arg5)
+		web.error.last=undefined
+	}
+	return err
+}
 web.warning=null;
 web.event=null;
 var errorSilently=web.errorSilently={
@@ -393,8 +407,70 @@ web.forPartition=function(collection,fn,bind){
 
 }
 
+//TODO
+//http://www.techmcq.com/article/Converting-an-image-into-data-URI-using-JavaScript-FileReader/61
+web.toDataURI=function(input,callback){
+function fileSelected(evt) {
+    var files = evt.target.files;
+	var type = '';
+	var fr = new FileReader();
+	fr.onload = function(event)
+	{
+		if(type.indexOf("image") == 0){
+			document.getElementById('fileContent').innerHTML = "&lt;img src='" + event.target.result + "' /&gt;";
+			document.getElementById('fileContent').innerHTML += "&lt;br/&gt;";
+			var d = event.target.result;
+			d = d.replace("data:;","data:" + type + ";");
+			document.getElementById('fileContent').innerHTML += "&lt;strong&gt;Data URI: &lt;/strong&gt;" + d;
+		}
+	}
+	
+    for (var i = 0, f; f = files[i]; i++) {
+      
+	  //Gives name of file : f.name
+	  //Gives type of file : f.type e.g. text/plain or image/png etc
+	  //Gives size of file : f.size (in bytes)
+	  //Gives last modified date : f.lastModifiedDate
+	  
+	  var fileCopy = f.slice(0, f.size); //i.e. read entire file, as reading half image file doesn't solve any purpose
+	  
+	  type = f.type;
+	if(f.type.indexOf("image") == 0)
+		fr.readAsDataURL(fileCopy); //on successful read, fr.onload function will be called and that will populate the result in fileContent container
+    }
+  }
+  
+  //attach change event of file control
+  document.getElementById('files').addEventListener('change', fileSelected, false);
 
+
+}
+
+web.images={}
+web.images.spotify="data:image/png;base64,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"
+//Apple console api
+//https://developer.apple.com/library/ios/documentation/AppleApplications/Conceptual/Safari_Developer_Guide/Console/Console.html
 web.log=_.bind(console.log,console);
+
+//TODO print a console favicon in log
+//TODO change this function interface n give public access
+//http://jmperezperez.com/console-log-favicon/
+var logWithIcon=function(text,icon) {
+  var faviconUrl = icon||web.images.spotify,
+      css = "background-image: url('" + faviconUrl + "');" +
+            "background-repeat: no-repeat;" +
+            "display: block;" +
+            "background-size: 13px 13px;" +
+            "padding-left: 13px;" +
+            "margin-left: 5px;",
+      text = text||"Do you like coding? Visit www.spotify.com/jobs";
+  if (navigator.userAgent.match(/chrome/i)) {
+    console.log(text + '%c', css);
+  } else {
+    console.log('%c   ' + text, css);
+  }
+};
+
 web.log.error=_.bind(console.error,console);
 web.log.warn=_.bind(console.warn,console);
 
@@ -879,7 +955,7 @@ web.removeAt=function(o,i){
 		if(i>-1){
 			o.splice(i,1)
 		}else if(!errorSilently.removeIndex){
-			web.error=['web.removeAt (',i,o,') i is out of bounds for array']
+			web.error(['web.removeAt (',i,o,') i is out of bounds for array'])
 		}
 	}else{
 		if(o[i]){
@@ -902,10 +978,17 @@ web.text=function(obj){
 web.pop=function(input){
 	return input && input.slice && input.slice(-1);
 }
-
+var dummyObject={}
 //xml.pathway().reaction(1).compound(2,'attributes').name
 var x2js =null;
 web.toObject=function(input,type,callback){
+	var options;
+	if(web.isObject(type)){
+		options=type
+		type=options.type
+	}
+	options=options||dummyObject;
+	type=type&&type.toUpperCase();
 	if(web.isType(input) == 'String'){
 		//trim first to remove whitespace for testing
 		var detectionString = input.trim()
@@ -915,6 +998,13 @@ web.toObject=function(input,type,callback){
 		if((char0=='{'||char0=='[') && (charLast==']'||charLast=='}')){
 			return (callback)?callback(null,JSON.parse(detectionString)):JSON.parse(detectionString);
 		}else if(char0=='<' && charLast=='>'){
+			if(type=='HTML'){
+				var div = jQuery("<div>").append(jQuery.parseHTML(input))
+				if(options.selector){
+					div=div.find(type.selector)
+				}
+				input = div.html()
+			}
 			if(!x2js){x2js = new X2JS({
 					// Escaping XML characters. Default is true from v1.1.0+
 			        escapeMode : true,                              
@@ -2129,6 +2219,124 @@ web.fullScreen.setProperty=function(){
 	}
 };
 
+//http://dracoblue.net/dev/linear-least-squares-in-javascript/
+web.slopeOf=function(values_x, values_y) {
+	if(!values_y){
+
+	}
+    var sum_x = 0;
+    var sum_y = 0;
+    var sum_xy = 0;
+    var sum_xx = 0;
+    var count = 0;
+
+    /*
+     * We'll use those variables for faster read/write access.
+     */
+    var x = 0;
+    var y = 0;
+    var values_length = values_x.length;
+
+    if (values_length != values_y.length) {
+        throw new Error('The parameters values_x and values_y need to have same size!');
+    }
+
+    /*
+     * Nothing to do.
+     */
+    if (values_length === 0) {
+        return [ [], [] ];
+    }
+
+    /*
+     * Calculate the sum for each of the parts necessary.
+     */
+    for (var v = 0; v < values_length; v++) {
+        x = values_x[v];
+        y = values_y[v];
+        sum_x += x;
+        sum_y += y;
+        sum_xx += x*x;
+        sum_xy += x*y;
+        count++;
+    }
+
+    /*
+     * Calculate m and b for the formular:
+     * y = x * m + b
+     */
+    var m = (count*sum_xy - sum_x*sum_y) / (count*sum_xx - sum_x*sum_x);
+    var b = (sum_y/count) - (m*sum_x)/count;
+
+    return {m:m,b:b}
+    // /*
+    //  * We will make the x and y result line now
+    //  */
+    // var result_values_x = [];
+    // var result_values_y = [];
+
+    // for (var v = 0; v <; values_length; v++) {
+    //     x = values_x[v];
+    //     y = x * m + b;
+    //     result_values_x.push(x);
+    //     result_values_y.push(y);
+    // }
+
+    // return [result_values_x, result_values_y];
+}
+
+web.distance=function(p1,p2,x,y){
+	if(!p1||!p2){
+		return 0
+	}
+	if(!x&&!y){
+		//http://stackoverflow.com/questions/6073505/what-is-the-difference-between-screenx-y-clientx-y-and-pagex-y
+		// pageX/Y gives the coordinates relative to the <html> element in CSS pixels.
+		// clientX/Y gives the coordinates relative to the viewport in CSS pixels.
+		// screenX/Y gives the coordinates relative to the screen in device pixels.
+		//TODO this may be removed
+		return Math.sqrt(
+			 Math.pow((p2.x||p2.left||p2.pageX||p2.clientX||p2.screenX||p2[0]||0)-(p1.x||p1.left||p1.pageX||p1.clientX||p1.screenX||p1[0]||0),2)
+			+Math.pow((p2.y||p2.top||p2.pageY||p2.clientY||p2.screenY||p2[1]||0)-(p1.y||p1.top||p1.pageY||p1.clientY||p1.screenY||p1[1]||0),2)
+			)
+	}
+	return Math.sqrt(Math.pow(p2[x]-p1[x],2)+Math.pow(p2[y]-p1[y],2))
+}
+//TODO make cursor predicitons too
+web.cursorPosition=function(ms,callback){
+	if(!callback){
+		callback=ms
+		ms=undefined
+	}
+
+	var image = $('<img src="'+web.images.spotify+'" style="position:absolute;width:13px;height:13px"/>'),p0={left:0,top:0};
+	var points=(ms)?[]:undefined
+	var slope;
+
+	$(document.body).append(image)
+	$(document).mousemove(function(e){
+
+		if(ms){
+			points.push(e)
+	    	if(points.length>=5){
+	    		points.unshift()
+	    	}else{
+	    		return
+	    	}
+	    	slope=web.slopeOf(points)
+	    	distance=web.distance(points[5],points[4],'pageX','pageY')
+
+	    	speed = distance/(points[5].timestamp-points[4].timestamp)
+
+	    	y = x * slope.m + slope.b;
+	    }
+
+    	image.css('left',e.pageX).css('top',e.pageY);
+	});
+
+}
+
+
 web.inputText=function(callback){
 	var id=web.GUID();
 	var location;
@@ -2157,6 +2365,110 @@ web.inputText=function(callback){
 
 	$(document.body).append(form)
 	return form;
+}
+
+var getSelectedText=function(withAnnotation){
+	var text = "";
+	    if (window.getSelection) {
+	        text = window.getSelection().toString();
+	    } else if (document.selection && document.selection.type != "Control") {
+	        text = document.selection.createRange().text;
+	    }
+	return text;
+}
+
+web.textSelection=function(callback){
+	if(callback){
+		if(web.isString(callback)){
+			callback=function(e,data){
+				web.put(location,data)
+			}
+		}
+
+		$(document.body).mouseup(function() {
+			var text=getSelectedText();
+		    text && callback(text);
+		});
+	}
+	return getSelectedText();
+}
+
+//TODO make this work
+//it should select elements that we send to it in an array or single elements
+//http://stackoverflow.com/questions/2075304/how-to-modify-the-document-selection-in-javascript
+web.select=function(){
+	$.fn.autoSelect = function(){
+    var selectTarget = this[0]; // Select first element from jQuery collection
+    if(selectTarget != null) {
+         if(selectTarget.tagName == 'TEXTAREA' || (selectTarget.tagName == "INPUT" && selectTarget.type == "text")) {
+             selectTarget.select();
+         } else if(window.getSelection) { // FF, Safari, Opera
+             var sel = window.getSelection();
+             var range = document.createRange();
+             range.selectNode(selectTarget);
+             sel.removeAllRanges();
+             sel.addRange(range);
+         } else { // IE
+             document.selection.empty();
+             var range = document.body.createTextRange();
+             range.moveToElementText(selectTarget);
+             range.select();
+         };
+    };
+    return this; // Don't break the chain
+};
+}
+//original Inspiration http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
+web.getTextPixelWidth=function(text,css){
+	var f;
+	//TODO css can be just a font style,or css string, or object hash
+	if(css.indexOf(':')==-1){
+		f=css,css=''
+	}else{
+		f='12px arial' //TODO get default body font
+	}
+	var o = $('<div style="'+(css||'')+'">' + text + '</div>')
+	    .css({'position': 'absolute', 'float': 'left', 'white-space': 'nowrap', 'visibility': 'hidden', 'font': f})
+	    .appendTo($('body')),
+	w = o.width();
+
+	o.remove();
+  return w;
+}
+//Original inspiration 
+//http://stackoverflow.com/questions/2026335/how-to-add-extra-info-to-copied-web-text
+web.editSelection=function(arg0,hidden){
+    if(hidden){
+    	//Get the selected text and append the extra info
+	    var selection = getSelection(),
+	        pagelink = arg0||'<br /><br /> Read more at: ' + document.location.href,
+	        copytext = selection + (pagelink.call)?pagelink():pagelink,
+	        newdiv = document.createElement('div');
+
+	    //hide the newly created container
+	    newdiv.style.position = 'absolute';
+	    newdiv.style.left = '-99999px';
+
+	    //insert the container, fill it with the extended text, and define the new selection
+	    document.body.appendChild(newdiv);
+	    newdiv.innerHTML = copytext;
+	    selection.selectAllChildren(newdiv);
+
+	    web.defer(function(){
+	        document.body.removeChild(newdiv);
+	    });
+	}
+}
+web.onEvent=function(eventName,callback,arg0){
+	if(eventName=='copy'){
+		if(callback=='annotation'){
+			callback=function(){
+			web.editSelection(arg0,true)
+			}
+		}
+	}
+	document.addEventListener(eventName,callback);
+
 }
 web.getColumn=function(matrix,header,callback){
 	if(web.isString(header)){
