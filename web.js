@@ -596,6 +596,78 @@ if(web.environment.platform=="nodejs"){
 }
 
 
+PNotify.prototype.options.styling = "fontawesome";
+//https://github.com/jpillora/notifyjs.git
+web.notify=function(title,message,options,callback){
+	if(web.isString(options)){
+		//'class:warning;showing:fadeIn swing 300;hiding:fadeOut linear 1000;time:-1'
+		options=web.declorationParser(input,map,note)
+	}
+
+	if(message instanceof jQuery){
+		message = message.html()
+	}
+	var notice = new PNotify({
+		title:title,
+	    text: message,
+	    icon: false,
+	    width:'auto',
+	    hide: false,
+	    buttons: {
+	        closer: false,
+	        sticker: false
+	    },
+	    insert_brs: false
+	});
+
+	notice.get().find('form.pf-form').on('click', '[name=cancel]', function() {
+	    notice.remove();
+	}).submit(function() {
+	    var username = $(this).find('input[name=username]').val();
+	    if (!username) {
+	        alert('Please provide a username.');
+	        return false;
+	    }
+	    notice.update({
+	        title: 'Welcome',
+	        text: 'Successfully logged in as ' + username,
+	        icon: true,
+	        width: PNotify.prototype.options.width,
+	        hide: true,
+	        buttons: {
+	            closer: true,
+	            sticker: true
+	        },
+	        type: 'success'
+	    });
+	    return false;
+	});
+
+	return notice
+}
+
+
+var cssMap={
+	class:function(){},
+	showing:function(e,options){
+		e.show(options)
+	},
+	hiding:function(){},
+	time:function(){}
+}
+web.declorationParser=function(input,map){
+	input=input.split(';')
+	_.forEach(input,function(value,key){
+		value=value.split(':')
+		(cssMap[value[0]]||cssMap.default)(value[1].split(' '))
+	})
+
+	web.traverse(map,function(path,key,control){
+
+	})
+}
+
+
 
 
 
@@ -817,7 +889,7 @@ var isChild=function(obj,constructor){
 	}
  	obj=obj||web.global;
  
- 	var partionChar='@' //TODO find the programmers secret delimiter trick from C++
+ 	var partitionChar='@' //TODO find the programmers secret delimiter trick from C++
 	  var bracketsPattern=/\[(\D*?)\]/g
 	  var arrayPattern = /\[\d+?\]/g;
 	  var bracketVariables=[];
@@ -825,7 +897,7 @@ var isChild=function(obj,constructor){
 	if(web.isString(path)){
 	  path=path.replace(bracketsPattern,function(a){
 	  	bracketVariables.push(a.slice(2,a.length-2))
-	  	return '.'+partionChar
+	  	return '.'+partitionChar
 	  })
 
 	  if(path.charAt(0)=='.'){ //remove  
@@ -839,7 +911,7 @@ var isChild=function(obj,constructor){
 	//['root','@','child[9]','@[89]'] where @s are variable,pee 
 
 
-	  var match,caret,variable;
+	  var numbers,caret,variable;
 	  //traverse
 		for (var i = 0, l=path.length; i < l; i++) {
 			caret=path[i];
@@ -853,35 +925,50 @@ var isChild=function(obj,constructor){
 
 			
 			
-			if(caret.charAt(0)==partionChar){
+			var partition = caret.indexOf('[')
+
+			//set numbers
+			if(partition==-1){
+				partition=undefined
+				numbers=[]
+			}else{
+				numbers=caret.slice(partition+1,-1).split('][')
+			}
+
+			while(true){
+				if(typeof path[i+1] == 'number'){
+					numbers.push(path[++i])
+				}else{
+					break;
+				}
+			}
+
+			//set variable
+			if(caret.charAt(0)==partitionChar){
 				variable=bracketVariables.shift()
 			}else{
-				variable=caret.match(/(.*?)\[/)[1];
+				variable=caret.slice(0,partition);
 			}
 
-			console.log(caret,variable,match)
+			console.log('position caret=',caret,' variable ',variable,' match ',numbers)
 
-			if(i!=path.length-1){
+			
 				if (variable) {
-					obj = obj[variable] = obj[variable]||{}
+					if(i==l){//assign
+						obj[variable]=value;
+					}else{
+						obj = obj[variable] = obj[variable]||{}
+					}
 				}
-				match = arrayPattern.exec(caret)||web.Array();
-				for(var j=0,k=match.length,j<k;j++){
-					var number=parseFloat(match[j]);
-					obj = obj[number] = obj[number] || {}; //TODO see if the next object is an array
+				for(var j=0,k=numbers.length;j<k;j++){
+					var number=parseFloat(numbers[j]);
+					if(i>=l && j>=k){
+						obj[number] = value
+					}else{
+						obj = obj[number] = obj[number] || ((k-j)?[]:{});
+					}
 				}
-				continue
 			}
-			//assign
-			if (variable) {
-				obj[variable]=value;
-			} 
-			match = arrayPattern.exec(caret)||web.Array();
-			for(var j=0,k=match.length,j<k;j++){
-				var number=parseFloat(match[j]);
-				obj[number] = value
-			}
-		}
 	  return obj;
 }
 web.set=function(context,path,value){
