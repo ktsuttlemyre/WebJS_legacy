@@ -200,7 +200,15 @@ web.isA=function(obj,arg0,arg1,arg2,arg3,arg4){
 }
 
 
-	
+web.stack=function(index){
+	if(index){
+		return (new Error).stack.split("\n")[index]
+	}
+	return (new Error).stack.split("\n")
+}
+web.lineNumber=function(){
+	return (new Error).stack.split("\n")[2]
+}
 web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
 	if(!err&&!callback){
 		return web.error.last;
@@ -208,6 +216,7 @@ web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
 	if(err){
 		var line = (new Error).stack.split("\n")[2]
 		console.error('Error '+line.trim()+' :'+err);
+		//TODO send error back to server!
 	}
 	if(callback){
 		web.error.last=err
@@ -215,6 +224,9 @@ web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
 		web.error.last=undefined
 	}
 	return err
+}
+web.depricated=function(reason,fn){
+	console.error('This function is depricated for reason:',reason,fn)
 }
 web.warning=null;
 web.event=null;
@@ -404,6 +416,18 @@ web.traverse=function(collection,fn,bind,args){
 
 
 web.forPartition=function(collection,fn,bind){
+
+}
+
+
+web.simplifyXML=function(obj,arrayLocation,xml){
+	if(web.isString(xml)){
+		xml = web.toObject(xml)
+	}
+	var output = [];
+	obj.traverse(obj,function(value,key,control){
+
+	})
 
 }
 
@@ -742,7 +766,7 @@ web.camelCase=function(string,agressive) {
 
 /*jquery's type operations extracted for use before jquery is loaded*/
 var class2type = {
-	"[object Boolean]": "Boolean",
+	/*"[object Boolean]": "Boolean",
 	"[object Number]": "Number",
 	"[object String]": "String",
 	"[object Function]": "Function",
@@ -751,7 +775,15 @@ var class2type = {
 	"[object RegExp]": "Regexp",
 	"[object Object]": "Object",
 	"[object Undefined]":"Undefined",
-	"[object Null]":"Null"
+	"[object Null]":"Null"*/
+}
+var isChild=function(obj,constructor){
+	obj=Object.getPrototypeOf(obj)
+	while(obj){
+		if(obj.constructor===constructor){return true;}
+		obj=Object.getPrototypeOf(obj)
+	}
+	return false
 }
 
 /*
@@ -760,30 +792,24 @@ var class2type = {
  * @return {[type]}     [description]
  */
 
- var type=web.isType=function(obj,equals){
+ var type=web.isType=web.isInterface=function(obj,equals){
  	if(equals){
- 		return /*obj == null ? String(obj) :*/ (class2type[Object.prototype.toString.call(obj)] || "Object")==equals;	
+ 		if(web.isString(equals)){
+ 			return /*obj == null ? String(obj) :*/ (class2type[Object.prototype.toString.call(obj)] || (class2type[Object.prototype.toString.call(obj)]=Object.prototype.toString.call(obj).slice(8,-1)))==equals;
+ 		}else{
+ 			return obj instanceof equals //|| isChild(Object.getPrototypeOf(obj),equals)
+ 		}
  	}
- 	return /*obj == null ? String(obj) :*/ class2type[Object.prototype.toString.call(obj)] || "Object";
+ 	return /*obj == null ? String(obj) :*/ class2type[Object.prototype.toString.call(obj)] || (class2type[Object.prototype.toString.call(obj)]=Object.prototype.toString.call(obj).slice(8,-1));
  }
  var isType=type;
-
- var petigree=function(obj,parent){
- 	if(parent){
- 		if(!isString(parent)){
- 			return obj instanceof parent;
- 		}else{
-
- 		}
- 	}//else return an array
-
-
- }
-
 
 
  //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
  	web.put=function(obj,path,value){ //path only supports dotNotation and now brakets! :-D
+ 	//example path 
+ 	//root["variable"].child[9]['pee'][89]
+
  	if(web.isString(obj)){
 		value=path
 		path=obj
@@ -793,9 +819,10 @@ var class2type = {
  
  	var partionChar='@' //TODO find the programmers secret delimiter trick from C++
 	  var bracketsPattern=/\[(\D*?)\]/g
-	  var arrayPattern = /(.+)\[(\d+)\]/;
+	  var arrayPattern = /\[\d+?\]/g;
 	  var bracketVariables=[];
 
+	if(web.isString(path)){
 	  path=path.replace(bracketsPattern,function(a){
 	  	bracketVariables.push(a.slice(2,a.length-2))
 	  	return '.'+partionChar
@@ -806,7 +833,11 @@ var class2type = {
 	  }
 
 	  path = path.split('.');
-	  console.log(path)
+	}
+
+	//path is now in the form of 
+	//['root','@','child[9]','@[89]'] where @s are variable,pee 
+
 
 	  var match,caret,variable;
 	  //traverse
@@ -820,37 +851,81 @@ var class2type = {
 				throw 'syntax error'
 			}
 
-			match = arrayPattern.exec(caret);
+			
 			
 			if(caret.charAt(0)==partionChar){
 				variable=bracketVariables.shift()
-				match && (match[1]=variable)
 			}else{
-				variable=caret;
+				variable=caret.match(/(.*?)\[/)[1];
 			}
 
 			console.log(caret,variable,match)
 
 			if(i!=path.length-1){
-				if (match) {
-					obj = obj[match[1]] = obj[match[1]] || []
-					match[2]=parseFloat(match[2])
-					obj = obj[match[2]] = obj[match[2]] || {}; //TODO see if the next object is an array
-					continue
+				if (variable) {
+					obj = obj[variable] = obj[variable]||{}
 				}
-				obj = obj[variable] = obj[variable]||{}
+				match = arrayPattern.exec(caret)||web.Array();
+				for(var j=0,k=match.length,j<k;j++){
+					var number=parseFloat(match[j]);
+					obj = obj[number] = obj[number] || {}; //TODO see if the next object is an array
+				}
 				continue
 			}
 			//assign
-			if (match) {
-				obj = obj[match[1]] = obj[match[1]] || []
-				obj[parseFloat(match[2])]=value;
-			} else {
+			if (variable) {
 				obj[variable]=value;
+			} 
+			match = arrayPattern.exec(caret)||web.Array();
+			for(var j=0,k=match.length,j<k;j++){
+				var number=parseFloat(match[j]);
+				obj[number] = value
 			}
 		}
 	  return obj;
 }
+web.set=function(context,path,value){
+	web.depricated('use put',web.set)
+
+  var ns = path.split('.'), o =(context=context||window);
+  var prop = ns.pop();
+  for(var i = 0, l = ns.length; i < l; i++){
+    o = o[ns[i]] = o[ns[i]] || {};
+  }
+  
+  o[prop]=value;
+
+  return o;
+};
+
+web.get=function(){
+
+}
+
+
+
+web.take=function(array,n,n1){
+	if(n1){
+		return array.slice(n,n1)
+	}
+	array.slice(0,n)
+}
+
+
+web.slice=function(input,index,index2){
+	if(web.isString(input)){
+		
+		return input[(index<0)?input.length+index:index]
+	}
+
+}
+
+web.appendToHashArray = function(obj,key,value){
+		var array = obj[key];
+		(!array) && (obj[key]=array=[])
+		array.push(value)
+		return array
+	}
 
 web.supportsWorkers=function(){
 	return !!web.global.Worker;
@@ -993,7 +1068,7 @@ web.toObject=function(input,type,callback){
 		//trim first to remove whitespace for testing
 		var detectionString = input.trim()
 		var char0 = detectionString[0]
-		var charLast=web.get(detectionString,-1)
+		var charLast=web.slice(detectionString,-1)
 
 		if((char0=='{'||char0=='[') && (charLast==']'||charLast=='}')){
 			return (callback)?callback(null,JSON.parse(detectionString)):JSON.parse(detectionString);
@@ -1143,17 +1218,7 @@ for(var i = 0, l = ns.length; i < l; i++){
 }
 return (_.isFunction(o))?_.bind(o,context):o;
 }
-web.set=function(context,path,value){
-  var ns = path.split('.'), o =(context=context||window);
-  var prop = ns.pop();
-  for(var i = 0, l = ns.length; i < l; i++){
-    o = o[ns[i]] = o[ns[i]] || {};
-  }
-  
-  o[prop]=value;
 
-  return o;
-};
 
 web.swapState=function(elem,states){
 	elem=$(elem)
@@ -1171,26 +1236,6 @@ web.swapState=function(elem,states){
 	return state
 
 }
-
-web.take=function(array,n,n1){
-	if(n1){
-		return array.slice(n,n1)
-	}
-	array.slice(0,n)
-}
-web.get=function(input,index,index2){
-	if(web.isString(input)){
-		return input[(index<0)?input.length+index:index]
-	}
-
-}
-
-web.appendToHashArray = function(obj,key,value){
-		var array = obj[key];
-		(!array) && (obj[key]=array=[])
-		array.push(value)
-		return array
-	}
 
 		/**
  * Returns a random integer between min (inclusive) and max (inclusive)
@@ -1427,6 +1472,23 @@ web.partition=function(lines,condition,comparator){
 	}
 	return partitions
 }
+
+//http://stackoverflow.com/questions/3115150/how-to-escape-regular-expression-special-characters-using-javascript
+web.encodeRegExp=function(text){
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+};
+
+web.splitOnNth=function(string,characters,index,flags){
+	var reg=web.splitOnNth.bank[characters+index+flags]
+	if(!reg){
+		var characters=web.encodeRegExp(characters)
+		var arr = Array.apply(null,Array(index));
+		arr.map(function(x,i){return characters});
+		reg=web.splitOnNth.bank=new RegExp('/'+arr.join('.+?')+'(.+)?/',flags)
+	}
+	return string.split(reg)[1]
+}
+web.splitOnNth.bank={}
 
 web.removeWhitespace=function(str,trim){
 	return ((trim)?str.trim():str).split(web.regExp.concurrentWhitespace)
@@ -2490,7 +2552,9 @@ web.getColumn=function(matrix,header,callback){
 
 
 web.Object=function(){return web.create('object')}
-web.Array=function(){return web.create('array')}
+web.Array=function(){
+	return web.create('array')
+}
 
 web.create=web.new=function(constructor /*arguments*/){
 	if(!web.isString(constructor)){
