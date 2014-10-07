@@ -43,7 +43,13 @@ var web=(function(web,global,environmentFlags,undefined){
 			
 		}
 	}
-	web=function(){};
+
+	web=function(){
+		if(this===web || this===web.global){
+			//arg1:scope;
+		}
+	};
+
 
 	web.global = global;
 	global.web=web
@@ -213,6 +219,11 @@ web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
 	if(!err&&!callback){
 		return web.error.last;
 	}
+	if(web.isFunction(err)){
+		callback=err
+		err=null
+	}
+
 	if(err){
 		var line = (new Error).stack.split("\n")[2]
 		console.error('Error '+line.trim()+' :'+err);
@@ -602,7 +613,11 @@ web.notify=function(title,message,options,callback){
 	if(web.isString(options)){
 		//'class:warning;showing:fadeIn swing 300;hiding:fadeOut linear 1000;time:-1'
 		options=web.declorationParser(input,map,note)
+	}else if(web.isFunction(options)){
+		callback =options
+		options=undefined
 	}
+
 
 	if(message instanceof jQuery){
 		message = message.html()
@@ -619,6 +634,12 @@ web.notify=function(title,message,options,callback){
 	    },
 	    insert_brs: false
 	});
+
+
+
+
+
+	web.shadow()
 
 	notice.get().find('form.pf-form').on('click', '[name=cancel]', function() {
 	    notice.remove();
@@ -646,6 +667,46 @@ web.notify=function(title,message,options,callback){
 	return notice
 }
 
+//callback(e,notify,value)
+web.prompt=function(title,message,options,callback){
+	if(web.isString(options)){
+		//'class:warning;showing:fadeIn swing 300;hiding:fadeOut linear 1000;time:-1'
+		options=web.declorationParser(input,map,note)
+	}else if(web.isFunction(options)){
+		callback =options
+		options=undefined
+	}
+	var defaultValue=''
+
+	if(message instanceof jQuery){
+		message = message.html()
+	}else if(web.isArray(message)){
+		defaultValue=message[1]
+		message=message[0]
+	}
+
+	var notify=new PNotify({
+	    title: title,
+	    text: message,
+	    //icon: 'glyphicon glyphicon-question-sign',
+	    hide: false,
+	    confirm: {
+	        prompt: true,
+	        //prompt_multi_line: true,
+        	prompt_default: defaultValue
+	    },
+	    buttons: {
+	        closer: true,
+	        sticker: false
+	    },
+	    history: {
+	        history: false
+	    }
+	})
+	notify.get().on('pnotify.confirm', callback||dummyFunction).on('pnotify.cancel', callback||dummyFunction);
+	return notify
+}
+
 
 var cssMap={
 	class:function(){},
@@ -666,6 +727,23 @@ web.declorationParser=function(input,map){
 
 	})
 }
+
+web.shadow=function(obj,face){
+		if(!(peanuts instanceof web.shadow)){return new web.shadow(obj,face)};
+
+		_.forEach(face,function(value,key){
+			if(web.isString(value)){
+				this[key]=function(setVal){
+					if(value===undefined){
+						return web.get(value)
+					}else{
+						web.put(this,value,setVal)
+					}
+				}
+			}
+			this[key]=_.bind(value,this)
+		},obj)
+	}
 
 
 
@@ -913,8 +991,8 @@ var isChild=function(obj,constructor){
 
 	  var numbers,caret,variable;
 	  //traverse
-		for (var i = 0, l=path.length; i < l; i++) {
-			caret=path[i];
+		for (var i = 0, l=path.length; i < l;) {
+			caret=path[i++];
 
 			/*if(variable.charAt(variable.length-1)==']'){
 				obj=obj@@@@[parseFloat(variable.slice(variable.lastIndexOf('[',variable.length-2)+1,variable.length-1))]
@@ -950,19 +1028,19 @@ var isChild=function(obj,constructor){
 				variable=caret.slice(0,partition);
 			}
 
-			console.log('position caret=',caret,' variable ',variable,' match ',numbers)
+			//console.log('position caret=',caret,' variable ',variable,' numbers ',numbers,path)
 
 			
 				if (variable) {
-					if(i==l){//assign
+					if(i>=l){//assign
 						obj[variable]=value;
 					}else{
 						obj = obj[variable] = obj[variable]||{}
 					}
 				}
-				for(var j=0,k=numbers.length;j<k;j++){
-					var number=parseFloat(numbers[j]);
-					if(i>=l && j>=k){
+				for(var j=0,k=numbers.length;j<k;){
+					var number=parseFloat(numbers[j++]);
+					if(i>=l && j>=k){ //assign
 						obj[number] = value
 					}else{
 						obj = obj[number] = obj[number] || ((k-j)?[]:{});
@@ -1141,6 +1219,8 @@ web.pop=function(input){
 	return input && input.slice && input.slice(-1);
 }
 var dummyObject={}
+var dummyFunction=function(){};
+
 //xml.pathway().reaction(1).compound(2,'attributes').name
 var x2js =null;
 web.toObject=function(input,type,callback){
@@ -1148,6 +1228,9 @@ web.toObject=function(input,type,callback){
 	if(web.isObject(type)){
 		options=type
 		type=options.type
+	}else if(web.isFunction(type)){
+		callback=type
+		type=undefined
 	}
 	options=options||dummyObject;
 	type=type&&type.toUpperCase();
