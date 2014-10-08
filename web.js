@@ -2876,7 +2876,7 @@ web.checksum=function(input,args,callback){
 		stream = fs.ReadStream(input);
 	}else if(web.isStream(input)){
 		stream=input;
-	}else if(web.isString(intput)){
+	}else if(web.isString(input)){
 		stream=new Stream();
 		web.defer.call(stream,stream.emit,'data',input);
 	}
