@@ -204,6 +204,58 @@ web.isA=function(obj,arg0,arg1,arg2,arg3,arg4){
 		return (typeof e == 'string')?typeof obj == e:obj instanceof e;
 	})
 }
+//to use as seen in web.pubSub
+//blocking = varSwap(namespace, namespace = blocking)
+//Inspiration http://stackoverflow.com/questions/16201656/how-to-swap-two-variables-in-javascript
+//Example: b=varSwap(a,a=b)
+var varSwap=function(x){
+	return x;
+}
+
+//Inspiration http://benjii.me/2013/02/quickevent-a-tiny-javascript-event-engine/
+web.pubSub=function(namespace,blocking) {
+	if(namespace===true){
+		blocking = varSwap(namespace, namespace = blocking);
+	}
+	var nextSubscriberId = 0,listeners=[];
+
+	var subPub=(blocking)?(function(arg0,arg1,arg2,arg3,arg4,arg5){
+			var scope = (this===subPub)?web.global:this;
+		    for (var i=0,l=listeners.length;i<l;i++) {
+		        listeners[i]&&listeners[i].apply(scope,arg0,arg1,arg2,arg3,arg4,arg5);
+		    }
+		}):(function(arg0,arg1,arg2,arg3,arg4,arg5){
+			var scope = (this===subPub)?web.global:this;
+		    for (var i=0,l=listeners.length;i<l;i++) {
+		        listeners[i]&&web.defer.call(scope,listeners[i],arg0,arg1,arg2,arg3,arg4,arg5);
+		    }
+		})
+
+
+	subPub.alter=subPub.subscribe=subPub.unsubscribe=function(input){
+		var type = typeof input;
+		if(type == 'function'){
+	    	listeners[nextSubscriberId] = input;
+	    	return nextSubscriberId++;
+	    }else if(type =='number'){
+	   		var handle = subPub[input];
+	    	delete listeners[input];
+	    	return handle
+	    }else if(input=='destroy'||input=='delete'){
+			for (var i=0,l=subPub.length;i<l;i++) {
+		    	listeners[i]=undefined
+		    	delete listeners[i]
+			}
+			nextSubscriberId=undefined
+	    }else{
+	    	throw new Error('type not handled')
+	    }
+	};
+	
+	if(namespace){web.put(web.pubSub,namespace,subPub)}
+	return subPub;
+};
+
 
 
 web.stack=function(index){
@@ -591,9 +643,10 @@ web.ascii=function(key){
 
 
 	//now export it if we are in NODE.js
+	web.isNodeJS=false;
 	if (typeof module !== 'undefined' && module.exports) {
         module.exports = web;
-        web.isNode = true;
+        web.isNodeJS = true;
 	}
 
 if(web.environment.platform=="nodejs"){
@@ -1572,12 +1625,13 @@ If keys are null/undefined it is assumed that obj is arraylike
 {1:something,2:something,3:something} //like an arguments object
 and will be converted using slice method.
 */
-web.toArray=function(obj,keys){
+web.toArray=function(obj,keys,index2){
 	if(typeof keys=='string'){
 		keys = keys.split(',')
-	}else if(keys==null){ //assume obj is array like so make it array
-		return Array.prototype.slice.call(obj, 0);
+	}else if(keys==null||typeof keys=='number'){ //assume obj is array like so make it array
+		return Array.prototype.slice.call(obj, keys||0,index2||undefined);
 	}
+	
 	var array = []
 	for(var i=0,l=keys.length;i<l;i++){
 		array.push(obj[keys[i]])
@@ -2802,9 +2856,8 @@ var setImmediate =web.setImmediate=(function() {
     // Like setTimeout, but only takes a function argument.  There's
     // no time argument (always zero) and no arguments (you have to
     // use a closure).
-	function setImmediate(){
-		var func,callback=function(){func.apply(func,args)},args=Array.prototype.slice.call(arguments, 0);
-		if(args[0]==null){ //create defer object if called with no arguments!
+	function setImmediate(func){
+		if(func==null){ //create defer object if called with no arguments!
 			var queue=[]
 			var end = false;
 			var next=function(){apply(queue.shift(),arguments)}
@@ -2815,7 +2868,7 @@ var setImmediate =web.setImmediate=(function() {
 				}
 				if(arg===undefined){
 					return next
-				}else if(web.isFunction(arg){
+				}else if(web.isFunction(arg)){
 					queue.push.apply(queue,arguments)
 				}else if(arg===b){
 					//end
@@ -2829,12 +2882,12 @@ var setImmediate =web.setImmediate=(function() {
 
 			return b
 		}
-		if(this!==web||this!==web.global){
-			func=this
-		}else{
-			func=args.shift()
-		}
-		if(web.isNode){
+
+		var scope=(this===web||this===web.global)?undefined:this
+			,callback=(function(){func.apply(scope,args)})
+			,args=Array.prototype.slice.call(arguments, 1);
+
+		if(web.isNodeJS){
 			return setTimeout(callback,0);
 	    }
         return timeouts.push(callback),window.postMessage(messageName, "*");
@@ -2860,12 +2913,12 @@ Web.defer
 web.defer=setImmediate;
 
 
-var defer=web.defer()
+/*var defer=web.defer()
 defer(function(){web.proxy('get','google.com',defer())}
 	,function(){web.proxy('get','yahoo.com',defer())}
 	,function(){alert.apply(alert,arguments)}
 	)(function(e){console.error(e)})
-
+*/
 
 
 
