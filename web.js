@@ -43,7 +43,13 @@ var web=(function(web,global,environmentFlags,undefined){
 			
 		}
 	}
-	web=function(){};
+
+	web=function(){
+		if(this===web || this===web.global){
+			//arg1:scope;
+		}
+	};
+
 
 	web.global = global;
 	global.web=web
@@ -213,6 +219,11 @@ web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
 	if(!err&&!callback){
 		return web.error.last;
 	}
+	if(web.isFunction(err)){
+		callback=err
+		err=null
+	}
+
 	if(err){
 		var line = (new Error).stack.split("\n")[2]
 		console.error('Error '+line.trim()+' :'+err);
@@ -596,6 +607,145 @@ if(web.environment.platform=="nodejs"){
 }
 
 
+PNotify.prototype.options.styling = "fontawesome";
+//https://github.com/jpillora/notifyjs.git
+web.notify=function(title,message,options,callback){
+	if(web.isString(options)){
+		//'class:warning;showing:fadeIn swing 300;hiding:fadeOut linear 1000;time:-1'
+		options=web.declorationParser(input,map,note)
+	}else if(web.isFunction(options)){
+		callback =options
+		options=undefined
+	}
+
+
+	if(message instanceof jQuery){
+		message = message.html()
+	}
+	var notice = new PNotify({
+		title:title,
+	    text: message,
+	    icon: false,
+	    width:'auto',
+	    hide: false,
+	    buttons: {
+	        closer: false,
+	        sticker: false
+	    },
+	    insert_brs: false
+	});
+
+
+
+
+
+	web.shadow()
+
+	notice.get().find('form.pf-form').on('click', '[name=cancel]', function() {
+	    notice.remove();
+	}).submit(function() {
+	    var username = $(this).find('input[name=username]').val();
+	    if (!username) {
+	        alert('Please provide a username.');
+	        return false;
+	    }
+	    notice.update({
+	        title: 'Welcome',
+	        text: 'Successfully logged in as ' + username,
+	        icon: true,
+	        width: PNotify.prototype.options.width,
+	        hide: true,
+	        buttons: {
+	            closer: true,
+	            sticker: true
+	        },
+	        type: 'success'
+	    });
+	    return false;
+	});
+
+	return notice
+}
+
+//callback(e,notify,value)
+web.prompt=function(title,message,options,callback){
+	if(web.isString(options)){
+		//'class:warning;showing:fadeIn swing 300;hiding:fadeOut linear 1000;time:-1'
+		options=web.declorationParser(input,map,note)
+	}else if(web.isFunction(options)){
+		callback =options
+		options=undefined
+	}
+	var defaultValue=''
+
+	if(message instanceof jQuery){
+		message = message.html()
+	}else if(web.isArray(message)){
+		defaultValue=message[1]
+		message=message[0]
+	}
+
+	var notify=new PNotify({
+	    title: title,
+	    text: message,
+	    //icon: 'glyphicon glyphicon-question-sign',
+	    hide: false,
+	    confirm: {
+	        prompt: true,
+	        //prompt_multi_line: true,
+        	prompt_default: defaultValue
+	    },
+	    buttons: {
+	        closer: true,
+	        sticker: false
+	    },
+	    history: {
+	        history: false
+	    }
+	})
+	notify.get().on('pnotify.confirm', callback||dummyFunction).on('pnotify.cancel', callback||dummyFunction);
+	return notify
+}
+
+
+var cssMap={
+	class:function(){},
+	showing:function(e,options){
+		e.show(options)
+	},
+	hiding:function(){},
+	time:function(){}
+}
+web.declorationParser=function(input,map){
+	input=input.split(';')
+	_.forEach(input,function(value,key){
+		value=value.split(':')
+		(cssMap[value[0]]||cssMap.default)(value[1].split(' '))
+	})
+
+	web.traverse(map,function(path,key,control){
+
+	})
+}
+
+web.shadow=function(obj,face){
+		if(!(peanuts instanceof web.shadow)){return new web.shadow(obj,face)};
+
+		_.forEach(face,function(value,key){
+			if(web.isString(value)){
+				this[key]=function(setVal){
+					if(value===undefined){
+						return web.get(value)
+					}else{
+						web.put(this,value,setVal)
+					}
+				}
+			}
+			this[key]=_.bind(value,this)
+		},obj)
+	}
+
+
 
 
 
@@ -817,7 +967,7 @@ var isChild=function(obj,constructor){
 	}
  	obj=obj||web.global;
  
- 	var partionChar='@' //TODO find the programmers secret delimiter trick from C++
+ 	var partitionChar='@' //TODO find the programmers secret delimiter trick from C++
 	  var bracketsPattern=/\[(\D*?)\]/g
 	  var arrayPattern = /\[\d+?\]/g;
 	  var bracketVariables=[];
@@ -825,7 +975,7 @@ var isChild=function(obj,constructor){
 	if(web.isString(path)){
 	  path=path.replace(bracketsPattern,function(a){
 	  	bracketVariables.push(a.slice(2,a.length-2))
-	  	return '.'+partionChar
+	  	return '.'+partitionChar
 	  })
 
 	  if(path.charAt(0)=='.'){ //remove  
@@ -839,10 +989,10 @@ var isChild=function(obj,constructor){
 	//['root','@','child[9]','@[89]'] where @s are variable,pee 
 
 
-	  var match,caret,variable;
+	  var numbers,caret,variable;
 	  //traverse
-		for (var i = 0, l=path.length; i < l; i++) {
-			caret=path[i];
+		for (var i = 0, l=path.length; i < l;) {
+			caret=path[i++];
 
 			/*if(variable.charAt(variable.length-1)==']'){
 				obj=obj@@@@[parseFloat(variable.slice(variable.lastIndexOf('[',variable.length-2)+1,variable.length-1))]
@@ -853,35 +1003,50 @@ var isChild=function(obj,constructor){
 
 			
 			
-			if(caret.charAt(0)==partionChar){
+			var partition = caret.indexOf('[')
+
+			//set numbers
+			if(partition==-1){
+				partition=undefined
+				numbers=[]
+			}else{
+				numbers=caret.slice(partition+1,-1).split('][')
+			}
+
+			while(true){
+				if(typeof path[i+1] == 'number'){
+					numbers.push(path[++i])
+				}else{
+					break;
+				}
+			}
+
+			//set variable
+			if(caret.charAt(0)==partitionChar){
 				variable=bracketVariables.shift()
 			}else{
-				variable=caret.match(/(.*?)\[/)[1];
+				variable=caret.slice(0,partition);
 			}
 
-			console.log(caret,variable,match)
+			//console.log('position caret=',caret,' variable ',variable,' numbers ',numbers,path)
 
-			if(i!=path.length-1){
+			
 				if (variable) {
-					obj = obj[variable] = obj[variable]||{}
+					if(i>=l){//assign
+						obj[variable]=value;
+					}else{
+						obj = obj[variable] = obj[variable]||{}
+					}
 				}
-				match = arrayPattern.exec(caret)||web.Array();
-				for(var j=0,k=match.length,j<k;j++){
-					var number=parseFloat(match[j]);
-					obj = obj[number] = obj[number] || {}; //TODO see if the next object is an array
+				for(var j=0,k=numbers.length;j<k;){
+					var number=parseFloat(numbers[j++]);
+					if(i>=l && j>=k){ //assign
+						obj[number] = value
+					}else{
+						obj = obj[number] = obj[number] || ((k-j)?[]:{});
+					}
 				}
-				continue
 			}
-			//assign
-			if (variable) {
-				obj[variable]=value;
-			} 
-			match = arrayPattern.exec(caret)||web.Array();
-			for(var j=0,k=match.length,j<k;j++){
-				var number=parseFloat(match[j]);
-				obj[number] = value
-			}
-		}
 	  return obj;
 }
 web.set=function(context,path,value){
@@ -1053,6 +1218,8 @@ web.pop=function(input){
 	return input && input.slice && input.slice(-1);
 }
 var dummyObject={}
+var dummyFunction=function(){};
+
 //xml.pathway().reaction(1).compound(2,'attributes').name
 var x2js =null;
 web.toObject=function(input,type,callback){
@@ -1060,6 +1227,9 @@ web.toObject=function(input,type,callback){
 	if(web.isObject(type)){
 		options=type
 		type=options.type
+	}else if(web.isFunction(type)){
+		callback=type
+		type=undefined
 	}
 	options=options||dummyObject;
 	type=type&&type.toUpperCase();
