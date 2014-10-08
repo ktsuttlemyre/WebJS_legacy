@@ -903,7 +903,6 @@ web.get=function(){
 }
 
 
-
 web.take=function(array,n,n1){
 	if(n1){
 		return array.slice(n,n1)
@@ -2606,6 +2605,12 @@ web.free=function(obj,instance,obj2){
 var _scope = function(scope,arg1){
 	return (scope===web || scope===web.global)?arg1:scope;
 }
+var apply=function(fn,arr){
+	return fn.apply(fn,arr)
+}
+var call=function(fn){
+	return fn.apply(fn,Array.prototype.slice.call(arguments, 1))
+}
 
 /**************************
 Web.zeroTimeout
@@ -2629,6 +2634,31 @@ var setImmediate =web.setImmediate=(function() {
     // use a closure).
 	function setImmediate(){
 		var func,callback=function(){func.apply(func,args)},args=Array.prototype.slice.call(arguments, 0);
+		if(args[0]==null){ //create defer object if called with no arguments!
+			var queue=[]
+			var end = false;
+			var next=function(){apply(queue.shift(),arguments)}
+
+			var b = function(arg){
+				if(end){
+					throw new Error('NO NO NO!')
+				}
+				if(arg===undefined){
+					return next
+				}else if(web.isFunction(arg){
+					queue.push.apply(queue,arguments)
+				}else if(arg===b){
+					//end
+					end=true;
+				}else{
+					throw new Error('defered as an object got an object it can\'t handle',arg)
+				}
+				return b
+			}
+			web.defer.call(b,b,b)
+
+			return b
+		}
 		if(this!==web||this!==web.global){
 			func=this
 		}else{
@@ -2658,6 +2688,15 @@ Web.defer
  https://github.com/jashkenas/underscore/blob/9c1c3ea4fcafe82d546e190c5f0edd02940808e5/underscore.js#L719
 *******************************/
 web.defer=setImmediate;
+
+
+var defer=web.defer()
+defer(function(){web.proxy('get','google.com',defer())}
+	,function(){web.proxy('get','yahoo.com',defer())}
+	,function(){alert.apply(alert,arguments)}
+	)(function(e){console.error(e)})
+
+
 
 
 web.checksum=function(input,args,callback){
