@@ -395,19 +395,21 @@ web.toPropertyNotation=function(array,favorBracket){
 }
 
 
-function Traverser (collection,fn,bind,args){
+function Traverser (collection,callback,bind,e){
 	this.collection=collection
-	,this.fn=fn
+	,this.callback=callback
 	,this.scope=this.bind=bind
 	,this.index=0
 	,this.root=collection
-	,this.pwd=[]
+	,this.GID=0
+	,this.pwd=[(this.path='/')];
+	this.pwd.push('/')
 }
 Traverser.prototype.next=function(){
 	return this.collection[++this.index]
 }
-Traverser.prototype.recurse=function(collection,fn,bind,args){
-	return web.forEach(collection,fn||this.fn,bind||this.bind,args||this.args)
+Traverser.prototype.recurse=function(collection,callback,bind,e){
+	return web.traverse(collection,callback||this.callback,bind||this.bind,e||this)
 }
 Traverser.prototype.previous=function(){
 	return this.collection[--this.index]
@@ -438,43 +440,90 @@ Traverser.prototype.goTo=function(asString){
 	throw '//TODO!!!'
 }
 
+Traverser.prototype.break=web.break
+Traverser.prototype.break=web.continue
+Traverser.prototype.break=web.stop
 
-web.traverse=function(collection,fn,bind,args){
-	if(web.isObject(fn)){
-		sortComparator=fn.sortComparator
-		fn=fn.callback
+
+web.traverse=function(collection,callback,bind,e,args1){
+	var pathFilter,options,sortComparator;
+	if(web.isObject(callback)){
+		options=callback;
+		sortComparator=callback.sortComparator
+		callback=callback.callback
+		options.bind=bind
+	}else if(web.isString(callback)){
+		pathFilter=callback;
+		callback=bind
+		bind=args
+		args=args1
 	}
+	options=options||{callback:callback,bind:bind}
+	var recursive = !!(pathFilter)||options.recursive;
+
 	bind=bind||collection
 	if(!web.isString(collection)){
-		var i=0,l,stop=false;
-		var e=new Traverser(collection,fn,bind,args)
-		if(web.isArrayLike(collection)){
-			for(;e.index<collection.length;e.index++){
-				e.value=collection[i];
-				if(fn.call(bind,e)===Traverser.prototype.break){
-					return Traverser.prototype.break
-				}
-			}
-			return true
-		}else if(web.isObject(collection)){
-			var keys=e.keys=web.keys(collection);
-			if(sortComparator){
+		var isArray=web.isArrayLike(collection),isObject=web.isObject(collection);
+		if(isArray||isObject){
+			e=e||new Traverser(collection,callback,bind)
 
-				keys=keys.sort(sortComparator);
+			e.keys=(isObject)?web.keys(collection):undefined;
+
+			if(sortComparator && e.keys){
+				e.keys=e.keys.sort(sortComparator);
 			}
-			for(;e.index<keys.length;e.index++){
-				e.key=keys[i];
-				e.value=collection[e.key]
-				if(fn.call(bind,e)===Traverser.prototype.break){
-					return Traverser.prototype.break;
+
+			for(var i=0,l=(e.keys)?e.keys.length:collection.length; i<l; i++){
+				e.index=i;
+				e.GID++
+
+				//set e.value and e.key based on if it is an object we are iterating
+				if(isObject){
+					e.key=e.keys[i]
+					e.value=collection[e.key]
+					e.pwd[e.pwd.length-1]=e.key;
+				}else{//isArray
+					e.key=i.toString()
+					e.value=collection[i];
+					e.pwd[e.pwd.length-1]=i;
 				}
+				
+				//set path on e
+				
+				e.path=e.pwd.join('/');
+				
+				//if we are filtering out dirs do it now that we have a path variable
+				if(pathFilter && !pathFilter.test(e.path)){
+					continue
+				}
+				//call the callback on object
+				if(callback.call(bind,e)===Traverser.prototype.break){
+						return Traverser.prototype.break
+				}
+
+				//se if it is recursive
+				if(recursive && (web.isArrayLike(e.value)||web.isObject(e.value)) ){ 
+					//fix the path for recursive call
+					e.path+='/'
+					e.pwd.push('/')
+					//run filter since path changed
+					if(pathFilter && !pathFilter.test(e.path)){
+						continue
+					}
+					//do recursion
+					if(e.recurse(e.value,options)===Traverser.prototype.break){
+						return Traverser.prototype.break
+					}
+					e.pwd.pop()
+				}
+
 			}
 			return true
 		}
 		//fallthrough
 	}//fallthough
 	e.value=collection[key],e.index=0,e.key=undefined;
-	return !!fn.call(bind,e)
+	return !!callback.call(bind,e)
 }
 
 
