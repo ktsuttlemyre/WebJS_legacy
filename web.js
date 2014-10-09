@@ -267,6 +267,24 @@ web.stack=function(index){
 web.lineNumber=function(){
 	return (new Error).stack.split("\n")[2]
 }
+//http://getfirebug.com/wiki/index.php/Firebug_Lite_1.2#Firebug_Lite_API
+web.consoleHandler=(function(){
+	if(Firebug){
+			var tmp=window.console
+			delete window.console
+			//TODO make firebug show large commandline
+			//Firebug.chrome.showLargeCommandLine()
+			return tmp
+	}else{
+		console.warn('web.consoleHandler is browsers console')
+		return console
+	}
+})()
+
+web.bug=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
+	logWithIcon(err,web.images.bug,'error')
+	callback && callback(arg,arg1,arg2,arg3,arg4,arg5)
+}
 web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
 	if(!err&&!callback){
 		return web.error.last;
@@ -278,7 +296,7 @@ web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
 
 	if(err){
 		var line = (new Error).stack.split("\n")[2]
-		console.error('Error '+line.trim()+' :'+err);
+		//web.error('Error '+line.trim()+' :'+err);
 		//TODO send error back to server!
 	}
 	if(callback){
@@ -288,6 +306,7 @@ web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
 	}
 	return err
 }
+web.cancel=web.error
 web.depricated=function(reason,fn){
 	console.error('This function is depricated for reason:',reason,fn)
 }
@@ -473,6 +492,7 @@ web.traverse=function(collection,callback,bind,e,args1){
 				e.keys=e.keys.sort(sortComparator);
 			}
 
+
 			for(var i=0,l=(e.keys)?e.keys.length:collection.length; i<l; i++){
 				e.index=i;
 				e.GID++
@@ -487,9 +507,8 @@ web.traverse=function(collection,callback,bind,e,args1){
 					e.value=collection[i];
 					e.pwd[e.pwd.length-1]=i;
 				}
-				
+
 				//set path on e
-				
 				e.path=e.pwd.join('/');
 				
 				//if we are filtering out dirs do it now that we have a path variable
@@ -522,7 +541,7 @@ web.traverse=function(collection,callback,bind,e,args1){
 		}
 		//fallthrough
 	}//fallthough
-	e.value=collection[key],e.index=0,e.key=undefined;
+	e.value=collection[key],e.index=undefined,e.key=undefined;
 	return !!callback.call(bind,e)
 }
 
@@ -584,14 +603,75 @@ function fileSelected(evt) {
 
 web.images={}
 web.images.spotify="data:image/png;base64,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"
+web.images.bug="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAxklEQVR4nI3RoWvCQRjG8c9PTDKYYZhsW9k/YRbTQAw2wbawsCK2VasLK1aj0QXDwsL+ABEMumAUMcxg1eD9QA5/uKfcvTz3fd/n7pJ2uSxSDRV84zM2c1HdwBidsDZiII8ChnjGDt0zf4cSPvCKVR57vGOKv7gjbtHCKp0AX0hwH+pHzMN+G+JdvMNV5dDHEsWMM8Xgj1LgBQ/4zQAWwa/HkWYZwE8cCZq4QQ8bHLDGm9NDVFMgCT89CdD2woQ7DPB0DvxbR6+YIyyigNVdAAAAAElFTkSuQmCC"
 //Apple console api
 //https://developer.apple.com/library/ios/documentation/AppleApplications/Conceptual/Safari_Developer_Guide/Console/Console.html
 web.log=_.bind(console.log,console);
+web.warn=_.bind(console.warn,console);
+
+//TODO OMG ADD COLORS!!!
+//http://trac.webkit.org/changeset/130941
+//http://jsfiddle.net/yg6hk/5/
+function styledConsoleLog() {
+    var argArray = [];
+
+    if (arguments.length) {
+        var startTagRe = /<span\s+style=(['"])([^'"]*)\1\s*>/gi;
+        var endTagRe = /<\/span>/gi;
+
+        var reResultArray;
+        argArray.push(arguments[0].replace(startTagRe, '%c').replace(endTagRe, '%c'));
+        while (reResultArray = startTagRe.exec(arguments[0])) {
+            argArray.push(reResultArray[2]);
+            argArray.push('');
+        }
+
+        // pass through subsequent args since chrome dev tools does not (yet) support console.log styling of the following form: console.log('%cBlue!', 'color: blue;', '%cRed!', 'color: red;');
+        for (var j = 1; j < arguments.length; j++) {
+            argArray.push(arguments[j]);
+        }
+    }
+
+    console.log.apply(console, argArray);
+}
+
+styledConsoleLog('<span style="color:hsl(0, 100%, 90%);background-color:hsl(0, 100%, 50%);"> Red </span> <span style="color:hsl(39, 100%, 85%);background-color:hsl(39, 100%, 50%);"> Orange </span> <span style="color:hsl(60, 100%, 35%);background-color:hsl(60, 100%, 50%);"> Yellow </span> <span style="color:hsl(120, 100%, 60%);background-color:hsl(120, 100%, 25%);"> Green </span> <span style="color:hsl(240, 100%, 90%);background-color:hsl(240, 100%, 50%);"> Blue </span> <span style="color:hsl(300, 100%, 85%);background-color:hsl(300, 100%, 25%);"> Purple </span> <span style="color:hsl(0, 0%, 80%);background-color:hsl(0, 0%, 0%);"> Black </span>');
+
+function styledMODIFIEDConsoleLog() { //MODIFIEDDD
+    var argArray = [];
+
+    if (arguments.length) {
+        var startTagRe = /<span\s+style=(["])([^"]*)\1\s*>/gi;
+        var endTagRe = /<\/span>/gi;
+
+        var reResultArray;
+        argArray.push(arguments[0].replace(startTagRe, '%c').replace(endTagRe, '%c'));
+        while (reResultArray = startTagRe.exec(arguments[0])) {
+            argArray.push(reResultArray[2]);
+            argArray.push('');
+        }
+
+        // pass through subsequent args since chrome dev tools does not (yet) support console.log styling of the following form: console.log('%cBlue!', 'color: blue;', '%cRed!', 'color: red;');
+        for (var j = 1; j < arguments.length; j++) {
+            argArray.push(arguments[j]);
+        }
+    }
+
+    console.log.apply(console, argArray);
+    return argArray
+}
+
+// styledConsoleLog('<span style="color:hsl(0, 100%, 90%);background-color:hsl(0, 100%, 50%);"> Red </span> <span style="color:hsl(39, 100%, 85%);background-color:hsl(39, 100%, 50%);"> Orange </span> <span style="color:hsl(60, 100%, 35%);background-color:hsl(60, 100%, 50%);"> Yellow </span> <span style="color:hsl(120, 100%, 60%);background-color:hsl(120, 100%, 25%);"> Green </span> <span style="color:hsl(240, 100%, 90%);background-color:hsl(240, 100%, 50%);"> Blue </span> <span style="color:hsl(300, 100%, 85%);background-color:hsl(300, 100%, 25%);"> Purple </span> <span style="color:hsl(0, 0%, 80%);background-color:hsl(0, 0%, 0%);"> Black </span>');
+// styledConsoleLog('<span style="color:hsl(0, 100%, 90%);background-color:hsl(0, 100%, 50%);"> Red </span> <span style="'+css+'"> Orange </span> ');
+//  Red   Orange   VM30401:23
+// ["%c Red %c %c Orange %c ", "color:hsl(0, 100%, 90%);background-color:hsl(0, 100%, 50%);", "", "background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAxklEQ…NDVFMgCT89CdD2woQ7DPB0DvxbR6+YIyyigNVdAAAAAElFTkSuQmCC');background-repeat: no-repeat;display: block;background-size: 13px 13px;padding-left: 13px;margin-left: 5px;", ""]
+
 
 //TODO print a console favicon in log
 //TODO change this function interface n give public access
+//http://stackoverflow.com/questions/7505623/colors-in-javascript-console
 //http://jmperezperez.com/console-log-favicon/
-var logWithIcon=function(text,icon) {
+var logWithIcon=function(text,icon,type) {
   var faviconUrl = icon||web.images.spotify,
       css = "background-image: url('" + faviconUrl + "');" +
             "background-repeat: no-repeat;" +
@@ -601,9 +681,9 @@ var logWithIcon=function(text,icon) {
             "margin-left: 5px;",
       text = text||"Do you like coding? Visit www.spotify.com/jobs";
   if (navigator.userAgent.match(/chrome/i)) {
-    console.log(text + '%c', css);
+    console[type||'log'](text + '%c', css);
   } else {
-    console.log('%c   ' + text, css);
+    console[type||'log']('%c   ' + text, css);
   }
 };
 
