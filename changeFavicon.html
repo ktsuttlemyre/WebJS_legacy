@@ -1,0 +1,52 @@
+<html><head><script id="jsonp">var q=
+//!!!!OPTIONS!!!!//
+{
+	title:''
+	,href:''
+	,icon:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAXElEQVQ4T2NkoBAw4tXf8v8/WL6GEac63AbANMNswGEIdgPQNeMxBNMAXJpxGIJqACHNWAxBGECsZjRDIAYQEdoosYWknopeQHYJocSFFKWjLmBgoHIYEAp9LPIAWKstERcMux0AAAAASUVORK5CYII='
+}
+//!!!!OPTIONS!!!!//
+</script><title>Shortcut</title><link id="favicon" rel="shortcut icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAL0lEQVR42mNgGAWjAAGW48BEayZHDqei5eQakI7F+SQZsJxSFyynVhiQbABF0QgASOkUodMea0AAAAAASUVORK5CYII=" /></head><body><script>
+
+var h=location.hash.substring(1);
+if(h){
+    h.replace(/([^=&]+)=([^&]*)/g, function(m, key, value){ 
+        q[key] = (q[key] ? q[key] + "," : "") + value; 
+    }); 
+}
+if(q.icon){
+    var newIcon
+      ,icon = document.getElementById('favicon');
+       icon.type = q.icon.slice(5,q.icon.indexOf(';'));
+       icon.rel = 'shortcut icon';
+       (newIcon = icon.cloneNode(true)).setAttribute('href',q.icon);
+       icon.parentNode.replaceChild(newIcon,icon);
+}
+if(q.title){document.getElementsByTagName("title")[0].innerHTML=q.title;};
+if(q.href){window.location.href=q.href;};
+</script>
+<textarea id='editor' rows="4" cols="50">
+</textarea>
+<script>
+ function Init (textarea,fn) {
+            if (textarea.addEventListener) {    // all browsers except IE before version 9
+                textarea.addEventListener ("input", function(){fn(event.target.value)}, false);
+                    // Google Chrome and  Safari
+                textarea.addEventListener ("textInput", function(){fn(event.data)}, false);
+                    // Internet Explorer from version 9
+                textarea.addEventListener ("textinput", function(){fn(event.data)}, false);
+            }
+            
+            if (textarea.attachEvent) { // Internet Explorer and Opera
+                textarea.attachEvent ("onpropertychange", function(){if (event.propertyName.toUpperCase() == "VALUE") {fn(event.srcElement.value)}});   // Internet Explorer
+            }
+        }
+        Init(document.getElementById("editor"),(function(data){
+        	if(!data){return}
+        	var link = location.href.substring(0,location.href.indexOf(',')+1)+btoa(data)
+        	console.log(link,document.getElementById('link'))
+        	document.getElementById("link").href=link
+        }))
+document.getElementById('editor').innerHTML=atob(location.href.substring(location.href.indexOf(',')+1))</script>
+<a href='' id='link'>Link</a>
+</body></html>

@@ -1,6 +1,15 @@
 "use strict"
-//Good idea for setter/getter = http://en.wiktionary.org/wiki/seg%C3%ADt
 
+//GO HERE FOR COOL JS STUFF   http://dailyjs.com/
+//Good idea for setter/getter = http://en.wiktionary.org/wiki/seg%C3%ADt
+//tiny expression parser http://jsep.from.so/
+//compression http://pieroxy.net/blog/pages/lz-string/demo.html
+//tracking
+//https://panopticlick.eff.org/index.php?action=log&js=yes
+//http://samy.pl/evercookie/
+//build your own summary tool  http://thetokenizer.com/2013/04/28/build-your-own-summary-tool/
+// goose for above link https://github.com/grangier/python-goose
+//lazy.js may be helpul
 /*******************************************************
 				POLLYFILLS
 ********************************************************/
@@ -13,6 +22,8 @@ window.performance=window.performance||{};
 if(!window.performance.now){
 	window.performance.now=function(){return Date.now();};
 }
+
+
 
 
 
@@ -193,6 +204,75 @@ web.isA=function(obj,arg0,arg1,arg2,arg3,arg4){
 		return (typeof e == 'string')?typeof obj == e:obj instanceof e;
 	})
 }
+
+web.fork=function(url){
+	if(!(this instanceof web.fork)){return new web.fork(url)}
+	if(web.isURL(url)){
+
+	}else if(web.isHTML(url)){
+
+	}else{ //assume script
+
+	}
+	this.url=url;
+}
+web.fork.prototype.asWorker=function(){
+
+}
+web.fork.prototype.asFrame=function(){
+
+	
+}
+web.fork.prototype.asWindow=function(){
+	web.destory(this.currentInstance)
+	return this.currentInstance=window.open(this.url)
+}
+web.fork.prototype.pub=function(message,targetOrigin,transfer){
+	return web.pub(this.currentInstance,message,targetOrigin,transfer)
+}
+
+web.destory=function(obj){
+	if(!obj){
+		return 
+	}else if(web.isPopup(obj)){
+		obj.close()
+	}
+}
+
+web.isPopup=function(o){
+	return (Object.prototype.toString.call(o)=="[object global]" && !(o instanceof Window));
+}
+web.isIframe=function(o){
+	return o instanceof HTMLIFrameElement
+}
+//http://stackoverflow.com/questions/4594492/to-check-parent-window-is-iframe-or-not
+web.inIframe=function(){
+	return window.frameElement && window.frameElement.nodeName=='IFRAME'
+}
+
+var tmpArray=[];
+web.pub=function(context,message,targetOrigin,transfer){
+	if(!web.isArray(context)){
+		tmpArray.length=0
+		tmpArray.push(context)
+	}else{
+		tmpArray=context
+	}
+
+	for(var i=0,l=tmpArray.length;i<l;i++){
+		context=tmpArray[i]
+		if(web.isWindow(context)){
+
+		}else if(web.isFrame(context)){
+
+		}else if(web.isWorker(context)){
+
+		}
+	}
+}
+web.sub=function(){
+
+}
 //to use as seen in web.pubSub
 //blocking = varSwap(namespace, namespace = blocking)
 //Inspiration http://stackoverflow.com/questions/16201656/how-to-swap-two-variables-in-javascript
@@ -230,6 +310,9 @@ web.pubSub=function(namespace,blocking) {
 	   		var handle = subPub[input];
 	    	delete listeners[input];
 	    	return handle
+	    }else if(type=='object'){ //iframe,window,or worker
+	    	throw 'to implement'
+
 	    }else if(input=='destroy'||input=='delete'){
 			for (var i=0,l=subPub.length;i<l;i++) {
 		    	listeners[i]=undefined
@@ -310,6 +393,194 @@ web.regExp={alphabetical:/[a-zA-Z]/g
 			,validJSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
 			
 		}
+
+
+/*NOTE
+
+
+
+
+NumHash = function(){
+	
+
+}
+
+numhash = new NumHash();
+
+
+
+var web=this.web||{}
+web.toBitLength=web.bitClip=function(num,offset){//if offset neg then minus slots
+	if(offset==0){
+		return 0
+	}
+	if(offset<0){
+		offset = (offset ^ (offset >> 31)) - (offset >> 31) //or Math.absolute(offset)
+		return num >> offset
+	}
+	//if offset is postive then MAKE the num that offset!
+	var diff = num.toString(2).length-offset;
+	return (diff<0)?num:num >> diff
+
+}
+
+web.MAX_SAFE_CHARCODE=String.fromCharCode(Number.MAX_SAFE_INTEGER).charCodeAt(0); //16 bit!
+web.MAX_SAFE_CHARCODE_BITS=web.MAX_SAFE_CHARCODE.toString(2).length //16 or 2 bytes
+
+var _2bytes = buffer.readint()  //as number
+var _1bit = web.toBiteLength(_2bytes,2)
+
+
+*/
+
+
+
+
+<!--
+
+//-->
+/*
+
+*/
+
+web.chain = function(o,A,B,C,D,E,F,G,H,I,J,K){
+    //var g=_.defaultCall[Object.prototype.toString.call(o)];
+    //function r(A,B,C,D,E,F,G,H,I,J,K){
+   // 	else{ //if (arg0,arg1) is not a function call it accordingl
+    //        //if(g){
+     //       //    return o[g](A,B,C,D,E,F,G,H,I,J)
+      //      //}
+
+    var _=function (A,B,C,D,E,F,G,H,I,J,K){
+        if(!this===_){
+            alert('oats')
+        }
+        //handle A types
+        if(A===undefined){
+        if(return o;} //calling () removes wrapper
+        else if(A === null){throw 'problem'}; //calling (null) throws error
+        else if(typeof A == 'object'){ //calling ({o},{hash}) iterates object props
+            for(var y in A){
+                if(!A.hasOwnProperty(y)){continue;} //make sure to skip inherit properties
+                _(y,A[y]);
+            }
+            return _;
+        }else if(typeof A== 'function'){
+            throw 'I don\'t even'
+        }else if(A!='string'){
+            throw "I don't know what to do if first arugment isn't a string!"
+        }
+        //ok so A is a string by now (maybe)
+
+        var f=o[A];
+        if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
+            f(B,C,D,E,F,G,H,I,J,K);
+        }else{
+            o[A]=B;
+        }
+        return _;
+    }
+    _._=_.object=o;
+    _.t=_.type=typeof o;
+    _.c=_.class=Object.prototype.toString.call(o);
+    _.set=_;
+    //_.callable=(typeof o == 'function'); //TODO accept callable functions
+
+    //_.get=function(A,B,C,D,E,F,G,H,I,J,K){
+     //   return o[A];
+    //}
+    //_.call=function(A,B,C,D,E,F,G,H,I,J,K){
+    //    var f=o[A] || o[B];
+    //    if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
+    //        return f(B,C,D,E,F,G,H,I,J,K);
+    //    }
+    //}
+        
+    if(o == null && (_.t != 'object' || _.t != 'function'){
+        throw 'problem'
+    }
+    //}else if(typeof o == 'function'){ //DO NOT DO THIS! treat functions as if they were "callable Objects"
+     //   o=o(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z);
+    //}
+
+    return _;
+}
+//chain.defaultCall={'[object HTMLDivElement]':function(A,B){if(typeof B=='string'{return 'setAttribute'}}}
+//chain.defaultCall.params='[object HTMLDivElement]'
+
+var tag=function(o,A,B,C,D,E,F,G,H,I,J,K){
+    if(typeof o== 'string'){ //if string it is a document node. cause I SAID SO
+        o=document.createElement(o);
+        if(A != null && typeof A == 'object'){
+            return chain(o,A,B,C,D,E,F,G,H,I,J,K); //if given a hash object then handle it.
+        }
+    }
+    throw 'Error, not a string tag!'
+}
+
+//test
+var e=tag('div')('id','bees')('className','two')()
+var z=tag('div',{id:'bees1',className:'two0'})()
+document.body.appendChild(e);
+document.body.appendChild(z);
+
+
+
+
+//simple chain
+
+
+simpleChain = function(o){
+    function f(p,v){
+        o[p]=v;
+        return f;
+    }
+    return f;
+}
+
+
+
+/*The advantage of this:
+1) multi pointers
+2) estimate where the pointer was before this script initiated //good for bookmarks and injections
+3) global calls (default to primary mouse) or instances
+*/
+
+
+var pointer = {x: null, y: null, element:null};
+web.Pointer=function(){//TODO accept multi pointers
+	$(document).mousemove(function(e){
+		pointer=e;
+	})
+
+	/*.addEventListener('mousemove', function(e){ 
+	    pointer.x = e.clientX || e.pageX; 
+	    pointer.y = e.clientY || e.pageY 
+	}, false);*/
+}
+	
+web.Pointer.prototype.getLocation=function(){
+	//TODO
+	if(!pointer.target){
+
+    	//hooks were not hooked so guess where it is within the last eliment hovered
+    	var elem = $( ":hover" ).last()
+		var offset = elem.offset();
+
+		var x = offset.left + elem.width() / 2,y = offset.top + elem.height() / 2;
+		return [x,y]
+	}
+	return pointer
+}
+
+
+/*pointer = new web.Pointer();
+pointer.getLocation();
+pointer.getElement();*/
+
+
+
+
 
 //adds readability to _.forEach
 _.continue=undefined;
@@ -499,7 +770,7 @@ web.traverse=function(collection,callback,bind,e,args1){
 
 				//set path on e
 				e.path=e.pwd.join('/');
-				
+
 				//if we are filtering out dirs do it now that we have a path variable
 				if(pathFilter && !pathFilter.test(e.path)){
 					continue
@@ -509,7 +780,7 @@ web.traverse=function(collection,callback,bind,e,args1){
 						return Traverser.prototype.break
 				}
 
-				//se if it is recursive
+				//see if it is recursive
 				if(recursive && (web.isArrayLike(e.value)||web.isObject(e.value)) ){ 
 					//fix the path for recursive call
 					e.path+='/'
@@ -531,7 +802,18 @@ web.traverse=function(collection,callback,bind,e,args1){
 		//fallthrough
 	}//fallthough
 	e.value=collection[key],e.index=undefined,e.key=undefined;
-	return !!callback.call(bind,e)
+
+	//set path on e
+	//e.path=e.pwd.join('/');
+
+	//if we are filtering out dirs do it now that we have a path variable
+	if(pathFilter && !pathFilter.test(e.path)){
+		return
+	}
+	//call the callback on object
+	if(callback.call(bind,e)===Traverser.prototype.break){
+			return Traverser.prototype.break
+	}
 }
 
 
@@ -550,6 +832,16 @@ web.simplifyXML=function(obj,arrayLocation,xml){
 	})
 
 }
+
+
+//JSON to table
+//http://marianoguerra.github.io/json.human.js/
+//editable html
+//http://vitalets.github.io/x-editable/demo-bs3.html?c=inline
+web.toHTML=function(){
+
+}
+
 
 //TODO
 //http://www.techmcq.com/article/Converting-an-image-into-data-URI-using-JavaScript-FileReader/61
@@ -2827,6 +3119,7 @@ web.cursorPosition=function(ms,callback){
 
 
 web.inputText=function(callback){
+	var parent
 	var id=web.GUID();
 	var location;
 	if(web.isString(callback)){
@@ -2840,7 +3133,7 @@ web.inputText=function(callback){
 
 	var textArea=$('<textarea id='+id+' class="form-control" style="position:absolute;width:100%;height:100%""></textarea>')
 	var button=$('<button type="submit" class="btn btn-default" style="position:absolute;bottom:1em;right:1em;">Submit</button>')
-	var form=$('<form role="form" style="position:absolute;bottom:0;right:0;height:80%;width:80%"></form>')
+	var form=$('<form role="form"></form>')
 	var close = web.Buttons.close()
 	close.click(function(){
 		form.remove()		
@@ -2852,7 +3145,13 @@ web.inputText=function(callback){
 		return false
 	}).append(close)
 
-	$(document.body).append(form)
+	if(parent){
+		$(parent).append(form)
+	}else{
+		form.attr('style',"position:absolute;bottom:0;right:0;height:80%;width:80%")
+		$(document.body).append(form)
+	}
+
 	return form;
 }
 
