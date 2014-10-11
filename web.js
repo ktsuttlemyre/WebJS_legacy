@@ -456,9 +456,8 @@ web.chain = function(o,A,B,C,D,E,F,G,H,I,J,K){
             alert('oats')
         }
         //handle A types
-        if(A===undefined){
-        if(return o;} //calling () removes wrapper
-        else if(A === null){throw 'problem'}; //calling (null) throws error
+        if(A===undefined){return o;} //calling () removes wrapper
+        else if(A === null){throw 'problem'} //calling (null) throws error
         else if(typeof A == 'object'){ //calling ({o},{hash}) iterates object props
             for(var y in A){
                 if(!A.hasOwnProperty(y)){continue;} //make sure to skip inherit properties
@@ -496,7 +495,7 @@ web.chain = function(o,A,B,C,D,E,F,G,H,I,J,K){
     //    }
     //}
         
-    if(o == null && (_.t != 'object' || _.t != 'function'){
+    if(o == null && (_.t != 'object' || _.t != 'function')){
         throw 'problem'
     }
     //}else if(typeof o == 'function'){ //DO NOT DO THIS! treat functions as if they were "callable Objects"
@@ -519,10 +518,10 @@ var tag=function(o,A,B,C,D,E,F,G,H,I,J,K){
 }
 
 //test
-var e=tag('div')('id','bees')('className','two')()
+/*var e=tag('div')('id','bees')('className','two')()
 var z=tag('div',{id:'bees1',className:'two0'})()
 document.body.appendChild(e);
-document.body.appendChild(z);
+document.body.appendChild(z);*/
 
 
 
@@ -530,7 +529,7 @@ document.body.appendChild(z);
 //simple chain
 
 
-simpleChain = function(o){
+var simpleChain = function(o){
     function f(p,v){
         o[p]=v;
         return f;
