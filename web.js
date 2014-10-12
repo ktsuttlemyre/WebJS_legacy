@@ -55,33 +55,58 @@ var web=(function(web,global,environmentFlags,undefined){
 	global.web=web
 	web.environment=environmentFlags;
 
+web.extend=function(a1,a2){
+	a1.push.apply(a1,a2)
+	return a1;
+}
 
 
 function parseQueryString(query){
-	if(!query){
-		query = {'?':location.search.slice(1)
-		,'#':'?'+location.hash.slice(1)
+	if(!web.global.location){
+
 	}
-}
-
-
-_.forEach(query,function(value,key){
-	var q={}
-	value.replace(
-		new RegExp("([^?=&]+)(=([^&]*))?", "g"),
-		function($0, $1, $2, $3) { 
-			if(q[$1]){
-				q[$1].append($3);
-			}else{
-				q[$1]=[$3]; 
+	if(!query){
+		if(web.global.location){
+			query ={
+				'?':location.search.slice(1)
+				,'#':'?'+location.hash.slice(1) //added a ? just to make parsing easier
 			}
+		}else{
+			query={};
 		}
-		);
-	query[key]=q;
-})
+	}else{
+		//TODO handle a string!!!		
+	}
+
+	_.forEach(query,function(value,key){
+		var q={}
+		value.replace(
+			new RegExp("([^?=&]+)(=([^&]*))?", "g"),
+			function($0, $1, $2, $3) { 
+				if(q[$1]){
+					q[$1].append($3);
+				}else{
+					q[$1]=[$3]; 
+				}
+			}
+			);
+		query[key]=q;
+	})
 return query;
 }
-web.queryParams=parseQueryString()||{};
+
+if(web.global.location){
+	web.queryParams=parseQueryString()
+}else if(web.isNodeJS){
+	web.queryParams=require('minimist')(process.argv.slice(2));
+}
+
+//TODO use nmp install minimist to make the argumets look similar to web.queryParams
+//https://www.npmjs.org/package/minimist
+/*web.params=(web.global.process && web.global.process.argv)||(function(){
+	var tmp = [location.host,location.pathname]
+	return web.extend(web.extend(tmp,web.queryParams["?"]),web.queryParams["#"])
+})()*/
 
 		/*		function parseQueryString(arg){
 			var query = {}
@@ -2055,10 +2080,7 @@ web.split=function(string,occurance,position){
 		throw 'not implemented'
 	}
 }
-web.extend=function(a1,a2){
-	a1.push.apply(a1,a2)
-	return a1;
-}
+
 web.lineStartingWith=function(lines,word){
 	for(var i=0,l=lines.length;i<l;i++){
 		if(web.startsWith(lines[i],word)){
