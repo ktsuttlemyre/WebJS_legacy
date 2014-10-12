@@ -54,10 +54,9 @@ var web=(function(web,global,environmentFlags,undefined){
 	web.global = global;
 	global.web=web
 	web.environment=environmentFlags;
+	_=_||require('lodash')
+	$=$||require('cheerio')
 
-	if(web.isNodeJS){
-		web.global._=require('lodash')
-	}
 
 web.extend=function(a1,a2){
 	a1.push.apply(a1,a2)
@@ -631,7 +630,7 @@ pointer.getElement();*/
 
 
 //adds readability to _.forEach
-_.continue=undefined;
+global._.continue=undefined;
 _.break=false;
 
 web.forRange=web.range=function(input,fn,bind,arg){
@@ -3504,9 +3503,15 @@ web.buttonGroup=function(objMap){
 return web;
 })(this.web,this,/*environment flags*/
 	new (function(/*environment object*/){
-		if(typeof window == 'undefined'&& typeof module !== 'undefined' && module.exports){
-			this.interpreter = 'v8';
-			this.platform = "nodejs";
+		if(/*check if not browser (nodejs or rhino maybe?*/
+			typeof global !== "undefined" &&
+			{}.toString.call(global) == '[object global]'
+			&& typeof window == 'undefined'
+			/*check if supports jsCommon*/
+			&& typeof module !== 'undefined' && module.exports
+		   ){
+			this.interpreter = 'v8'; //maybe
+			this.platform = "nodejs"; //maybe
 		}else{
 			this.interpreter=undefined
 			this.platformType='browser'
