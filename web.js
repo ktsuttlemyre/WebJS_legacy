@@ -1099,8 +1099,11 @@ web.ascii=function(key){
 
 
 
-
-PNotify.prototype.options.styling = "fontawesome";
+if(PNotify){
+	PNotify.prototype.options.styling = "fontawesome";
+}else{
+	console.warn('PNotify not found!')
+}
 //https://github.com/jpillora/notifyjs.git
 web.notify=function(title,message,options,callback){
 	if(web.isString(options)){
