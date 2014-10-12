@@ -1099,7 +1099,7 @@ web.ascii=function(key){
 
 
 
-if(PNotify){
+if(typeof PNotify!='undefined'){
 	PNotify.prototype.options.styling = "fontawesome";
 }else{
 	console.warn('PNotify not found!')
