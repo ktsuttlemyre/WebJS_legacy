@@ -366,7 +366,7 @@ web.lineNumber=function(){
 }
 //http://getfirebug.com/wiki/index.php/Firebug_Lite_1.2#Firebug_Lite_API
 web.consoleHandler=(function(){
-	if(Firebug){
+	if(web.global.Firebug){
 			var tmp=window.console
 			delete window.console
 			//TODO make firebug show large commandline
