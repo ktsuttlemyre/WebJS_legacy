@@ -630,7 +630,7 @@ pointer.getElement();*/
 
 
 //adds readability to _.forEach
-global._.continue=undefined;
+_.continue=undefined;
 _.break=false;
 
 web.forRange=web.range=function(input,fn,bind,arg){
