@@ -50,10 +50,14 @@ var web=(function(web,global,environmentFlags,undefined){
 		}
 	};
 
-
+	web.isNodeJS=environmentFlags.platform=='nodejs';
 	web.global = global;
 	global.web=web
 	web.environment=environmentFlags;
+
+	if(web.isNodeJS){
+		web.global._=require('lodash')
+	}
 
 web.extend=function(a1,a2){
 	a1.push.apply(a1,a2)
@@ -100,6 +104,26 @@ if(web.global.location){
 }else if(web.isNodeJS){
 	web.queryParams=require('minimist')(process.argv.slice(2));
 }
+
+	//now export it if we are in NODE.js
+	if (web.isNodeJS) {
+        module.exports = web;
+	}
+
+if(web.isNodeJS){
+	if(web.environment.stores){
+		var store=web.keys(web.environment.stores)
+		for(var i=0,list=store,l=list.length;i<l;i++){
+			store=list[i];
+			web.stores[store]=require('level-packager')(require(store))
+		}
+	}
+}
+
+
+
+
+
 
 //TODO use nmp install minimist to make the argumets look similar to web.queryParams
 //https://www.npmjs.org/package/minimist
@@ -1057,7 +1081,7 @@ web.ascii=function(key){
 
 
 	var selectorEngine;
-	if(environmentFlags.platform=='nodejs'){
+	if(web.isNodeJS){
 		selectorEngine=require('cheerio');
 	}else{
 		selectorEngine=global.Sizzle||global.jQuery;
@@ -1075,23 +1099,6 @@ web.ascii=function(key){
 
 
 
-
-	//now export it if we are in NODE.js
-	web.isNodeJS=false;
-	if (typeof module !== 'undefined' && module.exports) {
-        module.exports = web;
-        web.isNodeJS = true;
-	}
-
-if(web.environment.platform=="nodejs"){
-	if(web.environmentFlags.stores){
-		var store=web.keys(web.environmentFlags.stores)
-		for(var i=0,list=store,l=list.length;i<l;i++){
-			store=list[i];
-			web.stores[store]=require('level-packager')(require(store))
-		}
-	}
-}
 
 
 PNotify.prototype.options.styling = "fontawesome";
@@ -3368,7 +3375,7 @@ Web.zeroTimeout
 // Only add setZeroTimeout to the window object, and hide everything
 // else in a closure.
 var setImmediate =web.setImmediate=(function() {
-	if(web.environment.platform=='nodejs'){ //if this is nodejs platform then return our fn
+	if(web.isNodeJS){ //if this is nodejs platform then return our fn
 		return setImmediate
 	}
     var timeouts = [];
@@ -3497,7 +3504,7 @@ web.buttonGroup=function(objMap){
 return web;
 })(this.web,this,/*environment flags*/
 	new (function(/*environment object*/){
-		if(typeof window == 'undefined'){
+		if(typeof window == 'undefined'&& typeof module !== 'undefined' && module.exports){
 			this.interpreter = 'v8';
 			this.platform = "nodejs";
 		}else{
