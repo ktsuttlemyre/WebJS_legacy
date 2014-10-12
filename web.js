@@ -54,8 +54,8 @@ var web=(function(web,global,environmentFlags,undefined){
 	web.global = global;
 	global.web=web
 	web.environment=environmentFlags;
-	_=_||require('lodash')
-	$=$||require('cheerio')
+	var _=(typeof _!='undefined')?_:require('lodash')
+	var $=(typeof $!='undefined')?$:require('cheerio')
 
 
 web.extend=function(a1,a2){
