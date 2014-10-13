@@ -51,6 +51,8 @@ var web=(function(web,global,environmentFlags,undefined){
 	};
 
 	web.isNodeJS=environmentFlags.platform=='nodejs';
+	//http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
+	web.isJSCommons=(typeof module !== 'undefined' && module.exports)
 	web.env = (web.isNodeJS)?process.env.NODE_ENV : 'development' //TODO allow setting of this for webpages. maybe use a tag or something? maybe hashFragment? idk
 
 	web.global = global;
@@ -106,10 +108,7 @@ if(web.global.location){
 	web.queryParams=require('minimist')(process.argv.slice(2));
 }
 
-	//now export it if we are in NODE.js
-	if (web.isNodeJS) {
-        module.exports = web.web||web; //TODO figure out why web is being ecapuslated in another object
-	}
+
 
 if(web.isNodeJS){
 	if(web.environment.stores){
@@ -3531,3 +3530,8 @@ web.setSettings({
 	"google.analytics.trackingID":'UA-38066788-1'
 	,"stores":['lmdb'] //only accepts one right now. but will accept any "leveldown" compatable API to plug into levelup api!
 })
+
+//now export it if we are using commonjS
+if(web.isJSCommons){
+	module.exports=web.web||web; //TODO figure out why web is being ecapuslated in another object
+}
