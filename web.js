@@ -196,9 +196,17 @@ var isFunction = web.isFunction = function(value) {
 }
 web.isArray=Array.isArray;
 
-web.isObject=function(obj){
-	return type(obj) =="Object" /*excludes array and null*/
+//http://jsperf.com/checking-previously-typed-object
+web.isObject=function(obj,level){
+	if(!level){
+		return (level)?type(obj) =="Object" /*excludes array and null and regexp and HTMLelment etc*/
+	}else{
+		return obj === Object(obj);
+	}
+}
 
+web.=function(obj){
+	return obj && obj === Object(obj)
 }
 //https://www.inkling.com/read/javascript-definitive-guide-david-flanagan-6th/chapter-7/array-like-objects
 // Determine if o is an array-like object.
@@ -1590,6 +1598,14 @@ web.camelCase=function(string,agressive) {
 }
 //Test alert(camelCase('FOo BarBA-_fo_under'));
 
+var isChild=function(obj,constructor){
+	obj=Object.getPrototypeOf(obj)
+	while(obj){
+		if(obj.constructor===constructor){return true;}
+		obj=Object.getPrototypeOf(obj)
+	}
+	return false
+}
 /*jquery's type operations extracted for use before jquery is loaded*/
 var class2type = {
 	/*"[object Boolean]": "Boolean",
@@ -1602,33 +1618,54 @@ var class2type = {
 	"[object Object]": "Object",
 	"[object Undefined]":"Undefined",
 	"[object Null]":"Null"*/
-}
-var isChild=function(obj,constructor){
-	obj=Object.getPrototypeOf(obj)
-	while(obj){
-		if(obj.constructor===constructor){return true;}
-		obj=Object.getPrototypeOf(obj)
-	}
-	return false
+
+    //typeof keys
+	'undefined':'Undefined'
+	//typeof null= 'object' SKIP THIS handle null differently
+	,'boolean':'Boolean'
+	,'number':'Number'
+	,'string':'String'
+	,'symbol':'Symbol' //EMAScript6
+    //Host object (provided by the JS environment)	Implementation-dependent
+    ,'function':'Function'//Function object (implements [[Call]] in ECMA-262 terms)	"function"
+	//Any other object	"object"
 }
 
-/*
- * [ This will take an object and convert it to a normalized string type]
+/*[ This will take an object and convert it to a normalized string type]
  * @param  {[type]} obj [description]
  * @return {[type]}     [description]
+ * @equals is a string or function constructor
  */
-
- var type=web.isType=web.isInterface=function(obj,equals){
- 	if(equals){
- 		if(web.isString(equals)){
- 			return /*obj == null ? String(obj) :*/ (class2type[Object.prototype.toString.call(obj)] || (class2type[Object.prototype.toString.call(obj)]=Object.prototype.toString.call(obj).slice(8,-1)))==equals;
- 		}else{
- 			return obj instanceof equals //|| isChild(Object.getPrototypeOf(obj),equals)
- 		}
+ //performance http://jsperf.com/checking-previously-typed-object
+ var type=web.isType=function(obj,equals){ 
+ 	var equalsType=typeof equals;
+ 	if(equalsType=='function'){
+ 		//TODO do fast lookup of previously inputted obj
+ 		return obj instanceof equals //TODO isChild could go here!!!! //|| isChild(Object.getPrototypeOf(obj),equals)
  	}
- 	return /*obj == null ? String(obj) :*/ class2type[Object.prototype.toString.call(obj)] || (class2type[Object.prototype.toString.call(obj)]=Object.prototype.toString.call(obj).slice(8,-1));
+
+ 	//Step1 typeof is the single fastest!
+ 	var x=class2type[typeof obj];
+ 	if(x){
+ 		return (equals)?x==equals:x
+ 	}//returned object so figure it out!
+ 	
+ 	//was it null?
+ 	if(!obj){
+ 		return (equals)?'Null'==equals:'Null'
+ 	}
+
+ 	var type = Object.prototype.toString.call(obj);
+ 	if(equals){
+ 		return (class2type[type] || (class2type[type]=type.slice(8,-1)))==equals;
+ 	}
+ 	return class2type[type] || (class2type[type]=type.slice(8,-1));
  }
  var isType=type;
+
+web.hasInterface=function(obj,inter){
+
+}
 
 
  //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
