@@ -108,7 +108,7 @@ if(web.global.location){
 
 	//now export it if we are in NODE.js
 	if (web.isNodeJS) {
-        module.exports = web;
+        module.exports = web.web||web; //TODO figure out why web is being ecapuslated in another object
 	}
 
 if(web.isNodeJS){
@@ -3504,7 +3504,7 @@ web.buttonGroup=function(objMap){
 
 }
 
-
+	
 
 return web;
 })(this.web,this,/*environment flags*/
