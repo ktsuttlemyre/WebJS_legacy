@@ -982,7 +982,7 @@ web.download=function(input,name,option){ //option used to create instead of cli
 
 	//Step 2 make link
 	a.href = url.createObjectURL(blob);
-	a.download = name||'download'+((ext)?'.'+ext:'');
+	a.download = name||'download.'+Date().toString().split(' ').slice(1,5).join('-')+((ext)?'.'+ext:'');
 	a.dataset.downloadurl = ext+':'+a.download+':'+a.href;
 	a.innerHTML =a.textContent= "Download "+name;
 
@@ -1000,6 +1000,9 @@ web.download=function(input,name,option){ //option used to create instead of cli
 
 	return a;
 }
+
+
+
 
 //http://stackoverflow.com/questions/1829774/jquery-simulating-a-click-on-a-input-type-file-doesnt-work-in-firefox
 //http://stackoverflow.com/questions/210643/in-javascript-can-i-make-a-click-event-fire-programmatically-for-a-file-input
@@ -2313,10 +2316,23 @@ web.partition=function(lines,condition,comparator){
 	return partitions
 }
 
+
+//http://stackoverflow.com/questions/1144783/replacing-all-occurrences-of-a-string-in-javascript
+web.escapeRegExp=function(string) {
+    return string.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+}
+web.replaceAll=function(str,find,replace){
+	return str.split(find).join(replace);
+  //return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
+}
+
+
+
 //http://stackoverflow.com/questions/3115150/how-to-escape-regular-expression-special-characters-using-javascript
 web.encodeRegExp=function(text){
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-};
+}
+
 
 web.splitOnNth=function(string,characters,index,flags){
 	var reg=web.splitOnNth.bank[characters+index+flags]
@@ -3340,22 +3356,22 @@ web.inputText=function(callback){
 
 	var textArea=$('<textarea id='+id+' class="form-control" style="position:absolute;width:100%;height:100%""></textarea>')
 	var button=$('<button type="submit" class="btn btn-default" style="position:absolute;bottom:1em;right:1em;">Submit</button>')
-	var form=$('<form role="form"></form>')
+	var form=$('<form role="form" style="padding:1em;"></form>')
 	var close = web.Buttons.close()
 	close.click(function(){
 		form.remove()		
 	})
 
 	form.append(textArea).append(button).append(close).submit(function(e,q){
+		e.preventDefault()
 		var value = e.target[0].value;
-		callback(null,value)
-		return false
+		return callback(null,value)
 	}).append(close)
 
 	if(parent){
 		$(parent).append(form)
 	}else{
-		form.attr('style',"position:absolute;bottom:0;right:0;height:80%;width:80%")
+		form.attr('style',"position:absolute;bottom:0;right:0;height:80%;width:80%;"+form.attr('style'))
 		$(document.body).append(form)
 	}
 
