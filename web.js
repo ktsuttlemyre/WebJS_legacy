@@ -199,15 +199,12 @@ web.isArray=Array.isArray;
 //http://jsperf.com/checking-previously-typed-object
 web.isObject=function(obj,level){
 	if(!level){
-		return (level)?type(obj) =="Object" /*excludes array and null and regexp and HTMLelment etc*/
+		return type(obj) =="Object" /*excludes array and null and regexp and HTMLelment etc*/
 	}else{
 		return obj === Object(obj);
 	}
 }
 
-web.=function(obj){
-	return obj && obj === Object(obj)
-}
 //https://www.inkling.com/read/javascript-definitive-guide-david-flanagan-6th/chapter-7/array-like-objects
 // Determine if o is an array-like object.
 // Strings and functions have numeric length properties, but are 
@@ -1598,10 +1595,16 @@ web.camelCase=function(string,agressive) {
 }
 //Test alert(camelCase('FOo BarBA-_fo_under'));
 
+
+
 var isChild=function(obj,constructor){
+	//DO NOT RELY ON TESTING .prototype.constructor
+	//See:https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
+	//use prototype for it is not-writable, not-enumerable and not-configurable
+	//see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/prototype
 	obj=Object.getPrototypeOf(obj)
 	while(obj){
-		if(obj.constructor===constructor){return true;}
+		if(obj===constructor.prototype){return true;}
 		obj=Object.getPrototypeOf(obj)
 	}
 	return false
@@ -1637,27 +1640,58 @@ var class2type = {
  * @equals is a string or function constructor
  */
  //performance http://jsperf.com/checking-previously-typed-object
- var type=web.isType=function(obj,equals){ 
+ var typeCacheA=[]
+ var typeCacheB=[]
+ var type=web.isType=function(obj,equals,deep){ 
  	var equalsType=typeof equals;
  	if(equalsType=='function'){
- 		//TODO do fast lookup of previously inputted obj
- 		return obj instanceof equals //TODO isChild could go here!!!! //|| isChild(Object.getPrototypeOf(obj),equals)
+
+ 		//DO NOT RELY ON TESTING .prototype.constructor
+ 		//See:https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
+ 		//use prototype for it is not-writable, not-enumerable and not-configurable
+ 		//see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/prototype
+ 		return (deep)?obj instanceof equals:Object.getPrototypeOf(obj) == equals.prototype 
+ 		//TODO isChild could go here maybe???!!!! //|| isChild(Object.getPrototypeOf(obj),equals)
  	}
 
  	//Step1 typeof is the single fastest!
  	var x=class2type[typeof obj];
  	if(x){
  		return (equals)?x==equals:x
- 	}//returned object so figure it out!
+ 	}
+ 	//Here and below it has to be an object
+ 	//console.log('web.isType: type did not give conclusive')
  	
  	//was it null?
- 	if(!obj){
+ 	if(!obj){ //do not put this any higher because it will only work after you check with 'typeof'
+ 		//it is also silly to put it higher when it will only rule out 1 (uncommon) outcome
+ 		//ps... this check is super dope fast
  		return (equals)?'Null'==equals:'Null'
+ 	} 
+ 	//console.log('web.isType: not null')
+ 	//http://jsperf.com/array-isarray-vs-instanceof-array/5
+ 	if(obj instanceof Array){ //or obj instanceof Array //or Array.isArray(obj) //or Object.getPrototypeOf(obj) == Array.prototype
+ 		//Note: I use the above as a quick check to see if it is an array.
+ 		//positive ID means we exit faster, negitive ID means it will have to be identified further below.
+ 		//if it is from another frame then it will be identified in the final lines of this function
+ 		return (equals)?'Array'==equals:'Array'
  	}
+	//console.log('web.isType: not array')
+/* 	var l = typeCacheA.length;
+	while(l--) {
+	  if(obj===typeCacheA[l]){
+	  	return typeCacheB[l]
+	  }
+	}
 
+	if(typeCacheA.length>=10){
+		typeCacheA.shift()&&typeCacheB.shift();
+	}*/
+
+	//below here is the slowest step!
  	var type = Object.prototype.toString.call(obj);
  	if(equals){
- 		return (class2type[type] || (class2type[type]=type.slice(8,-1)))==equals;
+ 		return ( class2type[type] || (class2type[type]=type.slice(8,-1)) )==equals;
  	}
  	return class2type[type] || (class2type[type]=type.slice(8,-1));
  }
