@@ -204,6 +204,9 @@ web.isObject=function(obj,level){
 		return obj === Object(obj);
 	}
 }
+/*web.isColleciton=*/web.isContainer=function(obj){
+	return web.isObject(obj) || web.isArray(obj)
+}
 
 //https://www.inkling.com/read/javascript-definitive-guide-david-flanagan-6th/chapter-7/array-like-objects
 // Determine if o is an array-like object.
@@ -1640,6 +1643,8 @@ var class2type = {
  * @equals is a string or function constructor
  */
  //performance http://jsperf.com/checking-previously-typed-object
+ //another performance of string vs hash lookup
+ //http://jsperf.com/afaaasdfjhdsf
  var typeCacheA=[]
  var typeCacheB=[]
  var type=web.isType=function(obj,equals,deep){ 
@@ -1655,9 +1660,14 @@ var class2type = {
  	}
 
  	//Step1 typeof is the single fastest!
- 	var x=class2type[typeof obj];
- 	if(x){
- 		return (equals)?x==equals:x
+ 	var x=typeof obj;
+ 	if(x!='object'){
+ 		//string manipulation is faster than hash lookup return (equals)?class2type[x]==equals:class2type[x];
+ 		if(equals){
+ 			return class2type[x]==equals; // return x.charAt(0).toUpperCase() + x.slice(1)==equals
+ 		}else{
+ 			return class2type[x] //return x.charAt(0).toUpperCase() + x.slice(1)
+ 		}
  	}
  	//Here and below it has to be an object
  	//console.log('web.isType: type did not give conclusive')
@@ -1676,6 +1686,11 @@ var class2type = {
  		//if it is from another frame then it will be identified in the final lines of this function
  		return (equals)?'Array'==equals:'Array'
  	}
+ 	
+ 	//TODO test this!!!!!!!@@@@@
+ 	//if(Object.getPrototypeOf(obj)==Object.prototype){
+ 	//	return (equals)?'Object'==equals:'Object'
+ 	//}
 	//console.log('web.isType: not array')
 /* 	var l = typeCacheA.length;
 	while(l--) {
@@ -1690,10 +1705,14 @@ var class2type = {
 
 	//below here is the slowest step!
  	var type = Object.prototype.toString.call(obj);
+ 	//using slice is faster than hash lookup 
+ 	//http://jsperf.com/afaaasdfjhdsf
  	if(equals){
- 		return ( class2type[type] || (class2type[type]=type.slice(8,-1)) )==equals;
+ 		//hash lookup slower than string manipulation return ( class2type[type] || (class2type[type]=type.slice(8,-1)) )==equals;
+ 		return type.slice(8,-1)==equals
  	}
- 	return class2type[type] || (class2type[type]=type.slice(8,-1));
+ 	//hash lookup slower than string manipulation return class2type[type] || (class2type[type]=type.slice(8,-1));
+ 	return type.slice(8,-1)
  }
  var isType=type;
 
@@ -1990,11 +2009,16 @@ web.toObject=function(input,type,callback){
 			return (callback)?callback(null,JSON.parse(detectionString)):JSON.parse(detectionString);
 		}else if(char0=='<' && charLast=='>'){
 			if(type=='HTML'){
-				var div = jQuery("<div>").append(jQuery.parseHTML(input))
+				//var tmp =web.partitionHTMLLayer(input).BODY.innerHTML
+
+				//var div = jQuery("<div>").append(jQuery.parseHTML(input))
+				var div = $(jQuery.parseHTML(input))
 				if(options.selector){
-					div=div.find(type.selector)
+					//$(document.body).append(div.find(type.selector))
+					div=div.find(options.selector)
 				}
-				input = div.html()
+				
+				return div
 			}
 			if(!x2js){x2js = new X2JS({
 					// Escaping XML characters. Default is true from v1.1.0+
@@ -2049,6 +2073,9 @@ web.toObject=function(input,type,callback){
 web.toJSON=function(obj){
 	return JSON.stringify(obj)
 }
+web.prettyPrint=function(obj,indention){
+	return JSON.stringify(obj,undefined,indention||2)
+}
 web.toBSON=function(){
 
 }
@@ -2061,6 +2088,18 @@ web.transpose=function(matrix){
 	    return row[i] 
 	  })
 	});
+	/*
+		if(web.isArray(matrix)){
+		for(var i=0,l=matrix.length;i<l;i++){
+			if(web.isArray(matrix[i])){
+			return matrix[i].map(function(col, j) {
+				return matrix.map(function(row) { 
+					return row[j] 
+					})
+				});	
+			}
+		}
+	}*/
 }
 web.toCSV=function(array,options){
 	//TODO ensure array is matrix
@@ -2073,6 +2112,61 @@ web.toCSV=function(array,options){
 		delimiter: ",",
 		newline: "\r\n"
 	}*/)
+}
+
+web.partitionHTML=function(input){
+	var doc={
+		HTML:''
+		,HEAD:''
+		,BODY:''
+	};
+
+	input.replace(/<(?:"[^"]*"['"]*|'[^']*'['"]*|[^'">])+>/gi,function(rawMatch,offset,string){
+		var match=rawMatch.slice(1,rawMatch.indexOf(' ')).toUpperCase().replace(/ /g,'')
+		var controlCharacter='';
+
+		if(web.startsWith(match,'/')){
+			controlCharacter='/'
+			match=match.slice(1)
+		}else if(web.startsWith(match,'!--')){
+			controlCharacter='!--'
+			match=match.slice(1)
+		}else if(web.startsWith(match,'!')){
+			controlCharacter='!'
+			match=match.slice(1)
+		}
+
+		var caret=doc[match]
+		if(caret==undefined){
+			return
+		}else if(caret==''){
+			if(controlCharacter=='/'){
+				throw 'ugh!!!'+rawMatch
+			}
+			doc[match]=[offset,rawMatch]
+			return ''
+		}else if(Array.isArray(caret)){
+			var o = {
+				tag:input.slice(caret[0],offset+rawMatch.length)
+				,innerHTML:input.slice(caret[0]+caret[1].length,offset)
+			}
+			doc[match]=o
+			return
+		}else{
+			console.error('found this tag too many times',match,offset,string)
+		}
+
+	})
+	return doc
+
+
+
+}
+
+//prettyprint supports showing class and circular references
+//http://jsfiddle.net/kLwu6y8f/1/
+web.toDOM=function(obj){
+	return JsonHuman.format(obj) //but JsonHuman is MIT license and simplistic. //TODO I will update this to support above features
 }
 
 //DO NOT USE yet
