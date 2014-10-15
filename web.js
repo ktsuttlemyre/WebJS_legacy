@@ -1961,6 +1961,8 @@ web.setSettings=(function(initialSettings){
 ********************************************************************************/
 
 
+
+
  //todo extend this to accept other return values such as remove from index
 web.removeAt=function(o,i){
 	if(web.isArray(o)){
@@ -1992,7 +1994,7 @@ web.pop=function(input){
 }
 var dummyObject={}
 var dummyFunction=function(){};
-var dummyArray=function(){}
+var dummyArray=[]
 
 //xml.pathway().reaction(1).compound(2,'attributes').name
 var x2js =null;
@@ -2020,7 +2022,7 @@ web.toObject=function(input,type,callback){
 				//var tmp =web.partitionHTMLLayer(input).BODY.innerHTML
 
 				//var div = jQuery("<div>").append(jQuery.parseHTML(input))
-				var div = $(jQuery.parseHTML(input))
+				var div = $(web.parseHTML(input,{stopImageLoad:true}))
 				if(options.selector){
 					//$(document.body).append(div.find(type.selector))
 					div=div.find(options.selector)
@@ -2122,6 +2124,60 @@ web.toCSV=function(array,options){
 	}*/)
 }
 
+web.xmlToEvents=function(html,callback){
+	var e={}
+	//https://news.ycombinator.com/item?id=2741780
+	var output = html.replace(/<(?:"[^"]*"['"]*|'[^']*'['"]*|[^'">])+>/gi,function(raw,index,html){ //Regex from http://stackoverflow.com/questions/1732348/regex-match-open-tags-except-xhtml-self-contained-tags
+
+		//var e=web.Object()
+		e.raw=raw
+		e.index=index
+		e.html=html
+		e.tag=raw.slice(1,raw.indexOf(' ')).toUpperCase()
+		e.controlCharacter='';
+
+		if(web.startsWith(e.tag,'/')){
+			e.controlCharacter='/'
+			e.tag=e.tag.slice(1)
+			e.open=false
+		}else if(web.startsWith(e.tag,'!--')){
+			e.controlCharacter='!--'
+			e.tag=e.tag.slice(3)
+			e.comment=true
+			e.open=false
+		}else if(web.startsWith(e.tag,'!')){
+			e.controlCharacter='!'
+			e.tag=e.tag.slice(1)
+			e.docType=true
+			e.open=false
+		}else{
+			e.open=true
+		}
+
+		var ans=callback(e)
+		e.raw=e.index=e.html=e.tag=e.controlCharacter=e.open=e.docType=e.comment=undefined;
+		//web.destroy(e)
+		return ans
+	})
+	return output
+}
+web.parseHTML=function(input,options){
+	var output=''
+	if(options.stopImageLoad){
+		output=web.xmlToEvents(input,function(e){
+			var str=''
+			if(e.tag=='IMG'){
+				str=e.raw.replace(/src\s*=\s*["'].+?["']/gi,function(rawMatch,offset,string){
+					return 'data-'+rawMatch
+				})
+			}
+			return str ||e.raw
+		})
+	}
+
+	return jQuery.parseHTML(output,options.context||undefined,options.keepScripts||false)
+}
+
 web.partitionHTML=function(input){
 	var doc={
 		HTML:''
@@ -2138,7 +2194,7 @@ web.partitionHTML=function(input){
 			match=match.slice(1)
 		}else if(web.startsWith(match,'!--')){
 			controlCharacter='!--'
-			match=match.slice(1)
+			match=match.slice(3)
 		}else if(web.startsWith(match,'!')){
 			controlCharacter='!'
 			match=match.slice(1)
