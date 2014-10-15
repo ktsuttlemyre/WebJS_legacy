@@ -1680,12 +1680,19 @@ var class2type = {
  	} 
  	//console.log('web.isType: not null')
  	//http://jsperf.com/array-isarray-vs-instanceof-array/5
- 	if(obj instanceof Array){ //or obj instanceof Array //or Array.isArray(obj) //or Object.getPrototypeOf(obj) == Array.prototype
+ 	if(obj.concat === dummyArray.concat){ //or obj instanceof Array){fastest //or Array.isArray(obj) //or Object.getPrototypeOf(obj) == Array.prototype
  		//Note: I use the above as a quick check to see if it is an array.
  		//positive ID means we exit faster, negitive ID means it will have to be identified further below.
  		//if it is from another frame then it will be identified in the final lines of this function
- 		return (equals)?'Array'==equals:'Array'
+ 		if(obj instanceof Array){ //Array.isArray(obj){ //we did a dirty fast check but now confirm
+ 			return (equals)?'Array'==equals:'Array'
+ 		}
  	}
+
+ 	//idk if this test is reliable
+ 	//if(Object.getPrototypeOf(obj)===Object.prototype){
+ 	//	return (equals)?'Object'==equals:'Object'
+ 	//}
  	
  	//TODO test this!!!!!!!@@@@@
  	//if(Object.getPrototypeOf(obj)==Object.prototype){
@@ -1985,6 +1992,7 @@ web.pop=function(input){
 }
 var dummyObject={}
 var dummyFunction=function(){};
+var dummyArray=function(){}
 
 //xml.pathway().reaction(1).compound(2,'attributes').name
 var x2js =null;
