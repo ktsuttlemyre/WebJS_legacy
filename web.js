@@ -2427,12 +2427,12 @@ web.padding=function(str,padding,char,additional){
 //TODO replace with this https://github.com/alexei/sprintf.js
 web.format = function(str) {
 	var args = Array.prototype.slice.call(arguments, 1);
-	str.unkeyed_index = 0;
+	var unkeyed_index = 0;
 	return str.replace(/\{(\w*)\}/g, function(match, key) { 
 		if (key === '') {
-			key = str.unkeyed_index;
+			key = unkeyed_index;
 			
-			str.unkeyed_index++
+			unkeyed_index++
 		}
 		if (key == +key) {
 			return args[key] !== 'undefined'
@@ -2446,7 +2446,7 @@ web.format = function(str) {
 			}
 			return match;
 		}
-	}.bind(str));
+	});
 };
 
 web.proxy=function(type,url,queryString,callback){
@@ -3607,6 +3607,78 @@ web.inputText=function(callback){
 	return form;
 }
 
+//window.setInterval can be evil
+//http://www.thecodeship.com/web-development/alternative-to-javascript-evil-setinterval/
+//https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers.setInterval
+
+web.setInterval=function(func, wait, times,callback){ //TODO request animation frame //use a callback for when it finishes?
+	var self=(this!==web||this!=web.global)?this:web.global; //TODO handle this! keyword actually this might do it.
+    times=times||Number.POSITIVE_INFINITY;
+
+	var type='linear'
+	if(web.isString(wait)){
+		type=wait;
+		wait=2
+	}else if(web.isFuntion(wait)){
+		type='callback'
+		wait=2
+	}
+	var wait0=wait,counter=0;
+
+   	var tOut=setTimeout(interv, wait);
+   	var id=web.setInterval.instances.push(interv)-1;
+   	var stop=false
+   function interv(command) {
+   		if(stop||command===false){
+   			stop=true
+            clearTimeout(tOut)
+            console.log('yaaa',tOut)
+            return undefined
+   		}
+        if (counter++ <= times) {
+               if(func.call(self)===web.clearInterval){
+	            	web.clearInterval(id)
+	            	clearTimeout(tOut)
+	            	return undefined
+	            }
+	            if(type!='linear'){
+	            	if(type=='poisson'){
+						wait=Math.pow(counter,2) //poisson is exponential (for now)
+	            	}else if(type=='exponential'){
+	            		wait=Math.pow(2,counter)//fix this and poisson :-/
+	            	}else { //assume callback (type=='callback'){
+	            		wait=type(wait,counter,times) //if the waitfunction returns -1 or web.clearInterval then cancel now
+	            		if(wait==web.clearInterval||wait>0){
+	            			interv(false)
+	            		}
+	            	}
+	            }
+	            tOut=setTimeout(interv, wait);
+	            //try {
+	            //}
+	            //catch(e) {
+	            //    times = 0;
+	            //    throw e.toString();
+	            //}
+	        }
+	    };
+    return id;
+
+};
+web.setInterval.instances=[];
+web.clearInterval=function(id){
+	if(typeof id=='number'){
+		var o = web.setInterval.instances[id]
+		return o&&o(false)
+	}else{
+	console.log('clearing')
+		id(false)
+	}
+}
+
+
+
+
 var getSelectedText=function(withAnnotation){
 	var text = "";
 	    if (window.getSelection) {
@@ -3699,15 +3771,81 @@ web.editSelection=function(arg0,hidden){
 	    });
 	}
 }
-web.onEvent=function(eventName,callback,arg0){
+
+web.eventSupported=(function(){
+    var TAGNAMES = {
+      'select':'input','change':'input',
+      'submit':'form','reset':'form',
+      'error':'img','load':'img','abort':'img'
+    }
+    function isEventSupported(eventName) {
+      var el = document.createElement(TAGNAMES[eventName] || 'div');
+      eventName = 'on' + eventName;
+      var isSupported = (eventName in el);
+      if (!isSupported) {
+        el.setAttribute(eventName, 'return;');
+        isSupported = typeof el[eventName] == 'function';
+      }
+      el = null;
+      return isSupported;
+    }
+    return isEventSupported;
+  })();
+
+
+
+web.onEvent=function(eventName,element,callback,arg0){
+	if(web.isFunction(element)){
+		arg0=callback
+		callback=element
+		element=document
+	}
+
 	if(eventName=='copy'){
 		if(callback=='annotation'){
 			callback=function(){
 			web.editSelection(arg0,true)
 			}
 		}
+	}else if(eventName=='paste'){
+		var ta = document.createElement('textarea');
+		ta.style.position = 'absolute';
+		ta.style.left = '-1000px';
+		ta.style.top = '-1000px';
+				
+
+		callback=_.partialRight(function(e,callback){
+				document.body.appendChild(ta);
+				document.designMode = 'off';
+				ta.focus();
+
+				var text='',counter=0;
+				var id = web.setInterval(function(){
+					console.log('interval')
+					if(ta.value!=text||counter++ >=10000){ //trigger event! 
+						//finished pasting!
+						text=ta.value
+						ta.value=''
+						ta.parentNode.removeChild(ta);
+				    	callback(e,text)
+				    	text=''
+						web.clearInterval(id)
+					}
+				}, 'poisson',30);
+				//return false;
+  		},callback)
+
+
+		if(web.eventSupported('paste')){
+			callback=_.partialRight(function(e,callback){
+				if (e.which == 86 && (e.ctrlKey || e.metaKey)) {    // CTRL + V
+					return callback(e)
+				}
+			},callback)
+			eventName='keydown'
+		}
 	}
-	document.addEventListener(eventName,callback);
+	$(element).on(eventName,callback);
 
 }
 web.getColumn=function(matrix,header,callback){
