@@ -1791,7 +1791,7 @@ web.hasInterface=function(obj,inter){
 }
 
 //if true returns absolute url, if false returns false
-web.isUrl=function(url){
+web.isUrl=web.isURL=function(url){
 	var tmp;
 	URI.withinString(web.toAbsoluteURL(url),function(u){tmp=u;return ''})
 	return (tmp==url)?tmp:false;
