@@ -196,16 +196,13 @@ var isFunction= web.isFunction= function(value) {
 	return typeof value == 'function';
 }
 
-// detect native method in object
-  // not same scope of isHostObject
+// detect native method in object not same scope of isHostObject
   //https://github.com/dperini/nwevents/blob/ac33e52c1ed1c1c3a1bb1612384ca5b2f7a9b3ef/src/nwmatcher.js#L41
-web.isNative = function(object, method) {
-    return object && method in object &&
-      typeof object[method] != 'string' &&
+web.isNativeFunction = function(fn) {
+    return typeof fn =='function' &&
       // IE/W3C browsers will return [native code]
       // Safari 2.0.x and older will return [function]
-      (/\{\s*\[native code[^\]]*\]\s*\}|^\[function\]$/).
-      test(object[method]);
+      (/\{\s*\[native code[^\]]*\]\s*\}|^\[function\]$/).test(fn);
     }
 
 //http://stackoverflow.com/questions/596467/how-do-i-convert-a-number-to-an-integer-in-javascript
@@ -1793,6 +1790,53 @@ web.hasInterface=function(obj,inter){
 
 }
 
+//if true returns absolute url, if false returns false
+web.isUrl=function(url){
+	var tmp;
+	URI.withinString(web.toAbsoluteURL(url),function(u){tmp=u;return ''})
+	return (tmp==url)?tmp:false;
+}
+web.isRelativeURL=function(url){
+	return isURL(web.toAbsoluteURL(url))
+
+}
+
+//http://stackoverflow.com/questions/6941533/get-protocol-domain-and-port-from-url
+web.origin=function(){
+	return location.origin || location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '');
+}
+
+web.toAbsoluteURL = function(url) {
+	if(document){
+    	var link = document.createElement("a");
+    	link.href = url;
+    	return (link.protocol+"//"+link.host+link.pathname+link.search+link.hash);
+    }else{
+    	//inspiration http://stackoverflow.com/questions/14780350/convert-relative-path-to-absolute-using-javascript
+    	var base=location.href;
+	    var stack = base.split("/")
+	    if(url.slice(0,2)=='//'){
+	    	return stack.shift()+url
+	    }else if(url.charAt(0)=='/'){
+	    	return web.origin()+url
+	    }
+	    var parts = url.split("/");
+
+	    stack.pop(); // remove current file name (or empty string)
+	                 // (omit if "base" is the current folder without trailing slash)
+	    for (var i=0; i<parts.length; i++) {
+	        if (parts[i] == ".")
+	            continue;
+	        if (parts[i] == "..")
+	            stack.pop();
+	        else
+	            stack.push(parts[i]);
+	    }
+	    return stack.join("/");
+    }
+}
+
+
 
  //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
  	web.put=function(obj,path,value){ //path only supports dotNotation and now brakets! :-D
@@ -2770,21 +2814,24 @@ web.test.ScopeGuard(window,'window');
 // Turn a syncronius function to Async
 ////////////////////////////////////
 
-web.toAsync=function(fn,context,opt){
+web.toAsync=function(fn){ 
 	if (!isFunction(fn)) {
 		throw new TypeError;
 	}
-	//TODO
-	//if is native function force context=window
-	if(arguments.length!=2){
-		context=fn;
-	}
-
-	return function(/*arguments*/){
+/*	var context=this
+	if(this !== web || this !== web.global){
+		context=this;
+	}*/
+	return function(/*arguments*/){ //context can be set with .call
+		//if is native function force context=window //why? //idk why I thought this? maybe because alert.call(obj, message) does not work but Object.prototype.toString.call(object) does. so.. yeah, this was a bad decision.
+		//if(this != web || this != web.global){
+		var context=this
+		//}
 		var args=arguments; //gotta save arguments here 
-		setTimeout(function(){
-			var l=args.length;
+		//don't do anymore work here. since it is now async offload any more calculations to the execution phase
+		setTimeout(function(){ //I could use web.defer but lets go ahead and keep the code portable for now
 			var callback=args[l-1];
+			var l=args.length;
 			if(isFunction(callback)){
 				try{
 					callback(undefined,fn.apply(context, Array.prototype.slice.call(args, 0,l-1)));
@@ -4004,6 +4051,21 @@ web.getColumn=web.onColumn=function(matrix,header,callback){
 web.Object=function(){return web.create('object')}
 web.Array=web.forRange//function(){return web.create('array')}
 
+
+var CLASS = function(path){
+	if(web.isNodeJS()){
+		return require('java')['import'](path); 
+	}else if(web.isRhino()){
+		//var pack=('Packages.'+path).split('.');
+		//var clazz = pack.pop()
+		var namespace=function(c,f,b){var e=c.split(f||"."),g=b||window,d,a;for(d=0,a=e.length;d<a;d++){g=g[e[d]]=g[e[d]]||{}}return g};
+		return namespace(path);
+	}else{
+		throw "exception"
+	}
+}
+
+
 web.create=web.new=function(constructor /*arguments*/){
 	if(!web.isString(constructor)){
 		//get constructor name and then go to recycledObjects to grab one
@@ -4213,7 +4275,10 @@ return web;
 			this.platform=''
 			
 		}
-	}));
+
+
+
+	})/*undefined*/);
 
 //Custom Stuff
 web.setSettings({
