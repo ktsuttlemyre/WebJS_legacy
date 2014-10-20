@@ -163,6 +163,7 @@ web.camelCaseToReadable=function(str,strict){
 }
 
 
+
 web.isWindow=function( obj ) {
     return obj != null && obj == obj.window;
 }
@@ -191,15 +192,50 @@ web.isElement=function(o){
 );
 }
 
-var isFunction = web.isFunction = function(value) {
+var isFunction= web.isFunction= function(value) {
 	return typeof value == 'function';
 }
+
+// detect native method in object
+  // not same scope of isHostObject
+  //https://github.com/dperini/nwevents/blob/ac33e52c1ed1c1c3a1bb1612384ca5b2f7a9b3ef/src/nwmatcher.js#L41
+web.isNative = function(object, method) {
+    return object && method in object &&
+      typeof object[method] != 'string' &&
+      // IE/W3C browsers will return [native code]
+      // Safari 2.0.x and older will return [function]
+      (/\{\s*\[native code[^\]]*\]\s*\}|^\[function\]$/).
+      test(object[method]);
+    }
+
+//http://stackoverflow.com/questions/596467/how-do-i-convert-a-number-to-an-integer-in-javascript
+web.toInt=function(value){ return ~~value; }
+
 web.isArray=Array.isArray;
+
+web.isValue=function(o){
+	return o!=null;
+}
+
+
+//TODO cache will definately help
+web.isArrayHash=function(obj,level){
+	if(!level){
+		web.isArray(obj) && obj.every(function(o){return web.isObject(o)})
+	}
+	return (web.isArray(obj) && web.isObject(obj[0]) && web.isObject(obj[web.toInt(obj.length/2)]) && web.isObject(obj[obj.length-1]))
+}
+web.isArrayMatix=function(obj,level){
+	if(!level){
+		web.isArray(obj) && obj.every(function(o){return web.isArray(o)})
+	}
+	return (web.isArray(obj) && web.isArray(obj[0]) && web.isArray(obj[web.toInt(obj.length/2)]) && web.isArray(obj[obj.length-1]))
+}
 
 //http://jsperf.com/checking-previously-typed-object
 web.isObject=function(obj,level){
 	if(!level){
-		return type(obj) =="Object" /*excludes array and null and regexp and HTMLelment etc*/
+		return type(obj) =="Object" /*excludes array and null and regexp and HTMLelment etc*/ //Object.getPrototypeOf(obj) ===Object.prototype 
 	}else{
 		return obj === Object(obj);
 	}
@@ -647,7 +683,12 @@ pointer.getElement();*/
 _.continue=undefined;
 _.break=false;
 
-web.forRange=web.range=function(input,fn,bind,arg){
+//returns new array
+web.forRange=function(input,fn,bind,arg){
+	var array=web.create('array')
+	if(input==null){
+		return array;
+	}
 	var max=input,i=0,step=1;
 	if(web.isArray(input)){
 		i=input[0],max=input[1],step=input[2];
@@ -659,11 +700,36 @@ web.forRange=web.range=function(input,fn,bind,arg){
 		//shift all inputs
 		i=input,max=fn,fn=bind,bind=arg
 	}
+
+	max-- //noone in programming includes the max param when doing a range (everyone is always max-1) ex: length-1
 	do{
-		if(fn.call(bind,i)===_.break){ 
+		if(fn.call(bind,array,i)===web.break){ 
 			break;
 		}
 	}while(i++<max)
+	return array;
+}
+//does not return array
+web.range=function(input,fn,bind,arg){
+	var max=input,i=0,step=1;
+	if(web.isArray(input)){
+		i=input[0],max=input[1],step=input[2];
+	}
+	if(fn==null){
+		return _.range(i,max,step);
+	}
+	if(typeof fn=='number'){ //max index (if given)
+		//shift all inputs
+		i=input,max=fn,fn=bind,bind=arg
+	}
+
+	max-- //noone in programming includes the max param when doing a range (everyone is always max-1) ex: length-1
+	do{
+		if(fn.call(bind,i)===web.break){ 
+			break;
+		}
+	}while(i++<max)
+	return undefined;
 }
 
 web.continue=function(){return web.continue}
@@ -1318,7 +1384,7 @@ web.prompt=function(title,message,options,callback){
         	prompt_default: defaultValue
 	    },
 	    buttons: {
-	        closer: true,
+	        closer: false,
 	        sticker: false
 	    },
 	    history: {
@@ -2258,7 +2324,37 @@ web.keyboard.shift=(function(input){
   		return {to:to,from:from};
 })('~`!1@2#3$4%5^6&7*8(9)0_-+=QqWwEeRrTtYyUuIiOoPp{[}]|\\AaDdFfGgHhJjkKgmai,lLl:;"\'ZzXxCcVvBbNnMm<,>.?/')
 
-
+web.keyboard.watchModifiers=function(element){
+		web.keyboard.shift = false
+	 	web.keyboard.ctrl = false
+	 	web.keyboard.alt =false
+	 $(element||document).on('keyup keydown', function(e){
+	 	web.keyboard.shift = e.shiftKey
+	 	web.keyboard.ctrl = e.ctrlKey
+	 	web.keyboard.alt = e.altkey
+	 } );
+}
+web.isShift=function(e){
+	if(e){return e.shiftKey}
+	if(web.keyboard.shift===undefined){
+		console.error("you must run web.keyboard.watchModifiers in order to use this function")
+	}
+	return web.keyboard.shift
+}
+web.isCtrl=function(e){
+	if(e){return e.ctrlKey}
+	if(web.keyboard.ctrl===undefined){
+		console.error("you must run web.keyboard.watchModifiers in order to use this function")
+	}
+	return web.keyboard.ctrl
+}
+web.isAlt=function(e){
+	if(e){return e.altkey}
+	if(web.keyboard.alt===undefined){
+		console.error("you must run web.keyboard.watchModifiers in order to use this function")
+	}
+	return web.keyboard.alt
+}
 
 web.scale = function(num, minA, maxA, minB, maxB){
 	return (
@@ -3626,26 +3722,27 @@ web.setInterval=function(func, wait, times,callback){ //TODO request animation f
 	var wait0=wait,counter=0;
 
    	var tOut=setTimeout(interv, wait);
+   	console.log('init',tOut)
    	var id=web.setInterval.instances.push(interv)-1;
-   	var stop=false
    function interv(command) {
-   		if(stop||command===false){
-   			stop=true
+   		if(tOut&&command===false){
+            console.log('clearing',tOut)
             clearTimeout(tOut)
-            console.log('yaaa',tOut)
-            return undefined
+            return tOut=undefined
    		}
         if (counter++ <= times) {
+        		//handle callback and command from  callback
                if(func.call(self)===web.clearInterval){
 	            	web.clearInterval(id)
 	            	clearTimeout(tOut)
-	            	return undefined
+	            	return tOut=undefined
 	            }
+	            //set new wait time
 	            if(type!='linear'){
 	            	if(type=='poisson'){
-						wait=Math.pow(counter,2) //poisson is exponential (for now)
+						wait=Math.pow(counter,wait0) //poisson is exponential (for now)
 	            	}else if(type=='exponential'){
-	            		wait=Math.pow(2,counter)//fix this and poisson :-/
+	            		wait=Math.pow(wait0,counter)//fix this and poisson :-/
 	            	}else { //assume callback (type=='callback'){
 	            		wait=type(wait,counter,times) //if the waitfunction returns -1 or web.clearInterval then cancel now
 	            		if(wait==web.clearInterval||wait>0){
@@ -3653,7 +3750,8 @@ web.setInterval=function(func, wait, times,callback){ //TODO request animation f
 	            		}
 	            	}
 	            }
-	            tOut=setTimeout(interv, wait);
+	            tOut=tOut&&setTimeout(interv, wait);
+	            console.log('tOut',tOut)
 	            //try {
 	            //}
 	            //catch(e) {
@@ -3772,14 +3870,33 @@ web.editSelection=function(arg0,hidden){
 	}
 }
 
-web.eventSupported=(function(){
-    var TAGNAMES = {
-      'select':'input','change':'input',
-      'submit':'form','reset':'form',
-      'error':'img','load':'img','abort':'img'
-    }
-    function isEventSupported(eventName) {
-      var el = document.createElement(TAGNAMES[eventName] || 'div');
+//http://perfectionkills.com/detecting-event-support-without-browser-sniffing/
+web.isEventSupported=function isEventSupported(eventName) { //dont check unless developer asks to check
+	if(web.isEventSupported.mutationEvents[eventName]){
+		console.warn('You really shouldn\'t use mutationEvents. Use MutationObservers instead https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver')
+		// check for Mutation Events, DOMAttrModified should be
+  		// enough to ensure DOMNodeInserted/DOMNodeRemoved exist
+  		if(!web.global.addEventListener){
+  			return false;
+  		}
+
+		var e = function() {
+				document.documentElement.removeEventListener(eventName||'DOMAttrModified', e, false);
+				isSupported = true;
+				web.global.mutationTest = cache;
+			}
+			,cache=web.global.mutationTest //save value so we can change it back
+			,f = false
+			,isSupported=false;
+		
+		web.global.addEventListener(eventName||'DOMAttrModified', e, false);
+		// now modify a property
+		web.global.mutationTest = 'mutationTest';
+		f = web.global.mutationTest != 'mutationTest';
+		web.global.mutationTest = cache;
+		return isSupported||f;
+}else{
+      var el = document.createElement(web.isEventSupported.TAGNAMES[eventName] || 'div');
       eventName = 'on' + eventName;
       var isSupported = (eventName in el);
       if (!isSupported) {
@@ -3788,10 +3905,25 @@ web.eventSupported=(function(){
       }
       el = null;
       return isSupported;
-    }
-    return isEventSupported;
-  })();
+    };
+}
 
+    web.isEventSupported.TAGNAMES = {
+      'select':'input','change':'input',
+      'submit':'form','reset':'form',
+      'error':'img','load':'img','abort':'img'
+    }
+
+    web.isEventSupported.mutationEvents={
+		DOMAttrModified:true
+		,DOMAttributeNameChanged:true
+		,DOMCharacterDataModified:true
+		,DOMElementNameChanged:true
+		,DOMNodeInserted:true
+		,DOMNodeInsertedIntoDocument:true
+		,DOMNodeRemoved:true
+		,DOMNodeRemovedFromDocument:true
+		,DOMSubtreeModified:true}
 
 
 web.onEvent=function(eventName,element,callback,arg0){
@@ -3836,7 +3968,7 @@ web.onEvent=function(eventName,element,callback,arg0){
   		},callback)
 
 
-		if(web.eventSupported('paste')){
+		if(web.isEventSupported('paste')){
 			callback=_.partialRight(function(e,callback){
 				if (e.which == 86 && (e.ctrlKey || e.metaKey)) {    // CTRL + V
 					return callback(e)
@@ -3848,29 +3980,29 @@ web.onEvent=function(eventName,element,callback,arg0){
 	$(element).on(eventName,callback);
 
 }
-web.getColumn=function(matrix,header,callback){
+web.getColumn=web.onColumn=function(matrix,header,callback){
 	if(web.isString(header)){
 		throw '//TODO implement'
 	}
 
-	var array = web.Array()
+	var array = callback?matrix:web.Array()
 	for(var i=0,l=matrix.length;i<l;i++){
 		if(callback){
-			callback(null,header)
+			var val =callback(matrix[i][header],i,matrix[i],matrix)
+			if(val!==undefined){
+				matrix[i][header]=val;
+			}
 		}else{
 			array.push(matrix[i][header])
 		}
 	}
-	return array;
-
+	return array
 }
 
 
 
 web.Object=function(){return web.create('object')}
-web.Array=function(){
-	return web.create('array')
-}
+web.Array=web.forRange//function(){return web.create('array')}
 
 web.create=web.new=function(constructor /*arguments*/){
 	if(!web.isString(constructor)){
