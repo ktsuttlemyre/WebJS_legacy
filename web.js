@@ -414,7 +414,7 @@ web.pubSub=function(namespace,blocking) {
 	    }
 	};
 	
-	if(namespace){web.put(web.pubSub,namespace,subPub)}
+	if(namespace){web.put.call(web.pubSub,namespace,subPub)}
 	return subPub;
 };
 
@@ -681,6 +681,10 @@ _.continue=undefined;
 _.break=false;
 
 //returns new array
+//web.Array points here and allows for different syntax to create an array\
+//example
+//web.Array(5,function(i,array){return i*2}) = [0,1,4,9,16]
+//https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
 web.forRange=function(input,fn,bind,arg){
 	var array=web.create('array')
 	if(input==null){
@@ -700,8 +704,11 @@ web.forRange=function(input,fn,bind,arg){
 
 	max-- //noone in programming includes the max param when doing a range (everyone is always max-1) ex: length-1
 	do{
-		if(fn.call(bind,array,i)===web.break){ 
+		var ans=fn.call(bind,i,array)
+		if(ans===web.break){ 
 			break;
+		}else if(ans!==undefined){
+			array.push(ans)
 		}
 	}while(i++<max)
 	return array;
@@ -966,10 +973,34 @@ web.toHTML=function(){
 
 }
 
+//http://stackoverflow.com/questions/9267899/arraybuffer-to-base64-encoded-string
+//another resource https://gist.github.com/jonleighton/958841
+//for others see http://stackoverflow.com/questions/246801/how-can-you-encode-a-string-to-base64-in-javascript
+web.toBase64=function(input){
+	if(web.isType(input)=='ArrayBuffer'){
+		var binary = '';
+	    var bytes = new Uint8Array( input );
+	    var len = bytes.byteLength;
+	    for (var i = 0; i < len; i++) {
+	        binary += String.fromCharCode( bytes[ i ] );
+	    }
+    	return window.btoa( binary );
+	}
+	throw 'not implemented'
+	return
+}
 
 //TODO
 //http://www.techmcq.com/article/Converting-an-image-into-data-URI-using-JavaScript-FileReader/61
-web.toDataURI=function(input,callback){
+web.toDataURI=function(input,mimeType,callback){
+	if(!web.isValue(mimeType)){
+		throw 'must provide a mimeType'
+	}
+	if(web.isType(input)=='ArrayBuffer'){
+		return 'data:'+mimeType+';base64,'+web.toBase64(input)
+	}
+
+
 function fileSelected(evt) {
     var files = evt.target.files;
 	var type = '';
@@ -1073,24 +1104,215 @@ web.download=function(input,name,option){ //option used to create instead of cli
 }
 
 
-
-
+//http://en.wikipedia.org/wiki/Internet_media_type
+//handle major type names
+var inputFileMimeHandlers={
+	application:'bin'
+	,text:'text'
+	,image:'bin'
+	,audio:'bin'
+	,video:'bin'
+	,multipart:'bin'
+	,model:'bin'
+	,message:'text'
+}
 //http://stackoverflow.com/questions/1829774/jquery-simulating-a-click-on-a-input-type-file-doesnt-work-in-firefox
 //http://stackoverflow.com/questions/210643/in-javascript-can-i-make-a-click-event-fire-programmatically-for-a-file-input
-web.inputFile=function(element,callback){ //as text
+web.inputFile=function(element,preview,callback){
+	//web to fileDrop api
+	// bin = binary
+	// dataURI = 'url', 'uri' or 'src' reads Data URI (very nice for generating thumbnails)
+	// ArrayBuffer = if 'array' reads it as ArrayBuffer
+	// text = if 'text' reads data as UTF-8 string
+	// Not supported! =if starts with 'read' is assumed to be a method name on native File object which will be called.
+	// Any other string value istreated as character encoding (e.g. 'cp1251') and data is read as text in that encoding.
+	if(web.isFunction(element)){
+		callback=element
+		element=undefined
+	}else if(web.isFunction(preview)){
+		callback=preview
+		preview=undefined
+	}else if(web.isFunction(callback)){
+
+	}
+/*	if(!web.isNode(element)||!web.isjQuery(element)){
+		if(web.isString(element)){
+			callback=readType
+			readType=element
+		}else if(web.isFunction(element)){
+			callback=element
+		}
+		element=undefined
+	}*/
+
+
+
+	var guid = web.GUID() //TODO find a way that I don't have to use this
+    var fileDropHTML=$('<div>'+
+	'<fieldset id="'+guid+'"class="fd-zone media well well-sm" >'+
+      '<span class="glyphicon glyphicon-file pull-left" style="font-size:5em"></span><div class="media-body" style="align:left"><b> Input: </b><br>Drop, paste or'+
+      '<div><iframe src="javascript:false" name="fd_992" id="fd_992" style="display: none;"></iframe><form method="post" enctype="multipart/form-data" target="fd_992" style="position: relative;"><input type="hidden" name="fd-callback"><input type="file" name="fd-file" class=" fd-file" multiple="multiple"></form></div><p><button type="button" class="btn btn-default">select</button></p></div>'+
+     '<!-- Putting another element on top of file input so it overlays it and user can interact with it freely. -->'+
+      //'<p style="z-index: 10; position: relative">'+
+      //  '<input type="checkbox" id="multiple">'+
+      //  '<label for="multiple">Allow multiple selection</label>'+
+      //'</p>'+
+    '</fieldset>'+
+    '</div>');
+	
+	var notice;
 	if(!element){
 		//Pnotify
+		notice = new PNotify({
+		    text: fileDropHTML.html(),
+		    icon: false,
+		    width: 'auto',
+		    hide: false,
+		    buttons: {
+		        closer: false,
+		        sticker: false
+		    },
+		    insert_brs: false
+		});
+
+		/*notice.get().find('form.pf-form').on('click', '[name=cancel]', function() {
+		    notice.remove();
+		}).submit(function() {
+		    var username = $(this).find('input[name=username]').val();
+		    if (!username) {
+		        alert('Please provide a username.');
+		        return false;
+		    }
+		    notice.update({
+		        title: 'Welcome',
+		        text: 'Successfully logged in as ' + username,
+		        icon: true,
+		        width: PNotify.prototype.options.width,
+		        hide: true,
+		        buttons: {
+		            closer: true,
+		            sticker: true
+		        },
+		        type: 'success'
+		    });
+		    return false;
+		});*/
+
+	}else{
+		$(element).append(fileDropHTML.html())
 	}
-	var fileToLoad = document.getElementById("fileToLoad").files[0];
 
-	var fileReader = new FileReader();
-	fileReader.onload = function(fileLoadedEvent) 
-	{
-		var textFromFileLoaded = fileLoadedEvent.target.result;
-		document.getElementById("inputTextToSave").value = textFromFileLoaded;
-	};
-	fileReader.readAsText(fileToLoad, "UTF-8");
 
+
+web.onEvent('paste.'+guid
+		,$('#'+guid)
+		,_.once(function(a,b,c){
+			callback(a,b,c)
+			web.off('paste',$('#'+guid))
+			})
+		)
+
+	 
+      // Attach FileDrop to an area ('zone' is an ID but you can also give a DOM node):
+      var zone = new FileDrop(guid/*, {iframe: {url: 'upload.php'}};*/);// Tell FileDrop we can deal with iframe uploads using this URL:
+
+
+
+		// zone.event('upload', function(e){
+		//   zone.eventFiles(e).each(function(file) {
+		//     file.readData(
+		//       function(str){
+		//       	notify&&notify.close()
+		//         callback&&callback(null,str)
+		//       },
+		//       function(){
+		//       	notify&&notify.close()
+		//       	callback&&callback('Problem reading this file.');
+		//       },
+		//       readType||'text'
+		//     );
+		//   });
+		// });
+
+zone.event('send', function (files) {
+	files.each(function (file) {
+	  	console.warn('File has mimeType=',file.mime)
+	  	
+
+	  	if(preview){
+	  		//TODO make preview work!
+	  		console.error('preview not implemented')
+		  	// file.readData(
+		   //    function(str){
+		   //    	notice&&notice.remove()
+		   //      callback&&callback(null,str)
+		   //    },
+		   //    function(){
+		   //    	notice&&notice.remove()
+		   //    	callback&&callback('Problem reading this file.');
+		   //    },'uri' //dataURI
+		   //  )
+	  	}
+	    file.readData(
+	      function(str){
+	      	//TODO handle preview
+	      	//(preview)?web.toDataURI(str,file.mime)
+	      	notice&&notice.remove()
+	        callback&&callback(null,str)
+	      },
+	      function(){
+	      	notice&&notice.remove()
+	      	callback&&callback('Problem reading this file.');
+	      },inputFileMimeHandlers[file.mime.split('/').shift()||'application']
+	    )
+	})
+})
+
+
+
+		/*
+      // Do something when a user chooses or drops a file:
+      zone.event('send', function (files) {
+        // Depending on browser support files (FileList) might contain multiple items.
+        files.each(function (file) {
+          // React on successful AJAX upload:
+          file.event('done', function (xhr) {
+            // 'this' here points to fd.File instance that has triggered the event.
+            alert('Done uploading ' + this.name + ', response:\n\n' + xhr.responseText);
+          });
+
+          // Send the file:
+          file.sendTo('upload.php');
+        });
+      });
+
+      // React on successful iframe fallback upload (this is separate mechanism
+      // from proper AJAX upload hence another handler):
+      zone.event('iframeDone', function (xhr) {
+        alert('Done uploading via <iframe>, response:\n\n' + xhr.responseText);
+      });*/
+
+	//seems this is not nessissary
+      // // A bit of sugar - toggling multiple selection:
+      // fd.addEvent(fd.byID('multiple'), 'change', function (e) {
+      //   zone.multiple(e.currentTarget || e.srcElement.checked);
+      // });
+    
+
+
+
+	// var callback=function(element){
+	// 	var fileToLoad = element.files[0];
+
+	// 	var fileReader = new FileReader();
+	// 	fileReader.onload = function(fileLoadedEvent) 
+	// 	{
+	// 		var textFromFileLoaded = fileLoadedEvent.target.result;
+	// 		document.getElementById("inputTextToSave").value = textFromFileLoaded;
+	// 	};
+	// 	fileReader.readAsText(fileToLoad, "UTF-8");
+	// }
+	return notice
 }
 
 
@@ -1484,7 +1706,7 @@ web.shadow=function(obj,face){
 					if(value===undefined){
 						return web.get(value)
 					}else{
-						web.put(this,value,setVal)
+						web.put.call(this,value,setVal)
 					}
 				}
 			}
@@ -1791,9 +2013,9 @@ web.hasInterface=function(obj,inter){
 }
 
 //if true returns absolute url, if false returns false
-web.isUrl=web.isURL=function(url){
-	var tmp;
-	URI.withinString(web.toAbsoluteURL(url),function(u){tmp=u;return ''})
+web.isURL=function(url){
+	var tmp,url=web.toAbsoluteURL(url);
+	URI.withinString(url,function(u){tmp=u;return ''})
 	return (tmp==url)?tmp:false;
 }
 web.isRelativeURL=function(url){
@@ -1807,6 +2029,9 @@ web.origin=function(){
 }
 
 web.toAbsoluteURL = function(url) {
+	if((/^\w+:\/\//).test(url)){
+		return url
+	}
 	if(document){
     	var link = document.createElement("a");
     	link.href = url;
@@ -1837,13 +2062,18 @@ web.toAbsoluteURL = function(url) {
 }
 
 
-
+web.g=function(){console.log(this)}
  //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
- 	web.put=function(obj,path,value){ //path only supports dotNotation and now brakets! :-D
+ web.put=function(obj,path,value){ //path only supports dotNotation and now brakets! :-D
  	//example path 
  	//root["variable"].child[9]['pee'][89]
 
+ 	if(this==undefined){ //not using call
+ 		obj=web.global;
+ 	}
+
  	if(web.isString(obj)){
+ 		web.depricated('Use call on web.input instead')
 		value=path
 		path=obj
 		obj=web.global
@@ -3716,15 +3946,11 @@ web.cursorPosition=function(ms,callback){
 web.inputText=function(callback){
 	var parent
 	var id=web.GUID();
-	var location;
 	if(web.isString(callback)){
-		location=callback
 		callback=function(e,data){
-			web.put(location,data)
+			web.put.call(web.inputText,'text',data)
 		}
 	}
-
-
 
 	var textArea=$('<textarea id='+id+' class="form-control" style="position:absolute;width:100%;height:100%""></textarea>')
 	var button=$('<button type="submit" class="btn btn-default" style="position:absolute;bottom:1em;right:1em;">Submit</button>')
@@ -3769,11 +3995,11 @@ web.setInterval=function(func, wait, times,callback){ //TODO request animation f
 	var wait0=wait,counter=0;
 
    	var tOut=setTimeout(interv, wait);
-   	console.log('init',tOut)
+   	//console.log('init',tOut)
    	var id=web.setInterval.instances.push(interv)-1;
    function interv(command) {
    		if(tOut&&command===false){
-            console.log('clearing',tOut)
+            //console.log('clearing',tOut)
             clearTimeout(tOut)
             return tOut=undefined
    		}
@@ -3798,7 +4024,7 @@ web.setInterval=function(func, wait, times,callback){ //TODO request animation f
 	            	}
 	            }
 	            tOut=tOut&&setTimeout(interv, wait);
-	            console.log('tOut',tOut)
+	            //console.log('tOut',tOut)
 	            //try {
 	            //}
 	            //catch(e) {
@@ -3823,7 +4049,7 @@ web.clearInterval=function(id){
 
 
 
-
+//Straight up only gets selected text. A convenience for browser compatibility
 var getSelectedText=function(withAnnotation){
 	var text = "";
 	    if (window.getSelection) {
@@ -3834,21 +4060,27 @@ var getSelectedText=function(withAnnotation){
 	return text;
 }
 
-web.textSelection=function(callback){
-	if(callback){
-		if(web.isString(callback)){
-			callback=function(e,data){
-				web.put(location,data)
-			}
-		}
 
-		$(document.body).mouseup(function() {
-			var text=getSelectedText();
-		    text && callback(text);
-		});
-	}
+//if no callback then returns current selection
+//if there is a callback then
+//reference  for events https://developer.mozilla.org/en-US/docs/Web/Events
+//inspiration //http://stackoverflow.com/questions/845390/javascript-to-get-paragraph-of-selected-text-in-web-page
+web.textSelection=function(callback){
+	//TODO callback will be handled by web.onEvent triggers
+	// if(callback){
+	// 	if(web.isString(callback)){
+	// 		callback=function(e,data){
+	// 			web.put(location,data)
+	// 		}
+	// 	}
+	// 	$(document.body).mouseup(function() {
+	// 		var text=getSelectedText();
+	//     	text && callback(text);
+	// 	});
+	// }
 	return getSelectedText();
 }
+
 
 //TODO make this work
 //it should select elements that we send to it in an array or single elements
@@ -3972,8 +4204,16 @@ web.isEventSupported=function isEventSupported(eventName) { //dont check unless 
 		,DOMNodeRemovedFromDocument:true
 		,DOMSubtreeModified:true}
 
+//reference for events 
+//https://developer.mozilla.org/en-US/docs/Web/Events
+web.onEvent=/*web.on=*/function(eventName,element,callback,arg0){
+	var pluginName=(eventName.indexOf('.')>=0)
+	if(pluginName){
+		pluginName= eventName.split('.')
+		eventName=pluginName.shift()
+		pluginName=pluginName.pop()
+	}
 
-web.onEvent=function(eventName,element,callback,arg0){
 	if(web.isFunction(element)){
 		arg0=callback
 		callback=element
@@ -3987,6 +4227,14 @@ web.onEvent=function(eventName,element,callback,arg0){
 			}
 		}
 	}else if(eventName=='paste'){
+		//TODO
+		//for now we attach paste events to the document cause it only seems to work there and in input elements
+		element=web.global.document.body
+		//inspiration
+			//http://labs.nereo.com/slick.html
+		//sources
+			//http://stackoverflow.com/questions/2176861/javascript-get-clipboard-data-on-paste-event-cross-browser/2177059#2177059
+			//http://stackoverflow.com/questions/11605415/jquery-bind-to-paste-event-how-to-get-the-content-of-the-paste
 		var ta = document.createElement('textarea');
 		ta.style.position = 'absolute';
 		ta.style.left = '-1000px';
@@ -4023,8 +4271,28 @@ web.onEvent=function(eventName,element,callback,arg0){
 			},callback)
 			eventName='keydown'
 		}
+	}else if(eventName=='select'){
+		//hook into keyboard down and mouse down to check with previous selection in order to trigger event
+	}else if(eventName=='deselect'){
+		//see select event
 	}
-	$(element).on(eventName,callback);
+
+	if(pluginName){
+		$(element).on(eventName,callback);
+	}else{
+		$(element).on(eventName+'.'+pluginName,callback);
+	}
+	return callback; //in case we modified it
+
+}
+web.off=function(eventName,element,callback){
+	console.warn('called')
+	if(eventName=='paste'){
+		element=web.global.document.body
+		callback=undefined
+		
+	}
+	return $(element).off(eventName,undefined,callback)
 
 }
 web.getColumn=web.onColumn=function(matrix,header,callback){
