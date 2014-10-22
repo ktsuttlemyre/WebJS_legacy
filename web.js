@@ -2898,9 +2898,8 @@ web.DOM.lockPosition=function(id,type,hoistToBody){//id can be selector, dom ele
 
 
 
-web.baseAlpha={}
 //Source: http://stackoverflow.com/questions/11089399/count-with-a-b-c-d-instead-of-0-1-2-3-with-javascript
-web.baseAlpha.convert=function(input){
+web.baseAlpha=function(input){
 	if(typeof input =='number'){
 		return web.baseAlpha.numberToLetter(input);
 	}
@@ -2910,14 +2909,14 @@ web.baseAlpha.convert=function(input){
 	}
 	return web.baseAlpha.letterToNumber((input.toString)?input.toString:input+'')
 }
-web.baseAlpha.numberToLetter=function(num){
+web.toBaseAlpha=function(num){
     "use strict";
     var mod = num % 26,
         pow = num / 26 | 0,
         out = mod ? String.fromCharCode(64 + mod) : (--pow, 'Z');
     return pow ? web.baseAlpha.numberToLetter(pow) + out : out;
 }
-web.baseAlpha.letterToNumber=function(str) {
+web.fromBaseAlpha=function(str) {
     "use strict";
     var out = 0, len = str.length, pos = len;
     while (--pos > -1) {
