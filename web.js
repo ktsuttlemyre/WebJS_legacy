@@ -1,4 +1,5 @@
-"use strict"
+//"use strict"
+var g=function(){return this}
 
 //GO HERE FOR COOL JS STUFF   http://dailyjs.com/
 //Good idea for setter/getter = http://en.wiktionary.org/wiki/seg%C3%ADt
@@ -173,7 +174,20 @@ web.isString=function(obj){
 web.isStringObject=function(value){
 	return value && typeof value == 'object' && type(value) == 'String';
 }
+web.typeString=function(str){
+	var firstChar=str.charAt(0)
+	if(firstChar=='.'||firstChar=='/'){//relative path url put
 
+	}else if((/^.{4,7}:\/\//).test(str)){ //absolute path uri
+
+	}
+
+}
+
+var isStrict=(function() { return !this; })();
+web.isStrict=function(){
+	return isStrict
+};
 //http://stackoverflow.com/users/36866/some
 //http://stackoverflow.com/questions/384286/javascript-isdom-how-do-you-check-if-a-javascript-object-is-a-dom-object
 //Returns true if it is a DOM node
@@ -237,7 +251,7 @@ web.isObject=function(obj,level){
 		return obj === Object(obj);
 	}
 }
-/*web.isColleciton=*/web.isContainer=function(obj){
+web.isCollection=web.isContainer=function(obj){
 	return web.isObject(obj) || web.isArray(obj)
 }
 
@@ -447,12 +461,12 @@ web.bug=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
 	logWithIcon(err,web.images.bug,'error')
 	callback && callback(arg,arg1,arg2,arg3,arg4,arg5)
 }
-web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
-	if(!err&&!callback){
+web.error=function(err,defered,arg,arg1,arg2,arg3,arg4,arg5){
+	if(!err&&!defered){
 		return web.error.last;
 	}
 	if(web.isFunction(err)){
-		callback=err
+		defered=err
 		err=null
 	}
 
@@ -461,9 +475,10 @@ web.error=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
 		//web.error('Error '+line.trim()+' :'+err);
 		//TODO send error back to server!
 	}
-	if(callback){
+	if(defered){
 		web.error.last=err
-		callback && callback(arg,arg1,arg2,arg3,arg4,arg5)
+
+		defered && defered(arg,arg1,arg2,arg3,arg4,arg5)
 		web.error.last=undefined
 	}
 	return err
@@ -1206,10 +1221,12 @@ web.inputFile=function(element,preview,callback){
 
 web.onEvent('paste.'+guid
 		,$('#'+guid)
-		,_.once(function(a,b,c){
-			callback(a,b,c)
-			web.off('paste',$('#'+guid))
-			})
+		,function(a,b,c){
+			console.log('yes')
+			if(callback(a,b,c)!==false){
+				web.off('paste',$('#'+guid))
+			}
+			}
 		)
 
 	 
@@ -1238,6 +1255,28 @@ zone.event('send', function (files) {
 	files.each(function (file) {
 	  	console.warn('File has mimeType=',file.mime)
 	  	
+
+/*read a file http://stackoverflow.com/questions/3582671/how-to-open-a-local-disk-file-with-javascript
+	  	function readSingleFile(e) {
+  var file = e.target.files[0];
+  if (!file) {
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var contents = e.target.result;
+    displayContents(contents);
+  };
+  reader.readAsText(file);
+}
+
+function displayContents(contents) {
+  var element = document.getElementById('file-content');
+  element.innerHTML = contents;
+}
+
+document.getElementById('file-input')
+  .addEventListener('change', readSingleFile, false);*/
 
 	  	if(preview){
 	  		//TODO make preview work!
@@ -1714,6 +1753,10 @@ web.shadow=function(obj,face){
 		},obj)
 	}
 
+web.push=function(arr,item){
+	arr.push(item)
+	return item
+}
 
 
 
@@ -2062,15 +2105,55 @@ web.toAbsoluteURL = function(url) {
 }
 
 
-web.g=function(){console.log(this)}
+web.g=function(){return this}
+
+var webPutDeferedPrefix='web.put[Defered]='
  //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
- web.put=function(obj,path,value){ //path only supports dotNotation and now brakets! :-D
+ web.put=function(path,value,callback){ //path only supports dotNotation and now brakets! :-D
+ 	var firstChar=path.charAt(0);
+
+ 	var obj
+ 	if(this==null){ //not using call
+	 	//remote storage
+	 	if(firstChar=='.'||firstChar=='/'){//relative path url put
+	 		$.ajax({
+			   url: value,
+			   data:value,
+			   type: 'POST', //maybe use put? idk
+			   success: callback,
+			   error: function(response){
+			   	web.put(webPutDeferedPrefix,web.push( (web.get(webPutDeferedPrefix)||[]), this.url+'?'+this.data))
+			   	web.error.call(this,'Defered: saved to local storage till connnectivity returns',callback.call(this,response))
+			   }
+			});
+	 	}else if((/^.{4,7}:\/\//).test(path)){//absolute path put can be remote or local
+	 		if(web.startsWith('http')){ //remote
+		 		$.ajax({
+				   url: value,
+				   data:value,
+				   type: 'POST', //maybe use put? idk
+				   success: callback,
+				   error: function(response){
+				   	web.put(webPutDeferedPrefix,web.push( (web.get(webPutDeferedPrefix)||[]), this.url+'?'+this.data))
+				   	web.error.call(this,'Defered: saved to local storage till connnectivity returns',callback.call(response))
+				   }
+				});
+	 		}else if(web.startsWith('store')){
+	 			//http://stackoverflow.com/questions/2010892/storing-objects-in-html5-localstorage
+				localStorage.setItem(path.slice(path.indexOf('://')+3), JSON.stringify(value));
+	 			callback&&web.defer(callback)
+	 			return undefined
+	 		}else if(web.startsWith('file')){
+	 			throw 'not implmented'
+	 		}
+	 	}
+	 	localStorage.setItem(path, JSON.stringify(value));
+	 	callback&&web.defer(callback)
+	 	return undefined
+ 	}
+
  	//example path 
  	//root["variable"].child[9]['pee'][89]
-
- 	if(this==undefined){ //not using call
- 		obj=web.global;
- 	}
 
  	if(web.isString(obj)){
  		web.depricated('Use call on web.input instead')
@@ -2176,10 +2259,11 @@ web.set=function(context,path,value){
   return o;
 };
 
-web.get=function(){
-
+web.get=function(key){
+	//inspiration http://stackoverflow.com/questions/2010892/storing-objects-in-html5-localstorage
+    var value = localStorage.getItem(key);
+    return value && JSON.parse(value);
 }
-
 
 web.take=function(array,n,n1){
 	if(n1){
@@ -2464,6 +2548,10 @@ web.toCSV=function(array,options){
 	}*/)
 }
 
+//See http://stackoverflow.com/questions/333537/how-to-generate-excel-through-javascript
+web.toXLSX=function(){
+
+}
 web.xmlToEvents=function(html,callback){
 	var e={}
 	//https://news.ycombinator.com/item?id=2741780
@@ -2566,11 +2654,47 @@ web.partitionHTML=function(input){
 
 
 }
+//inspiration http://stackoverflow.com/questions/6756583/prevent-browser-from-loading-a-drag-and-dropped-file
+//it is silly when you drop a file in a webpage and it auto loads. lets stop that.
+web.preventDragDropLoading=function(){
+	window.addEventListener("dragover",function(e){
+  e = e || event;
+  e.preventDefault();
+},false);
+window.addEventListener("drop",function(e){
+  e = e || event;
+  e.preventDefault();
+},false);
+	// $(window).on('drop',function(e){
+	// 	alert('poop')
+	// 	     e.preventDefault();
+ //                e.stopPropagation();
+ //                e.stopImmediatePropagation() 
+	// 	return false;})
+}
 
 //prettyprint supports showing class and circular references
 //http://jsfiddle.net/kLwu6y8f/1/
 web.toDOM=function(obj){
 	return JsonHuman.format(obj) //but JsonHuman is MIT license and simplistic. //TODO I will update this to support above features
+}
+web.outsideClickDismissPopover=function(){
+	$('body').on('click', function (e) {
+	    //http://stackoverflow.com/questions/11703093/how-to-dismiss-a-twitter-bootstrap-popover-by-clicking-outside
+	    //http://jsfiddle.net/mattdlockyer/C5GBU/72/
+	    if ($(e.target).data('toggle') !== 'popover'
+	        && $(e.target).parents('.popover.in').length === 0) { 
+	        $('[data-toggle="popover"]').popover('hide');
+	    }
+	    //buttons and icons within buttons
+	    /*
+	    if ($(e.target).data('toggle') !== 'popover'
+	        && $(e.target).parents('[data-toggle="popover"]').length === 0
+	        && $(e.target).parents('.popover.in').length === 0) { 
+	        $('[data-toggle="popover"]').popover('hide');
+	    }
+	    */
+	});
 }
 
 //DO NOT USE yet
@@ -3140,19 +3264,28 @@ web.baseAlpha=function(input){
 	return web.baseAlpha.letterToNumber((input.toString)?input.toString:input+'')
 }
 web.toBaseAlpha=function(num){
-    "use strict";
+	if(!num){return '@'} //0 is an @ symbol
+	var sign=''
+	if(num<0){
+		sign='-',
+		num=Math.abs(num); //if negitive then make sign - and calculate using positive numbers
+	}
     var mod = num % 26,
         pow = num / 26 | 0,
         out = mod ? String.fromCharCode(64 + mod) : (--pow, 'Z');
-    return pow ? web.baseAlpha.numberToLetter(pow) + out : out;
+    return sign + (pow ? web.toBaseAlpha(pow)+out : out);
 }
 web.fromBaseAlpha=function(str) {
-    "use strict";
-    var out = 0, len = str.length, pos = len;
+	var sign=1;
+	if(str.charAt(0)=='-'){
+		sign=-1,
+		str=str.slice(1);
+	}
+	var out = 0, len = str.length, pos = len;
     while (--pos > -1) {
         out += (str.charCodeAt(pos) - 64) * Math.pow(26, len - 1 - pos);
     }
-    return out;
+    return sign*out;
 }
 
 
@@ -3219,6 +3352,57 @@ web.String.frequency=function(string,opt) {
     return freq;
 };
 
+web.resize=function(elem,debounce,callback){
+	if(web.isFunction(elem)){
+		callback=elem
+		elem=undefined
+	}
+	elem=elem||web.global
+	if(web.isFunction(debounce)){
+		callback=debounce
+		debounce=undefined
+	}
+	debounce=debounce||50
+	$(elem).resize(_.debounce(callback, debounce));
+}
+
+web.scrollListener=function(elem,debounce,callback){
+	if(web.isFunction(elem)){
+		callback=elem
+		elem=undefined
+	}
+	elem=elem||web.global
+	if(web.isFunction(debounce)){
+		callback=debounce
+		debounce=undefined
+	}
+	debounce=debounce||50
+
+	//TODO handle callback via web.onEvent
+	elem.scroll(_.debounce(function(){
+		web.trigger('scroll')
+	    //$('#scrollMsg').html('SCROLLING!');
+	    console.log('scrolling Start')
+	},debounce,{leading:true}));
+	elem.scroll(_.debounce(function(){
+		web.trigger('scrollStop')
+	    //$('#scrollMsg').html('DONE!');
+	    console.log('scrolling Stop')
+	},debounce));
+}
+
+
+web.matrixTrim=function(matrix,inPlace){
+	if(!inPlace){throw 'not implemented'}
+	_.forEach(matrix,function(value,key,array){
+		if(web.isCollection(value)){
+			web.matrixTrim(value,inPlace)
+		}else if(web.isString(value)){
+			matrix[i]=value.trim()
+		}
+	})
+	return matrix
+}
 
 
 web.socket=true;
@@ -3368,6 +3552,18 @@ if(!Object.getOwnPropertyNames){
 		}
 }
 
+//TODO
+//HSould I handle localStorage?
+// for (i=0; i<=localStorage.length-1; i++)  
+//     {  
+//         key = localStorage.key(i);  
+//         alert(localStorage.getItem(key));
+//     }  
+// }
+// Object.prototype.toString.call(localStorage)
+// "[object Storage]"
+// localStorage instanceof Storage
+// true
 //level
 //0=like Object.keys enums only
 //1=all properties like Object.getOwnProperties
@@ -3946,6 +4142,11 @@ web.inputText=function(callback){
 	var parent
 	var id=web.GUID();
 	if(web.isString(callback)){
+		var path=callback
+		callback=function(e,data){
+			web.put.call(web.inputText,path,data)
+		}
+	}else if(!callback){
 		callback=function(e,data){
 			web.put.call(web.inputText,'text',data)
 		}
@@ -4148,6 +4349,7 @@ web.editSelection=function(arg0,hidden){
 	}
 }
 
+
 //http://perfectionkills.com/detecting-event-support-without-browser-sniffing/
 web.isEventSupported=function isEventSupported(eventName) { //dont check unless developer asks to check
 	if(web.isEventSupported.mutationEvents[eventName]){
@@ -4205,8 +4407,10 @@ web.isEventSupported=function isEventSupported(eventName) { //dont check unless 
 
 //reference for events 
 //https://developer.mozilla.org/en-US/docs/Web/Events
+//note: passing document to a paste will be different than omiting it. If you want to attach to document then just omit
 web.onEvent=/*web.on=*/function(eventName,element,callback,arg0){
 	var pluginName=(eventName.indexOf('.')>=0)
+	var parentHasFocus;
 	if(pluginName){
 		pluginName= eventName.split('.')
 		eventName=pluginName.shift()
@@ -4216,7 +4420,7 @@ web.onEvent=/*web.on=*/function(eventName,element,callback,arg0){
 	if(web.isFunction(element)){
 		arg0=callback
 		callback=element
-		element=document
+		element=undefined
 	}
 
 	if(eventName=='copy'){
@@ -4226,33 +4430,47 @@ web.onEvent=/*web.on=*/function(eventName,element,callback,arg0){
 			}
 		}
 	}else if(eventName=='paste'){
-		//TODO
-		//for now we attach paste events to the document cause it only seems to work there and in input elements
-		element=web.global.document.body
 		//inspiration
 			//http://labs.nereo.com/slick.html
 		//sources
 			//http://stackoverflow.com/questions/2176861/javascript-get-clipboard-data-on-paste-event-cross-browser/2177059#2177059
 			//http://stackoverflow.com/questions/11605415/jquery-bind-to-paste-event-how-to-get-the-content-of-the-paste
-		var ta = document.createElement('textarea');
-		ta.style.position = 'absolute';
-		ta.style.left = '-1000px';
-		ta.style.top = '-1000px';
-				
+
+		var parentPositioning, ta = $('<textarea/>').css({position:'absolute'})
+
+		//hiding ta element over parent element hack
+		/*if(element){ //element=web.global.document.body
+			parentPositioning=element.css('position') //cache to recover
+			ta.css({position:'absolute',width:'100%',height:'100%',top:0,left:0,opacity:0,cursor:'default'})
+			element.prepend(ta)
+		}else{
+			*/
+		ta.css({top:'-100%',left:'-100%'})
+			/*}*/
+
+		if(element){
+			parentHasFocus = web.focusIndicator(element) //todo replace focusIndicator with a statusWatcher||stateWatcher
+		}else{
+			//pollyfill
+			parentHasFocus=function(){return true};
+			parentHasFocus.focus=true;
+		}
 
 		callback=_.partialRight(function(e,callback){
-				document.body.appendChild(ta);
+				if(!parentHasFocus.focus){
+					return
+				}
+				$(web.global.document.body).append(ta);
 				document.designMode = 'off';
 				ta.focus();
 
-				var text='',counter=0;
+				var text='';
 				var id = web.setInterval(function(){
-					console.log('interval')
-					if(ta.value!=text||counter++ >=10000){ //trigger event! 
+					if(text=ta.val()){ //trigger event! 
 						//finished pasting!
-						text=ta.value
-						ta.value=''
-						ta.parentNode.removeChild(ta);
+						text=ta.val()
+						ta.val('')
+						ta.remove();
 				    	callback(e,text)
 				    	text=''
 						web.clearInterval(id)
@@ -4276,16 +4494,17 @@ web.onEvent=/*web.on=*/function(eventName,element,callback,arg0){
 		//see select event
 	}
 
+	element=$(element||web.global.document)
 	if(pluginName){
-		$(element).on(eventName,callback);
+		element.on(eventName,callback);
 	}else{
-		$(element).on(eventName+'.'+pluginName,callback);
+		element.on(eventName+'.'+pluginName,callback);
 	}
 	return callback; //in case we modified it
 
 }
 web.off=function(eventName,element,callback){
-	console.warn('called')
+	console.warn('detaching',eventName)
 	if(eventName=='paste'){
 		element=web.global.document.body
 		callback=undefined
@@ -4313,7 +4532,23 @@ web.getColumn=web.onColumn=function(matrix,header,callback){
 	return array
 }
 
+web.focusIndicator=function(element){
+	element=$(element)
+	var pointer=function(){return pointer.focus};
+	if(element.attr('tabindex')==null){
+		element.attr('tabindex',-1)
+	}
+	element.focusout(function(){pointer.focus=false})
+	element.focusin(function(){pointer.focus=true})
+	return pointer
+}
+//combine with focusIndicator somehow in the future to make simple
+//other names
+//or statusWatch
+//or stateWatch
+web.elementWatch=function(element,watches){
 
+}
 
 web.Object=function(){return web.create('object')}
 web.Array=web.forRange//function(){return web.create('array')}
