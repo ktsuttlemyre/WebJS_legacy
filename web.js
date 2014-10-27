@@ -1,6 +1,14 @@
 //"use strict"
 var g=function(){return this}
 
+//Optimization notes
+//http://jsperf.com/arguments/10
+//Calling arguments object within a funciton causes js to create that object
+//creating that object slows down the function significantly
+//compromize
+//however if arguments object is called within a portion of the if statment (that is not ran) the function is only slightly slower than a function not accessing arguments object
+
+
 //GO HERE FOR COOL JS STUFF   http://dailyjs.com/
 //Good idea for setter/getter = http://en.wiktionary.org/wiki/seg%C3%ADt
 //tiny expression parser http://jsep.from.so/
@@ -24,6 +32,20 @@ if(!window.performance.now){
 	window.performance.now=function(){return Date.now();};
 }
 
+
+//http://stackoverflow.com/questions/6903762/function-name-not-supported-in-ie
+// Fix Function#name on browsers that do not support it (IE):
+if (!(function f() {}).name) {
+    Object.defineProperty(Function.prototype, 'name', {
+        get: function() {
+            var name = this.toString().match(/^\s*function\s*(\S*)\s*\(/)[1];
+            // For better performance only parse once, and then cache the
+            // result through a new accessor for repeated access.
+            Object.defineProperty(this, 'name', { value: name });
+            return name;
+        }
+    });
+}
 
 
 
@@ -68,6 +90,16 @@ web.extend=function(a1,a2){
 	return a1;
 }
 
+
+//in any web.function that has a callback make this the "this" context and you get a special web.aid helper as your "this" context
+web.aid=function(){return web.aid}
+web.callback=function(callback,context,args){
+	if(context===web.aid){ //TODO handle this
+		return callback.apply(context,args)
+	}
+	return callback.apply(context,args)
+
+}
 
 function parseQueryString(query){
 	if(!web.global.location){
@@ -1416,6 +1448,7 @@ function styledMODIFIEDConsoleLog() { //MODIFIED
     return argArray
 }
 
+
 // styledConsoleLog('<span style="color:hsl(0, 100%, 90%);background-color:hsl(0, 100%, 50%);"> Red </span> <span style="color:hsl(39, 100%, 85%);background-color:hsl(39, 100%, 50%);"> Orange </span> <span style="color:hsl(60, 100%, 35%);background-color:hsl(60, 100%, 50%);"> Yellow </span> <span style="color:hsl(120, 100%, 60%);background-color:hsl(120, 100%, 25%);"> Green </span> <span style="color:hsl(240, 100%, 90%);background-color:hsl(240, 100%, 50%);"> Blue </span> <span style="color:hsl(300, 100%, 85%);background-color:hsl(300, 100%, 25%);"> Purple </span> <span style="color:hsl(0, 0%, 80%);background-color:hsl(0, 0%, 0%);"> Black </span>');
 // styledConsoleLog('<span style="color:hsl(0, 100%, 90%);background-color:hsl(0, 100%, 50%);"> Red </span> <span style="'+css+'"> Orange </span> ');
 //  Red   Orange   VM30401:23
@@ -2104,16 +2137,16 @@ web.toAbsoluteURL = function(url) {
     }
 }
 
-
-web.g=function(){return this}
+web.context=function(){return web}
 
 var webPutDeferedPrefix='web.put[Defered]='
  //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
  web.put=function(path,value,callback){ //path only supports dotNotation and now brakets! :-D
  	var firstChar=path.charAt(0);
+ 	
+ 	var obj = setScope(this,undefined)
 
- 	var obj
- 	if(this==null){ //not using call
+ 	if(!web.isValue(obj)){ //not using call
 	 	//remote storage
 	 	if(firstChar=='.'||firstChar=='/'){//relative path url put
 	 		$.ajax({
@@ -4176,6 +4209,16 @@ web.inputText=function(callback){
 	return form;
 }
 
+web.functionName=function(fn){
+	return fn.name||fn.toString().match(/^\s*function\s*(\S*)\s*\(/)[1];
+}
+web.toSource=function(o){
+	if(web.isFunction(o)){
+		return o.toString()
+	}
+	return (o.toSource)?o.toSource():uneval(o);
+}
+
 //window.setInterval can be evil
 //http://www.thecodeship.com/web-development/alternative-to-javascript-evil-setinterval/
 //https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers.setInterval
@@ -4615,9 +4658,21 @@ web.free=function(obj,instance,obj2){
 	}
 }
 
-var _scope = function(scope,arg1){
-	return (scope===web || scope===web.global)?arg1:scope;
+//self is expected to be 'this' in parent function
+var _scope = setScope=web.setScope=function(self,arg){
+	if(isStrict){
+		if(self===web){
+			return arg
+		}
+		return self
+	}//else
+	if(self===web||self===web.global){
+		return arg
+	}
+	return self
 }
+
+
 var apply=function(fn,arr){
 	return fn.apply(fn,arr)
 }
@@ -4701,6 +4756,8 @@ Web.defer
 *******************************/
 web.defer=setImmediate;
 
+
+web.test=function(blah1,blah2,callback,context,arguments)
 
 /*var defer=web.defer()
 defer(function(){web.proxy('get','google.com',defer())}
