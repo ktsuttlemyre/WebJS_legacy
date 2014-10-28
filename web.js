@@ -1,4 +1,4 @@
-//"use strict"
+"use strict"
 var g=function(){return this}
 
 //Optimization notes
@@ -67,16 +67,33 @@ var web=(function(web,global,environmentFlags,undefined){
 		}
 	}
 
-	web=function(){
+	web=function(input){
+		if(input==null){
+			//do something else
+		}else if(input instanceof webWrapper){
+			return input
+		}
+		return new webWrapper(input)
+
 		if(this===web || this===web.global){
 			//arg1:scope;
 		}
 	};
+	var webWrapper=function(obj){
+		this.value=obj
+	}
+	webWrapper.prototype=web
+	webWrapper.prototype.valueOf=function(){return this.value.valueOf()}
+	webWrapper.prototype.toString=function(){return this.value.toString()}
 
-	web.isNodeJS=environmentFlags.platform=='nodejs';
+	web.isNodeJS=function(){
+		return environmentFlags.platform=='nodejs';
+	}
 	//http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
-	web.isJSCommons=(typeof module !== 'undefined' && module.exports)
-	web.env = (web.isNodeJS)?process.env.NODE_ENV : 'development' //TODO allow setting of this for webpages. maybe use a tag or something? maybe hashFragment? idk
+	web.isJSCommons=function(){
+		return (typeof web.global.module !== 'undefined' && web.global.module.exports)
+	}
+	web.env = (web.isNodeJS())?process.env.NODE_ENV : 'development' //TODO allow setting of this for webpages. maybe use a tag or something? maybe hashFragment? idk
 
 	web.global = global;
 	global.web=web
@@ -85,73 +102,73 @@ var web=(function(web,global,environmentFlags,undefined){
 	var $=(web.global.$)?web.global.$:require('cheerio')
 
 
-web.extend=function(a1,a2){
-	a1.push.apply(a1,a2)
-	return a1;
-}
+	web.extend=function(a1,a2){
+		a1.push.apply(a1,a2)
+		return a1;
+	}
 
 
-//in any web.function that has a callback make this the "this" context and you get a special web.aid helper as your "this" context
-web.aid=function(){return web.aid}
-web.callback=function(callback,context,args){
-	if(context===web.aid){ //TODO handle this
+	//in any web.function that has a callback make this the "this" context and you get a special web.aid helper as your "this" context
+	web.aid=function(){return web.aid}
+	web.callback=function(callback,context,args){
+		if(context===web.aid){ //TODO handle this
+			return callback.apply(context,args)
+		}
 		return callback.apply(context,args)
-	}
-	return callback.apply(context,args)
-
-}
-
-function parseQueryString(query){
-	if(!web.global.location){
 
 	}
-	if(!query){
-		if(web.global.location){
-			query ={
-				'?':location.search.slice(1)
-				,'#':'?'+location.hash.slice(1) //added a ? just to make parsing easier
+
+	function parseQueryString(query){
+		if(!web.global.location){
+
+		}
+		if(!query){
+			if(web.global.location){
+				query ={
+					'?':location.search.slice(1)
+					,'#':'?'+location.hash.slice(1) //added a ? just to make parsing easier
+				}
+			}else{
+				query={};
 			}
 		}else{
-			query={};
+			//TODO handle a string!!!		
 		}
-	}else{
-		//TODO handle a string!!!		
-	}
 
-	_.forEach(query,function(value,key){
-		var q={}
-		value.replace(
-			new RegExp("([^?=&]+)(=([^&]*))?", "g"),
-			function($0, $1, $2, $3) { 
-				if(q[$1]){
-					q[$1].append($3);
-				}else{
-					q[$1]=[$3]; 
+		_.forEach(query,function(value,key){
+			var q={}
+			value.replace(
+				new RegExp("([^?=&]+)(=([^&]*))?", "g"),
+				function($0, $1, $2, $3) { 
+					if(q[$1]){
+						q[$1].append($3);
+					}else{
+						q[$1]=[$3]; 
+					}
 				}
+				);
+			query[key]=q;
+		})
+	return query;
+	}
+
+	if(web.global.location){
+		web.queryParams=parseQueryString()
+	}else if(web.isNodeJS()){
+		web.queryParams=require('minimist')(process.argv.slice(2));
+	}
+
+
+
+	if(web.isNodeJS()){
+		if(web.environment.stores){
+			var store=web.keys(web.environment.stores)
+			for(var i=0,list=store,l=list.length;i<l;i++){
+				store=list[i];
+				web.stores[store]=require('level-packager')(require(store))
 			}
-			);
-		query[key]=q;
-	})
-return query;
-}
-
-if(web.global.location){
-	web.queryParams=parseQueryString()
-}else if(web.isNodeJS){
-	web.queryParams=require('minimist')(process.argv.slice(2));
-}
-
-
-
-if(web.isNodeJS){
-	if(web.environment.stores){
-		var store=web.keys(web.environment.stores)
-		for(var i=0,list=store,l=list.length;i<l;i++){
-			store=list[i];
-			web.stores[store]=require('level-packager')(require(store))
 		}
 	}
-}
 
 
 
@@ -413,7 +430,7 @@ web.sub=function(){
 //blocking = varSwap(namespace, namespace = blocking)
 //Inspiration http://stackoverflow.com/questions/16201656/how-to-swap-two-variables-in-javascript
 //Example: b=varSwap(a,a=b)
-var varSwap=function(x){
+var varSwap=web.varSwap=function(x){
 	return x;
 }
 
@@ -533,7 +550,7 @@ web.Event.removeSelf=function(e){
 web.regExp={alphabetical:/[a-zA-Z]/g
 			,majorAtoms:/[a-gi-zA-GI-Z]/g
 			,validJSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
-			
+			,commaSeperatedTrimSplit:/\W*,\W*/
 		}
 
 
@@ -585,7 +602,7 @@ var _1bit = web.toBiteLength(_2bytes,2)
 
 */
 
-web.chain = function(o,A,B,C,D,E,F,G,H,I,J,K){
+var chain = web.chain = function(o,A,B,C,D,E,F,G,H,I,J,K){
     //var g=_.defaultCall[Object.prototype.toString.call(o)];
     //function r(A,B,C,D,E,F,G,H,I,J,K){
    // 	else{ //if (arg0,arg1) is not a function call it accordingl
@@ -598,33 +615,43 @@ web.chain = function(o,A,B,C,D,E,F,G,H,I,J,K){
             alert('oats')
         }
         //handle A types
+        var type=typeof A;
         if(A===undefined){return o;} //calling () removes wrapper
         else if(A === null){throw 'problem'} //calling (null) throws error
-        else if(typeof A == 'object'){ //calling ({o},{hash}) iterates object props
+        else if(type == 'object'){ //calling ({o},{hash}) iterates object props
             for(var y in A){
                 if(!A.hasOwnProperty(y)){continue;} //make sure to skip inherit properties
                 _(y,A[y]);
             }
             return _;
-        }else if(typeof A== 'function'){
+        }else if(type== 'function'){
             throw 'I don\'t even'
-        }else if(A!='string'){
+        }else if(type!='string'){
             throw "I don't know what to do if first arugment isn't a string!"
         }
         //ok so A is a string by now (maybe)
 
-        var f=o[A];
-        if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
-            f(B,C,D,E,F,G,H,I,J,K);
+        var f=_.map[A]
+        if(f){
+	        f(o,B,C,D,E,F,G,H,I,J,K);
         }else{
-            o[A]=B;
-        }
+	        f=o[A];
+	        if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
+	            f(B,C,D,E,F,G,H,I,J,K);
+	        }else{
+	            o[A]=B;
+	        }
+    	}
         return _;
     }
     _._=_.object=o;
     _.t=_.type=typeof o;
     _.c=_.class=Object.prototype.toString.call(o);
     _.set=_;
+    _.map=web.dummyObject||{};
+    _.setMap=function(map){_.map=map;return _}
+    _.valueOf=function(){return o.valueOf()}
+    _.toString=function(){return o.toString()}
     //_.callable=(typeof o == 'function'); //TODO accept callable functions
 
     //_.get=function(A,B,C,D,E,F,G,H,I,J,K){
@@ -649,12 +676,27 @@ web.chain = function(o,A,B,C,D,E,F,G,H,I,J,K){
 //chain.defaultCall={'[object HTMLDivElement]':function(A,B){if(typeof B=='string'{return 'setAttribute'}}}
 //chain.defaultCall.params='[object HTMLDivElement]'
 
-var tag=function(o,A,B,C,D,E,F,G,H,I,J,K){
+web.tag=function(o,A,B,C,D,E,F,G,H,I,J,K){
     if(typeof o== 'string'){ //if string it is a document node. cause I SAID SO
         o=document.createElement(o);
-        if(A != null && typeof A == 'object'){
-            return chain(o,A,B,C,D,E,F,G,H,I,J,K); //if given a hash object then handle it.
-        }
+        //if(A != null && typeof A == 'object'){
+        //    return chain(o,A,B,C,D,E,F,G,H,I,J,K); //if given a hash object then handle it.
+        //}
+        return chain(o,A,B,C,D,E,F,G,H,I,J,K).setMap({css:function(o,B,C,D,E,F,G,H,I,J,K){
+        	console.log(B)
+        	var styles=B.trim().split(';'),keyValue;
+        	for(var i=0,l=styles.length;i<l;i++){
+
+        		keyValue=styles[i]
+        		if(keyValue){
+        			keyValue=keyValue.split(':')
+        		}else{
+        			console.error('could not set',keyValue)
+        		}
+        		console.log(keyValue)
+        		o.style[web.camelCase(keyValue[0].trim())]=keyValue[1].trim()
+        	}
+        }})
     }
     throw 'Error, not a string tag!'
 }
@@ -1392,14 +1434,25 @@ web.images.spotify="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAA
 web.images.bug="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAxklEQVR4nI3RoWvCQRjG8c9PTDKYYZhsW9k/YRbTQAw2wbawsCK2VasLK1aj0QXDwsL+ABEMumAUMcxg1eD9QA5/uKfcvTz3fd/n7pJ2uSxSDRV84zM2c1HdwBidsDZiII8ChnjGDt0zf4cSPvCKVR57vGOKv7gjbtHCKp0AX0hwH+pHzMN+G+JdvMNV5dDHEsWMM8Xgj1LgBQ/4zQAWwa/HkWYZwE8cCZq4QQ8bHLDGm9NDVFMgCT89CdD2woQ7DPB0DvxbR6+YIyyigNVdAAAAAElFTkSuQmCC"
 //Apple console api
 //https://developer.apple.com/library/ios/documentation/AppleApplications/Conceptual/Safari_Developer_Guide/Console/Console.html
-web.log=_.bind(console.log,console);
+web.log=function(/*arguments*/){
+	web.log.history.push(arguments.length==1?arguments[0]:arguments)
+	while(web.log.history.length>50){
+		web.log.history.shift()
+	}
+	console.log.apply(console,arguments);
+	return arguments
+}
+web.log.history=[]
+web.log.last=function(){
+	return web.log.history[web.log.history.length-1]
+}
 web.warn=_.bind(console.warn,console);
 
 //TODO OMG ADD COLORS!!!
 //http://trac.webkit.org/changeset/130941
 //http://jsfiddle.net/yg6hk/5/
 function styledConsoleLog() {
-	if(!web.isNodeJS){
+	if(!web.isNodeJS()){
 	    var argArray = [];
 
 	    if (arguments.length) {
@@ -1540,7 +1593,7 @@ web.ascii=function(key){
 
 
 	var selectorEngine;
-	if(web.isNodeJS){
+	if(web.isNodeJS()){
 		selectorEngine=require('cheerio');
 	}else{
 		selectorEngine=global.Sizzle||global.jQuery;
@@ -1646,6 +1699,8 @@ web.notify=function(title,message,options,callback){
 	return notice
 }
 
+
+
 //callback(e,notify,value)
 web.prompt=function(title,message,options,callback){
 	if(web.isString(options)){
@@ -1682,8 +1737,35 @@ web.prompt=function(title,message,options,callback){
 	        history: false
 	    }
 	})
-	notify.get().on('pnotify.confirm', callback||dummyFunction).on('pnotify.cancel', callback||dummyFunction);
+	web.callback(notify,callback)
 	return notify
+}
+
+web.callback=function(element,callback){
+	if(web.isType(element,PNotify)){
+		element.get().on('pnotify.confirm', callback||dummyFunction).on('pnotify.cancel', callback||dummyFunction);
+	}else{
+		throw 'I don\'t know how to add a callback to '+element
+	}
+	return callback;
+}
+
+web.attachTo=function(elem,parent){
+	parent=$(parent||'body')
+
+	//n=web.prompt('','',{},function(){console.log(arguments)})
+	//PNotify {options: Object, modules: Object, styles: Object, elem: n.fn.init[1], container: n.fn.init[1]…}
+	if(web.isType(elem,PNotify)){
+
+		if(elem.state=='open'){
+			//elem.remove()
+		}
+		//get jquery elem,change display to show, modify css
+		elem=elem.get().show().css({position:'static',top:0,right:0,left:0,bottom:0})
+		//elem.state='open'
+	}
+	parent.append(elem)
+	return elem
 }
 
 web.notice=function(){
@@ -2456,6 +2538,9 @@ var dummyArray=[]
 //xml.pathway().reaction(1).compound(2,'attributes').name
 var x2js =null;
 web.toObject=function(input,type,callback){
+	if(this.value){
+		callback=type,type=input,input=this.value
+	}
 	var options;
 	if(web.isObject(type)){
 		options=type
@@ -4218,6 +4303,83 @@ web.toSource=function(o){
 	}
 	return (o.toSource)?o.toSource():uneval(o);
 }
+var functionArgumentsCache={}
+
+
+web.indexOfArgument=function(fn,arg){
+	arg=arg||'web'
+	return web.functionArguments(fn).indexOf('web')
+}
+
+//Will work with block comments and block comments containing '(' or ')' YAY!
+//ex: web.functionArguments(function(/*it (confused)*/  a/*moor*/,b /*argumes*/  ){return (true)})
+web.functionArguments=function(src){
+    src = src.toString()
+    var cache=functionArgumentsCache[src]
+    if(cache){return cache;}
+    //console.warn(src)
+    var p1 =src.indexOf('(')
+    	,p2=src.indexOf(')',p1)
+    	,c1=src.lastIndexOf('/*',p2)
+    	,c2;
+    if(c1!=-1 && (c1 < p1 || c1 < p2)){//make sure they are not in comments
+    	c2=src.indexOf('*/',c1+2)
+    	//console.log('hit!',p1,p2,c1,c2,src)
+    	if(web.isBetween(p1,c1,c2) || web.isBetween(p2,c1,c2)){
+    		//console.log('hit2!','replacing comment')
+    		return functionArgumentsCache[src]=web.functionArguments(web.replaceRange(src,c1,c2+2))
+    	}
+    	return functionArgumentsCache[src]=web.functionArguments(web.replaceRange(src,c1,c2+2))
+    }//else fall through
+    return functionArgumentsCache[src]=src.slice(p1+1,p2).trim().split(web.regExp.commaSeperatedTrimSplit)
+    // don't think this is needed? if(c1==-1){
+    // don't think this is needed? 	return names.trim().split(web.regExp.commaSeperatedTrimSplit)
+    // don't think this is needed? }
+    // don't think this is needed? return web.functionArguments(web.replaceRange(names,c1,c2+2))
+
+}
+
+web.isBetween=function(x,lower,upper){
+	return (lower < x && x < upper);
+}
+
+//Supports regexp
+//http://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr
+web.indexOf = function(str,regex, startpos) {
+	if(regex instanceof RegExp){
+	    var indexOf = str.substring(startpos || 0).search(regex);
+	    return (indexOf >= 0) ? (indexOf + (startpos || 0)) : indexOf;
+    }
+	return str.lastIndexOf(regex,startpos)
+}
+web.lastIndexOf = function(str,regex, startpos) {
+	if(regex instanceof RegExp){
+	    regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : ""));
+	    if(typeof (startpos) == "undefined") {
+	        startpos = str.length;
+	    } else if(startpos < 0) {
+	        startpos = 0;
+	    }
+	    var stringToWorkWith = str.substring(0, startpos + 1);
+	    var lastIndexOf = -1;
+	    var nextStop = 0;
+	    while((result = regex.exec(stringToWorkWith)) != null) {
+	        lastIndexOf = result.index;
+	        regex.lastIndex = ++nextStop;
+	    }
+	    return lastIndexOf;
+	}
+	return str.lastIndexOf(regex,startpos)
+}
+
+//http://stackoverflow.com/questions/12568097/how-can-i-replace-a-string-by-range
+web.replaceRange=function(s, start, end, substitute) {
+	if(substitute==null){
+		return s.substring(0, start) +  s.substring(end);
+	}
+    return s.substring(0, start) + substitute + s.substring(end);
+}
+
 
 //window.setInterval can be evil
 //http://www.thecodeship.com/web-development/alternative-to-javascript-evil-setinterval/
@@ -4659,7 +4821,7 @@ web.free=function(obj,instance,obj2){
 }
 
 //self is expected to be 'this' in parent function
-var _scope = setScope=web.setScope=function(self,arg){
+var setScope=web.setScope=function(self,arg){
 	if(isStrict){
 		if(self===web){
 			return arg
@@ -4671,6 +4833,7 @@ var _scope = setScope=web.setScope=function(self,arg){
 	}
 	return self
 }
+var _scope =setScope
 
 
 var apply=function(fn,arr){
@@ -4688,7 +4851,7 @@ Web.zeroTimeout
 // Only add setZeroTimeout to the window object, and hide everything
 // else in a closure.
 var setImmediate =web.setImmediate=(function() {
-	if(web.isNodeJS){ //if this is nodejs platform then return our fn
+	if(web.isNodeJS()){ //if this is nodejs platform then return our fn
 		return setImmediate
 	}
     var timeouts = [];
@@ -4731,7 +4894,7 @@ var setImmediate =web.setImmediate=(function() {
 			,callback=(function(){func.apply(scope,args)})
 			,args=Array.prototype.slice.call(arguments, 1);
 
-		if(web.isNodeJS){
+		if(web.isNodeJS()){
 			return setTimeout(callback,0);
 	    }
         return timeouts.push(callback),window.postMessage(messageName, "*");
@@ -4756,8 +4919,8 @@ Web.defer
 *******************************/
 web.defer=setImmediate;
 
-
-web.test=function(blah1,blah2,callback,context,arguments)
+web.test=function(){return this}
+//web.test=function(blah1,blah2,callback,context,arguments){}
 
 /*var defer=web.defer()
 defer(function(){web.proxy('get','google.com',defer())}
@@ -4832,7 +4995,6 @@ return web;
 			this.interpreter=undefined
 			this.platformType='browser'
 			this.platform=''
-			
 		}
 
 
@@ -4846,6 +5008,6 @@ web.setSettings({
 })
 
 //now export it if we are using commonjS
-if(web.isJSCommons){
+if(web.isJSCommons()){
 	module.exports=web.web||web; //TODO figure out why web is being ecapuslated in another object
 }
