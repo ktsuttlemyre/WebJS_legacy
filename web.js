@@ -66,7 +66,8 @@ var web=(function(web,global,environmentFlags,undefined){
 			
 		}
 	}
-
+	//avoid anything with call, avoid anything with this and use this custom scope function 
+	//http://jsperf.com/bind-vs-jquery-proxy/76
 	web=function(input){
 		if(input==null){
 			//do something else
@@ -79,13 +80,7 @@ var web=(function(web,global,environmentFlags,undefined){
 			//arg1:scope;
 		}
 	};
-	var webWrapper=function(obj){
-		this.value=obj
-	}
-	webWrapper.prototype=web
-	webWrapper.prototype.valueOf=function(){return this.value.valueOf()}
-	webWrapper.prototype.toString=function(){return this.value.toString()}
-
+	
 	web.isNodeJS=function(){
 		return environmentFlags.platform=='nodejs';
 	}
@@ -340,6 +335,139 @@ web.duckType=function(obj,compare,threshold){
 	}
 	return (threshold)?(score/total)>threshold:(score/total)
 }
+
+
+
+
+//Inspiration http://tokenposts.blogspot.com.au/2012/04/javascript-objectkeys-browser.html
+var properties = function(o,level){
+	var k=[],p,enu;
+  	for (p in o){
+  		if(Object.prototype.hasOwnProperty.call(o,p)){
+  			if(level&&Object.prototype.propertyIsEnumreable && level!='properties'){
+  				enu=Object.prototype.propertyIsEnumreable.call(o,p)
+  				if(level=='keys'&&enu){
+  					k.push(p)
+  				}else if(level=='nonEnumerables'&&!enu){
+  					k.push(p)
+  				}else{
+  					throw  'IDK WHY THIS HAPPENED!'
+  				}
+  				continue;
+  			}
+  			k.push(p);
+  			}
+  		}
+  	return k;
+  	}
+
+
+if(!Object.keys){
+	Object.keys=function(obj){
+		if(!force && o !== Object(o))
+			throw new TypeError('Object.keys called on a non-object');
+		return properties(o,'keys')
+		}
+}
+
+if(!Object.getOwnPropertyNames){
+	Object.getOwnPropertyNames=function(obj){
+		if(!force && o !== Object(o))
+			throw new TypeError('Object.keys called on a non-object');
+		return properties(o,'properties')
+		}
+}
+
+//TODO
+//HSould I handle localStorage?
+// for (i=0; i<=localStorage.length-1; i++)  
+//     {  
+//         key = localStorage.key(i);  
+//         alert(localStorage.getItem(key));
+//     }  
+// }
+// Object.prototype.toString.call(localStorage)
+// "[object Storage]"
+// localStorage instanceof Storage
+// true
+//level
+//0=like Object.keys enums only
+//1=all properties like Object.getOwnProperties
+//2=nonEnums difference between keys and getOwnProperties
+web.keys=function(obj,enumLevel,iterNonObject /*sort???*/){
+	//todo add iterator function?
+	if(iterNonObject){
+		return properties(o,enumLevel)
+	}else{
+		if(!enumLevel||enumLevel=='keys'){ //web.startsWith(enumLevel,'key')
+			return Object.keys(obj)
+		}else if(enumLevel=='properties'){ //web.startsWith(enumLevel,'propert')
+			return Object.getOwnPropertyNames(obj)
+		}else if(enumLevel=='nonEnumerables'){ //web.startsWith(enumLevel,'nonEnumerable')
+			var properties = Object.getOwnPropertyNames(obj);
+			return properties.filter(function(key) {
+				return !Object.prototype.propertyIsEnumreable.call(obj,key)
+			})
+		}else{
+			throw 'Error: object.keys does not know the enumlevel'
+		}
+	}
+}
+
+web.enumerable=function(obj,prop){
+	if(!prop){
+		return Object.keys(obj);
+	}
+	if(web.isArray(prop)){
+		return prop.filter(function(key) {
+			return Object.prototype.propertyIsEnumreable.call(obj,key)
+		})
+	}else{
+		return Object.prototype.propertyIsEnumreable.call(obj,prop)
+	}
+}
+web.nonEnumerable=function(obj,prop){
+	prop=prop||Object.getOwnPropertyNames(obj);
+	if(web.isArray(prop)){
+		return prop.filter(function(key) {
+			return !Object.prototype.propertyIsEnumreable.call(obj,key)
+		})
+	}else{
+		return !Object.prototype.propertyIsEnumreable.call(obj,prop)
+	}
+}
+web.getProperties=function(obj){
+	return Object.getOwnPropertyNames(obj)
+}
+
+var webWrapper=function(obj){
+		this.value=obj
+	}
+	webWrapper.prototype=web.prototype
+	webWrapper.prototype.valueOf=function(){return this.value.valueOf()}
+	webWrapper.prototype.toString=function(){return this.value.toString()}
+
+	_.forEach(web.keys(web),function(fn,method,original){
+		switch(fn.length){
+			case 1:
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+			case 6:
+			case 7:
+			case 8:
+				return function(a0,a1,a2,a3,a4,a5,a6,a7){
+							return fn(this.value,a0,a1,a2,a3,a4,a5,a6,a7,a8)
+						}
+			default:
+				return function(/*arguments*/){
+					return fn.apply(this,web.toArray(arguments).unshift(this.value))
+				}
+		}
+	})
+
+
 
 web.Object=web.Object||{};
 web.Object.putAdd=function(obj,key,value){
@@ -3096,7 +3224,7 @@ web.toArray=function(obj,keys,index2){
 		return Array.prototype.slice.call(obj, keys||0,index2||undefined);
 	}
 	
-	var array = []
+	var array = web.Array()
 	for(var i=0,l=keys.length;i<l;i++){
 		array.push(obj[keys[i]])
 	}
@@ -3631,106 +3759,6 @@ web.cookie=function(req){
 
 
 
-//Inspiration http://tokenposts.blogspot.com.au/2012/04/javascript-objectkeys-browser.html
-var properties = function(o,level){
-	var k=[],p,enu;
-  	for (p in o){
-  		if(Object.prototype.hasOwnProperty.call(o,p)){
-  			if(level&&Object.prototype.propertyIsEnumreable && level!='properties'){
-  				enu=Object.prototype.propertyIsEnumreable.call(o,p)
-  				if(level=='keys'&&enu){
-  					k.push(p)
-  				}else if(level=='nonEnumerables'&&!enu){
-  					k.push(p)
-  				}else{
-  					throw  'IDK WHY THIS HAPPENED!'
-  				}
-  				continue;
-  			}
-  			k.push(p);
-  			}
-  		}
-  	return k;
-  	}
-
-
-if(!Object.keys){
-	Object.keys=function(obj){
-		if(!force && o !== Object(o))
-			throw new TypeError('Object.keys called on a non-object');
-		return properties(o,'keys')
-		}
-}
-
-if(!Object.getOwnPropertyNames){
-	Object.getOwnPropertyNames=function(obj){
-		if(!force && o !== Object(o))
-			throw new TypeError('Object.keys called on a non-object');
-		return properties(o,'properties')
-		}
-}
-
-//TODO
-//HSould I handle localStorage?
-// for (i=0; i<=localStorage.length-1; i++)  
-//     {  
-//         key = localStorage.key(i);  
-//         alert(localStorage.getItem(key));
-//     }  
-// }
-// Object.prototype.toString.call(localStorage)
-// "[object Storage]"
-// localStorage instanceof Storage
-// true
-//level
-//0=like Object.keys enums only
-//1=all properties like Object.getOwnProperties
-//2=nonEnums difference between keys and getOwnProperties
-web.keys=function(obj,enumLevel,iterNonObject /*sort???*/){
-	//todo add iterator function?
-	if(iterNonObject){
-		return properties(o,enumLevel)
-	}else{
-		if(!enumLevel||enumLevel=='keys'){ //web.startsWith(enumLevel,'key')
-			return Object.keys(obj)
-		}else if(enumLevel=='properties'){ //web.startsWith(enumLevel,'propert')
-			return Object.getOwnPropertyNames(obj)
-		}else if(enumLevel=='nonEnumerables'){ //web.startsWith(enumLevel,'nonEnumerable')
-			var properties = Object.getOwnPropertyNames(obj);
-			return properties.filter(function(key) {
-				return !Object.prototype.propertyIsEnumreable.call(obj,key)
-			})
-		}else{
-			throw 'Error: object.keys does not know the enumlevel'
-		}
-	}
-}
-
-web.enumerable=function(obj,prop){
-	if(!prop){
-		return Object.keys(obj);
-	}
-	if(web.isArray(prop)){
-		return prop.filter(function(key) {
-			return Object.prototype.propertyIsEnumreable.call(obj,key)
-		})
-	}else{
-		return Object.prototype.propertyIsEnumreable.call(obj,prop)
-	}
-}
-web.nonEnumerable=function(obj,prop){
-	prop=prop||Object.getOwnPropertyNames(obj);
-	if(web.isArray(prop)){
-		return prop.filter(function(key) {
-			return !Object.prototype.propertyIsEnumreable.call(obj,key)
-		})
-	}else{
-		return !Object.prototype.propertyIsEnumreable.call(obj,prop)
-	}
-}
-web.getProperties=function(obj){
-	return Object.getOwnPropertyNames(obj)
-}
 
 web.ms={}
 web.ms.days=function(days){
