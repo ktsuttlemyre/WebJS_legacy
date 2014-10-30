@@ -80,6 +80,7 @@ var web=(function(web,global,environmentFlags,undefined){
 			//arg1:scope;
 		}
 	};
+	web.id="$Id$"
 	
 	web.isNodeJS=function(){
 		return environmentFlags.platform=='nodejs';
@@ -1627,6 +1628,11 @@ function styledMODIFIEDConsoleLog() { //MODIFIED
 
     console.log.apply(console, argArray);
     return argArray
+}
+
+web.consoleIcon=function(){
+	if(!(this instanceof web.consoleIcon)){return new web.consoleIcon()}
+
 }
 
 
@@ -3535,6 +3541,100 @@ web.fromBaseAlpha=function(str) {
 }
 
 
+//http://stackoverflow.com/questions/9083037/convert-a-number-into-a-roman-numeral-in-javascript
+//http://blog.stevenlevithan.com/archives/javascript-roman-numeral-converter
+web.romanize=function(input){
+	if(typeof input=='number'){
+		return web.toRoman(input)
+	}else if(typeof input=='string'){
+		return web.fromRoman(input)
+	}else{
+		throw 'not implemented'
+	}
+}
+web.toRoman=function(num){
+	if (!+num)
+		return false;
+	var	digits = String(+num).split(""),
+		key = ["","C","CC","CCC","CD","D","DC","DCC","DCCC","CM",
+		       "","X","XX","XXX","XL","L","LX","LXX","LXXX","XC",
+		       "","I","II","III","IV","V","VI","VII","VIII","IX"],
+		roman = "",
+		i = 3;
+	while (i--)
+		roman = (key[+digits.pop() + (i * 10)] || "") + roman;
+	return Array(+digits.join("") + 1).join("M") + roman;
+}
+
+web.fromRoman=function(str) {
+	var	str = str.toUpperCase(),
+		validator = /^M*(?:D?C{0,3}|C[MD])(?:L?X{0,3}|X[CL])(?:V?I{0,3}|I[XV])$/,
+		token = /[MDLV]|C[MD]?|X[CL]?|I[XV]?/g,
+		key = {M:1000,CM:900,D:500,CD:400,C:100,XC:90,L:50,XL:40,X:10,IX:9,V:5,IV:4,I:1},
+		num = 0, m;
+	if (!(str && validator.test(str)))
+		return false;
+	while (m = token.exec(str))
+		num += key[m[0]];
+	return num;
+}
+
+//Inspiration http://javascript.about.com/library/bltoword.htm
+// copyright 25th July 2006, by Stephen Chapman http://javascript.about.com
+// permission to use this Javascript on your web page is granted
+// provided that all of the code (including this copyright notice) is
+// used exactly as shown (you can change the numbering system if you wish)
+//http://jesusjzp.github.io/blog/2014/03/06/javascript-number-word-conversion/
+web.toWords=function(s,locale){
+	// American Numbering System
+	var th = (web.startsWith(web.language().toLowerCase(),'en'))?['', 'thousand', 'million', 'billion', 'trillion']:['','thousand','million', 'milliard','billion'];
+
+	var dg = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+	var tn = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+	var tw = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+
+    s = s.toString();
+    s = s.replace(/[\, ]/g, '');
+    if (s != parseFloat(s)) return 'not a number';
+    var x = s.indexOf('.');
+    if (x == -1) x = s.length;
+    if (x > 15) return 'too big';
+    var n = s.split('');
+    var str = '';
+    var sk = 0;
+    for (var i = 0; i < x; i++) {
+        if ((x - i) % 3 == 2) {
+            if (n[i] == '1') {
+                str += tn[Number(n[i + 1])] + ' ';
+                i++;
+                sk = 1;
+            } else if (n[i] != 0) {
+                str += tw[n[i] - 2] + ' ';
+                sk = 1;
+            }
+        } else if (n[i] != 0) {
+            str += dg[n[i]] + ' ';
+            if ((x - i) % 3 == 0) str += 'hundred ';
+            sk = 1;
+        }
+        if ((x - i) % 3 == 1) {
+            if (sk) str += th[(x - i - 1) / 3] + ' ';
+            sk = 0;
+        }
+    }
+    if (x != s.length) {
+        var y = s.length;
+        str += 'point ';
+        for (var i = x + 1; i < y; i++) str += dg[n[i]] + ' ';
+    }
+    return str.replace(/\s+/g, ' ');
+}
+//http://www.techrepublic.com/article/detect-foreign-language-support-using-javascript/
+web.language=function(){
+	return web.global.navigator && web.global.navigator.language || 'en'
+}
+
 web.csv=web.csv||{};
 web.csv.sniffDelimiter=function(input,filter){
 	return web.csv.stats(input,filter).delimiter;
@@ -4746,6 +4846,46 @@ web.off=function(eventName,element,callback){
 	return $(element).off(eventName,undefined,callback)
 
 }
+
+web.rotate=function(elem,angle){
+	if(!elem){
+		elem=document.body
+	}
+	// document element way elem.style.setProperty("-webkit-transform", "rotate(-90deg)", null);
+	$(elem).css('transform','rotate('+angle+')')
+	return elem;
+}
+web.flip=function(elem){
+	return web.rotate(elem,'180deg')
+}
+web.translateAngleUnit=function(num,from,to){//TODO support turns
+	if(typeof num=='string'){ //assume format is like '55deg'
+		to=from
+		num=web.splitAlphaNum(num)
+		from=num[1]
+		num=num[0]
+	}
+	var cat = from.toLowerCase()+to.toLowerCase()
+	if(cat=='degrad'){
+		return num * (Math.pi()/180)
+	}else if(cat=='raddeg'){
+		return num * (180/Math.pi())
+	}else if(cat=='graddeg'){
+		return num*1.11111111111;
+	}else if(cat=='deggrad'){
+		return num/1.11111111111;
+	}else if(cat=='radgrad'){
+		return web.translateAngle(web.translateAngleUnit(num,'rad','deg'),'deg','grad') //todo simplify
+	}else if(cat=='gradrad'){
+		return web.translateAngle(web.translateAngleUnit(num,'grad','deg'),'deg','rad') //todo simplify
+	}
+}
+//http://stackoverflow.com/questions/9742110/splitting-numbers-and-letters-in-string-which-contains-both
+web.splitAlphaNum=function(str){
+	return str.match(/[a-zA-Z]+|[0-9]+/g)
+}
+
+
 web.getColumn=web.onColumn=function(matrix,header,callback){
 	if(web.isString(header)){
 		throw '//TODO implement'
