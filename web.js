@@ -22,7 +22,6 @@ var g=function(){return this}
 /*******************************************************
 				POLLYFILLS
 ********************************************************/
-var window = (typeof window =='undefined')?{}:window;
 if(!Date||!Date.now){
 	Date.now=function(){(new Date).getTime()};
 }
@@ -623,7 +622,7 @@ web.lineNumber=function(){
 }
 //http://getfirebug.com/wiki/index.php/Firebug_Lite_1.2#Firebug_Lite_API
 web.consoleHandler=(function(){
-	if(web.global.Firebug){
+	if(web.global.Firebug && web.global.console.firebuglite){
 			var tmp=window.console
 			delete window.console
 			//TODO make firebug show large commandline
@@ -649,7 +648,9 @@ web.error=function(err,defered,arg,arg1,arg2,arg3,arg4,arg5){
 	}
 
 	if(err){
-		var line = (new Error).stack.split("\n")[2]
+		var error=(new Error)
+		var stack = error.stack;
+		var line = (stack)?stack.split("\n")[2]:error.lineNumber;
 		//web.error('Error '+line.trim()+' :'+err);
 		//TODO send error back to server!
 	}
@@ -2148,7 +2149,9 @@ return w.break;
 
 web.Buttons=web.Buttons||{}
 web.Buttons.close=function(){return $('<button type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>')}
+web.button=function(text,action,parent){
 
+}
 
 web.capitalize = function(string){
  		return string.charAt(0).toUpperCase() + string.slice(1);
