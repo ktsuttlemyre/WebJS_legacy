@@ -55,6 +55,21 @@ end pollyfills
 *************************/
 
 
+var libs = ['PNotify','jQuery']
+
+
+
+web.libs()
+
+
+function(){
+	if('bootstrap'){
+		return (typeof $().emulateTransitionEnd == 'function')?'3': (typeof($.fn.modal) === 'function')?'2':undefined;
+}
+
+
+
+
 
 var web=(function(web,global,environmentFlags,undefined){
 	//if it does not exist. make it!
@@ -5182,3 +5197,25 @@ web.setSettings({
 if(web.isJSCommons()){
 	module.exports=web.web||web; //TODO figure out why web is being ecapuslated in another object
 }
+
+
+
+
+////////#########################
+
+
+function(){(function(global,s,o,g,r,a,m){
+	global['GoogleAnalyticsObject']=r;
+	global[r]=global[r]||function(){
+  		(global[r].q=global[r].q||[]).push(arguments)
+	}
+	,global[r].l=1*new Date();
+	a=s.createElement(o)
+	,m=s.getElementsByTagName(o)[0];
+	a.async=1;
+	a.src=g;
+	m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+ga('create', web.google.analytics.trackingID||'', 'auto');
+ga('send', 'pageview');
