@@ -54,8 +54,8 @@ if (!(function f() {}).name) {
 end pollyfills
 *************************/
 
-
-var libs = ['PNotify','jQuery']
+/*
+var libs = ['PNotify','jQuery','Bootstrap']
 
 
 
@@ -65,8 +65,9 @@ web.libs()
 function(){
 	if('bootstrap'){
 		return (typeof $().emulateTransitionEnd == 'function')?'3': (typeof($.fn.modal) === 'function')?'2':undefined;
+	}
 }
-
+*/
 
 
 
@@ -635,6 +636,8 @@ web.stack=function(index){
 web.lineNumber=function(){
 	return (new Error).stack.split("\n")[2]
 }
+
+
 //http://getfirebug.com/wiki/index.php/Firebug_Lite_1.2#Firebug_Lite_API
 web.consoleHandler=(function(){
 	if(web.global.Firebug && web.global.console.firebuglite){
@@ -696,6 +699,7 @@ web.regExp={alphabetical:/[a-zA-Z]/g
 			,majorAtoms:/[a-gi-zA-GI-Z]/g
 			,validJSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
 			,commaSeperatedTrimSplit:/\W*,\W*/
+			,blockQuotes:/\*.*\*/
 		}
 
 
@@ -829,19 +833,8 @@ web.tag=function(o,A,B,C,D,E,F,G,H,I,J,K){
         //}
         return chain(o,A,B,C,D,E,F,G,H,I,J,K).setMap({css:function(o,B,C,D,E,F,G,H,I,J,K){
         	console.log(B)
-        	var styles=B.trim().split(';'),keyValue;
-        	for(var i=0,l=styles.length;i<l;i++){
-
-        		keyValue=styles[i]
-        		if(keyValue){
-        			keyValue=keyValue.split(':')
-        		}else{
-        			console.error('could not set',keyValue)
-        		}
-        		console.log(keyValue)
-        		o.style[web.camelCase(keyValue[0].trim())]=keyValue[1].trim()
-        	}
-        }})
+        	web.css(B,o)
+        })
     }
     throw 'Error, not a string tag!'
 }
@@ -5057,7 +5050,7 @@ var setImmediate =web.setImmediate=(function() {
 
 			var b = function(arg){
 				if(end){
-					throw new Error('NO NO NO!')
+					throw new Error('NO NO NO!') //for debugging, this will never be thrown unless there is a logical error
 				}
 				if(arg===undefined){
 					return next
@@ -5116,6 +5109,114 @@ defer(function(){web.proxy('get','google.com',defer())}
 */
 
 
+web.css=function(input,elem){
+	var raw = input
+	if(web.isType(input,'String')){
+		input=input.replace(web.regExp.blockQuotes)
+
+		if(!elem){
+			//add stylesheet					
+			// Write style rule in stylesheet
+			// @param {string} rule a series of selectors and rules separated by the newline character '\n'
+			// @returns {string} empty string
+				rule=input;
+				var lastStyleSheetIndex = document.styleSheets.length - 1;
+				var styleInputTag=document.getElementById("webInjectedCSS")
+				if(styleInputTag == null) {
+					styleInputTag = document.createElement("style");
+					styleInputTag.id = "webInjectedCSS";
+					styleInputTag.type = "text/css";
+					document.body.appendChild(styleInputTag);
+				}
+				if(web.isFireFox() || web.isOpera()){
+					// wow, I can't believe this works in FF and Opera. It shouldn't 
+					styleInputTag.innerHTML += "\n" + rule + "\n";
+				} else if (web.isIE() || web.isSafari()) {
+					// in IE, stylesheets are added to the top of the stack 
+					if(web.isIE()) {
+						var i = 0;
+					} else if (web.isSafari()) {
+						var i = document.styleSheets.length - 1;
+					}
+					// create array of rules 
+					var rulesArray = rule.split("}");
+					for(var t = 0; t < rulesArray.length; t++) {
+						var ruleSplit = rulesArray[t].split("{");
+						// IE wont take multiple selectors in one rule in addRule 
+						var selectors = ruleSplit[0].split(",");
+							for(var k = 0; k < selectors.length; k++) {
+								document.styleSheets[i].addRule(selectors[k],ruleSplit[1]);
+							}
+						}
+				}
+			return
+		}
+
+	   var styles=input.trim().split(';'),keyValue;
+    	for(var i=0,l=styles.length;i<l;i++){
+
+    		keyValue=styles[i]
+    		if(keyValue){
+    			keyValue=keyValue.split(':')
+    		}else{
+    			console.error('could not set',keyValue)
+    		}
+    		console.log(keyValue)
+    		elem.style[web.camelCase(keyValue[0].trim())]=keyValue[1].trim()
+        	}
+        }
+
+	}else if(web.isType(input,"Function")){
+
+	}else if(web.isType(input,'Object')){
+
+	}
+
+}
+
+
+
+web.isIE=function(){
+	return web.browserType()=='InternetExplorer'
+}
+web.isSafari=function(){
+	return web.browserType()=='Safari'
+}
+web.isChrome=function(){
+	//return web.browserType()=='InternetExplorer'
+}
+web.isFireFox=function(){
+	return web.browserType()=='FireFox'
+}
+web.isOpera=function(){
+	return web.browserType()=='Opera'
+}
+
+web.browserType=function(){
+	var str = window.navigator.userAgent.toLowerCase()
+	if(str.indexOf("opera") != -1) {
+		return "Opera";
+	}
+	if(str.indexOf("msie") != -1) {
+		return "InternetExplorer";
+	}
+	if(str.indexOf("firefox") != -1) {
+		return "FireFox";
+	}
+	if(str.indexOf("safari") != -1) {
+		return "Safari";
+	}
+}
+web.osType=function(){
+	var ua = window.navigator.userAgent.toLowerCase();
+	if(ua.indexOf("macintosh") != -1) {
+		return "Mac";
+	} else if(ua.indexOf("windows") != -1) {
+		return "Windows";
+	} else if(ua.indexOf("linux i686") != -1) {
+		return "Linux";
+	}
+}
 
 web.checksum=function(input,args,callback){
 	//TODO accept streams,file names, or strings
@@ -5204,7 +5305,7 @@ if(web.isJSCommons()){
 ////////#########################
 
 
-function(){(function(global,s,o,g,r,a,m){
+/*(function(global,s,o,g,r,a,m){
 	global['GoogleAnalyticsObject']=r;
 	global[r]=global[r]||function(){
   		(global[r].q=global[r].q||[]).push(arguments)
@@ -5215,7 +5316,14 @@ function(){(function(global,s,o,g,r,a,m){
 	a.async=1;
 	a.src=g;
 	m.parentNode.insertBefore(a,m)
-  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  })(window,document,'script','//google-analytics.com/analytics.js','ga');
 
 ga('create', web.google.analytics.trackingID||'', 'auto');
-ga('send', 'pageview');
+ga('send', 'pageview');*/
+
+
+
+
+
+
+
