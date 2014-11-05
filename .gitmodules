@@ -7,3 +7,12 @@
 [submodule "dependencies/bootstrap"]
 	path = dependencies/bootstrap
 	url = https://github.com/twbs/bootstrap.git
+[submodule "dependencies/json.human.js"]
+	path = dependencies/json.human.js
+	url = https://github.com/marianoguerra/json.human.js.git
+[submodule "dependencies/jsep"]
+	path = dependencies/jsep
+	url = https://github.com/soney/jsep.git
+[submodule "dependencies/esprima"]
+	path = dependencies/esprima
+	url = https://github.com/ariya/esprima.git
