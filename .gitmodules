@@ -1,9 +1,6 @@
 [submodule "dependencies/SlickGrid"]
 	path = dependencies/SlickGrid
 	url = https://github.com/mleibman/SlickGrid.git
-[submodule "dependencies/pnotify"]
-	path = dependencies/pnotify
-	url = https://github.com/sciactive/pnotify.git
 [submodule "dependencies/bootstrap"]
 	path = dependencies/bootstrap
 	url = https://github.com/twbs/bootstrap.git
@@ -16,3 +13,6 @@
 [submodule "dependencies/esprima"]
 	path = dependencies/esprima
 	url = https://github.com/ariya/esprima.git
+[submodule "dependencies/ua-parser-js"]
+	path = dependencies/ua-parser-js
+	url = https://github.com/faisalman/ua-parser-js.git

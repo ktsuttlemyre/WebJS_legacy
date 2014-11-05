@@ -54,138 +54,6 @@ if (!(function f() {}).name) {
 end pollyfills
 *************************/
 
-/*
-
-var libs = [
-	'PNotify'
-	'jQuery'
-	,Bootstrap:function(){return (typeof $().emulateTransitionEnd == 'function')?'3': (typeof($.fn.modal) === 'function')?'2':undefined;}
-]
-
-
-
-
-web.libs()
-
-
-function(){
-	if('bootstrap'){
-		return (typeof $().emulateTransitionEnd == 'function')?'3': (typeof($.fn.modal) === 'function')?'2':undefined;
-	}
-}
-*/
-
-
-
-
-var web=(function(web,global,environmentFlags,undefined){
-	//if it does not exist. make it!
-	if(typeof web!='undefined'){
-		if(!isFunction(web)){//settings object
-			var settings = web;
-			defer.call(web,web.setSettings,settings); //TODO make this work!
-			
-		}
-	}
-	//avoid anything with call, avoid anything with this and use this custom scope function 
-	//http://jsperf.com/bind-vs-jquery-proxy/76
-	web=function(input){
-		if(input==null){
-			//do something else
-		}else if(input instanceof webWrapper){
-			return input
-		}
-		return new webWrapper(input)
-
-		if(this===web || this===web.global){
-			//arg1:scope;
-		}
-	};
-	web.id="$Id$"
-	
-	web.isNodeJS=function(){
-		return environmentFlags.platform=='nodejs';
-	}
-	//http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
-	web.isJSCommons=function(){
-		return (typeof web.global.module !== 'undefined' && web.global.module.exports)
-	}
-	web.env = (web.isNodeJS())?process.env.NODE_ENV : 'development' //TODO allow setting of this for webpages. maybe use a tag or something? maybe hashFragment? idk
-
-	web.global = global;
-	global.web=web
-	web.environment=environmentFlags;
-	var _=(web.global._)?web.global._:require('lodash')
-	var $=(web.global.$)?web.global.$:require('cheerio')
-
-
-	web.extend=function(a1,a2){
-		a1.push.apply(a1,a2)
-		return a1;
-	}
-
-
-	//in any web.function that has a callback make this the "this" context and you get a special web.aid helper as your "this" context
-	web.aid=function(){return web.aid}
-	web.callback=function(callback,context,args){
-		if(context===web.aid){ //TODO handle this
-			return callback.apply(context,args)
-		}
-		return callback.apply(context,args)
-
-	}
-
-	function parseQueryString(query){
-		if(!web.global.location){
-
-		}
-		if(!query){
-			if(web.global.location){
-				query ={
-					'?':location.search.slice(1)
-					,'#':'?'+location.hash.slice(1) //added a ? just to make parsing easier
-				}
-			}else{
-				query={};
-			}
-		}else{
-			//TODO handle a string!!!		
-		}
-
-		_.forEach(query,function(value,key){
-			var q={}
-			value.replace(
-				new RegExp("([^?=&]+)(=([^&]*))?", "g"),
-				function($0, $1, $2, $3) { 
-					if(q[$1]){
-						q[$1].append($3);
-					}else{
-						q[$1]=[$3]; 
-					}
-				}
-				);
-			query[key]=q;
-		})
-	return query;
-	}
-
-	if(web.global.location){
-		web.queryParams=parseQueryString()
-	}else if(web.isNodeJS()){
-		web.queryParams=require('minimist')(process.argv.slice(2));
-	}
-
-
-
-	if(web.isNodeJS()){
-		if(web.environment.stores){
-			var store=web.keys(web.environment.stores)
-			for(var i=0,list=store,l=list.length;i<l;i++){
-				store=list[i];
-				web.stores[store]=require('level-packager')(require(store))
-			}
-		}
-	}
 
 
 
@@ -193,7 +61,7 @@ var web=(function(web,global,environmentFlags,undefined){
 
 
 var uaparser = new UAParser();
-Stallion=window.Stallion||{};
+window.Stallion=window.Stallion||{};
 
 Stallion.compare=Stallion.compare||{};
 Stallion.compare.toOperator=function(i){
@@ -435,6 +303,160 @@ Stallion.Array.zipper=function(a1,a2){
 			}
 			return ans
 		}
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+var libs = [
+	'PNotify'
+	'jQuery'
+	,Bootstrap:function(){return (typeof $().emulateTransitionEnd == 'function')?'3': (typeof($.fn.modal) === 'function')?'2':undefined;}
+]
+
+
+
+
+web.libs()
+
+
+function(){
+	if('bootstrap'){
+		return (typeof $().emulateTransitionEnd == 'function')?'3': (typeof($.fn.modal) === 'function')?'2':undefined;
+	}
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+var web=(function(web,global,environmentFlags,undefined){
+	//if it does not exist. make it!
+	if(typeof web!='undefined'){
+		if(!isFunction(web)){//settings object
+			var settings = web;
+			defer.call(web,web.setSettings,settings); //TODO make this work!
+			
+		}
+	}
+	//avoid anything with call, avoid anything with this and use this custom scope function 
+	//http://jsperf.com/bind-vs-jquery-proxy/76
+	web=function(input){
+		if(input==null){
+			//do something else
+		}else if(input instanceof webWrapper){
+			return input
+		}
+		return new webWrapper(input)
+
+		if(this===web || this===web.global){
+			//arg1:scope;
+		}
+	};
+	web.id="$Id$"
+	
+	web.isNodeJS=function(){
+		return environmentFlags.platform=='nodejs';
+	}
+	//http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
+	web.isJSCommons=function(){
+		return (typeof web.global.module !== 'undefined' && web.global.module.exports)
+	}
+	web.env = (web.isNodeJS())?process.env.NODE_ENV : 'development' //TODO allow setting of this for webpages. maybe use a tag or something? maybe hashFragment? idk
+
+	web.global = global;
+	global.web=web
+	web.environment=environmentFlags;
+	var _=(web.global._)?web.global._:require('lodash')
+	var $=(web.global.$)?web.global.$:require('cheerio')
+
+
+	web.extend=function(a1,a2){
+		a1.push.apply(a1,a2)
+		return a1;
+	}
+
+
+	//in any web.function that has a callback make this the "this" context and you get a special web.aid helper as your "this" context
+	web.aid=function(){return web.aid}
+	web.callback=function(callback,context,args){
+		if(context===web.aid){ //TODO handle this
+			return callback.apply(context,args)
+		}
+		return callback.apply(context,args)
+
+	}
+
+	function parseQueryString(query){
+		if(!web.global.location){
+
+		}
+		if(!query){
+			if(web.global.location){
+				query ={
+					'?':location.search.slice(1)
+					,'#':'?'+location.hash.slice(1) //added a ? just to make parsing easier
+				}
+			}else{
+				query={};
+			}
+		}else{
+			//TODO handle a string!!!		
+		}
+
+		_.forEach(query,function(value,key){
+			var q={}
+			value.replace(
+				new RegExp("([^?=&]+)(=([^&]*))?", "g"),
+				function($0, $1, $2, $3) { 
+					if(q[$1]){
+						q[$1].append($3);
+					}else{
+						q[$1]=[$3]; 
+					}
+				}
+				);
+			query[key]=q;
+		})
+	return query;
+	}
+
+	if(web.global.location){
+		web.queryParams=parseQueryString()
+	}else if(web.isNodeJS()){
+		web.queryParams=require('minimist')(process.argv.slice(2));
+	}
+
+
+
+	if(web.isNodeJS()){
+		if(web.environment.stores){
+			var store=web.keys(web.environment.stores)
+			for(var i=0,list=store,l=list.length;i<l;i++){
+				store=list[i];
+				web.stores[store]=require('level-packager')(require(store))
+			}
+		}
+	}
+
+
+
 
 
 
@@ -1090,7 +1112,7 @@ web.tag=function(o,A,B,C,D,E,F,G,H,I,J,K){
         return chain(o,A,B,C,D,E,F,G,H,I,J,K).setMap({css:function(o,B,C,D,E,F,G,H,I,J,K){
         	console.log(B)
         	web.css(B,o)
-        })
+        }})
     }
     throw 'Error, not a string tag!'
 }
@@ -5442,9 +5464,7 @@ web.css=function(input,elem){
     		console.log(keyValue)
     		elem.style[web.camelCase(keyValue[0].trim())]=keyValue[1].trim()
         	}
-        }
-
-	}else if(web.isType(input,"Function")){
+        }else if(web.isType(input,"Function")){
 
 	}else if(web.isType(input,'Object')){
 
