@@ -4,3 +4,6 @@
 [submodule "dependencies/pnotify"]
 	path = dependencies/pnotify
 	url = https://github.com/sciactive/pnotify.git
+[submodule "dependencies/bootstrap"]
+	path = dependencies/bootstrap
+	url = https://github.com/twbs/bootstrap.git
