@@ -55,7 +55,13 @@ end pollyfills
 *************************/
 
 /*
-var libs = ['PNotify','jQuery','Bootstrap']
+
+var libs = [
+	'PNotify'
+	'jQuery'
+	,Bootstrap:function(){return (typeof $().emulateTransitionEnd == 'function')?'3': (typeof($.fn.modal) === 'function')?'2':undefined;}
+]
+
 
 
 
@@ -180,6 +186,256 @@ var web=(function(web,global,environmentFlags,undefined){
 			}
 		}
 	}
+
+
+
+
+
+
+var uaparser = new UAParser();
+Stallion=window.Stallion||{};
+
+Stallion.compare=Stallion.compare||{};
+Stallion.compare.toOperator=function(i){
+	switch(i){
+		case -1:
+		return '<';
+		case 0:
+		return '=='
+		case 1:
+		return '>'
+	}
+}
+
+Stallion.compare.greaterThan=function(i){
+	return Stallion.compare.toOperator(i)=='>';
+}
+Stallion.compare.lessThan=function(i){
+	return Stallion.compare.toOperator(i)=='<';
+}
+Stallion.compare.equals=function(i){
+	return Stallion.compare.toOperator(i)=='==';
+}
+
+Stallion.assert = function assert(x) {
+	if (!x) {
+		alert("Assert failed");
+		debugger;
+	}
+}
+Stallion.is=Stallion.is||{}
+Stallion.is.PositiveInteger=function isPositiveInteger(x) {
+		// http://stackoverflow.com/a/1019526/11236
+		return /^\d+$/.test(x);
+	}
+!(function(){    // First, validate both numbers are true version numbers
+	function validateParts(parts) {
+		for (var i = 0; i < parts.length; ++i) {
+			if (!Stallion.is.PositiveInteger(parts[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+/**
+ * Compare two software version numbers (e.g. 1.7.1)
+ * Returns:
+ *
+ *  0 if they're identical
+ *  negative if v1 < v2
+ *  positive if v1 > v2
+ *  Nan if they in the wrong format
+ *
+ *  E.g.:
+ *
+ *  assert(version_number_compare("1.7.1", "1.6.10") > 0);
+ *  assert(version_number_compare("1.7.1", "1.7.10") < 0);
+ *
+ *  "Unit tests": http://jsfiddle.net/ripper234/Xv9WL/28/
+ *
+ *  Taken from http://stackoverflow.com/a/6832721/11236
+ */
+
+/**
+can be used in
+Array.prototype.sort
+*/
+Stallion.compare.versions=function (v1, v2){
+	var v1parts = v1.split('.');
+	var v2parts = v2.split('.');
+
+
+	if (!validateParts(v1parts) || !validateParts(v2parts)) {
+		return NaN;
+	}
+
+	var x,k;
+	for (var i = 0; i < v1parts.length; ++i) {
+		if (v2parts.length === i) {
+			return 1;
+		}
+		x=parseInt(v1parts[i],10);
+		k=parseInt(v2parts[i]),10;
+		if (x === k) {
+			continue;
+		}
+		if (x > k) {
+			return 1;
+		}
+		return -1;
+	}
+
+	if (v1parts.length != v2parts.length) {
+		return -1;
+	}
+
+	return 0;
+}
+})()
+
+// assert(compareVersionNumbers("1.7.1", "1.7.10") < 0);
+// assert(compareVersionNumbers("1.6.1", "1.7.10") < 0);
+// assert(compareVersionNumbers("1.6.20", "1.7.10") < 0);
+// assert(compareVersionNumbers("1.7.1", "1.7.10") < 0);
+// assert(compareVersionNumbers("1.7", "1.7.0") < 0);
+// assert(compareVersionNumbers("1.7", "1.8.0") < 0);
+
+// assert(compareVersionNumbers("1.7.10", "1.7.1") > 0);
+// assert(compareVersionNumbers("1.7.10", "1.6.1") > 0);
+// assert(compareVersionNumbers("1.7.10", "1.6.20") > 0);
+// assert(compareVersionNumbers("1.7.0", "1.7") > 0);
+// assert(compareVersionNumbers("1.8.0", "1.7") > 0);
+
+// assert(compareVersionNumbers("1.7.10", "1.7.10") === 0);
+// assert(compareVersionNumbers("1.7", "1.7") === 0);
+
+// assert(isNaN(compareVersionNumbers("1.7", "1..7")));
+// assert(isNaN(compareVersionNumbers("1.7", "Bad")));
+// assert(isNaN(compareVersionNumbers("1..7", "1.7")));
+// assert(isNaN(compareVersionNumbers("Bad", "1.7")));
+
+// alert("All done");
+
+
+Stallion.userAgent=function(o){
+	var ans=false;
+	if(o.OS){
+		var OS=/*JSON.parse('{"name":"iOS","version":"7.0.4"}')*/ uaparser.getOS();
+		if(o.OS){
+			ans=(OS.name==o.OS);
+		}
+
+
+		if(o.version){
+			//if(type function)
+			//ans.push(o.OS.version(OS.version))
+			var version = 0;
+			if(ans==true && o.version.charAt(0)=='>'){
+				version = o.version.substr(1);
+				ans=Stallion.compare.greaterThan(Stallion.compare.versions(OS.version,version,">"))
+			}else if(o.version.charAt(0)=='<'){
+				version = o.version.substr(1)
+				ans=Stallion.compare.lessThan(Stallion.compare.versions(OS.version,version,"<"))
+			}else{
+				version = o.version
+				ans=Stallion.compare.equals(Stallion.compare.versions(OS.version,version,'=='))
+			}
+
+			//ans.push(o.OS.version(OS.version))
+		}
+	}
+	return ans
+
+	//for (var o=ans, i=0, l=o.length,x=o[0]; i < l; x=o[++i]) {
+	//  if(x){
+	//    return true;
+	//  }
+	//};
+	//return false;
+}
+
+
+	//scroller 
+
+
+	// var Whipper = function(o,opts)
+	//   var defaults = {
+	//     top:undefined
+	//     left:undefined
+	//     scroll:
+
+	//   }
+
+	//   var vRequests = 0;
+	//   var hRequests = 0;
+
+	//   var xPos = o.scrollTop(),yPos=o.scrollLeft();
+
+	//   if(opts.top||opts.left){
+	//   o.scrollTop(opts.top).scrollLeft(opts.left);
+	// }
+
+	//   o.scroll(function(e){
+	//     var vDiff = xPos-o.scrollTop();
+	//     var hDiff = yPos-o.scrollLeft()
+	
+	//     vRequests+=vDiff;
+	//     hRequests+=hDiff;
+
+	//     if(Math.abs(vRequests)>opt.threshold){
+
+	//     }
+	//     if(Math.abs(hRequests>opt.threshold)){
+
+	//     }
+
+	//   });
+
+	// }
+	// Whipper.prototype.
+
+
+
+
+
+
+Stallion.css = Stallion.css || {};
+Stallion.constants= Stallion.constants ||{}
+Stallion.constants.ghostDelimiter=String.fromCharCode(0x01);
+//source http://shebang.brandonmintern.com/foolproof-html-escaping-in-javascript/
+Stallion.escapeHTML=function escapeHtml(str) {
+	var div = document.createElement('div');
+	div.appendChild(document.createTextNode(str));
+	return div.innerHTML;
+};
+
+Stallion.Array = Stallion.Array || {};
+/**
+Takes 2 arrays and zippers them together, alternating values from one array and the other into a new array
+ex: a1=[1,2,3] a2=['a','b,'c','d','e'] returns [1,'a',2,'b',3,'c','d','e']
+*/
+Stallion.Array.zipper=function(a1,a2){
+
+	if(a2==null){
+		return a1;
+	}else if( Object.prototype.toString.call( a2 ) != '[object Array]'){
+		a1.push(a2);
+		return a1
+	}else if(a2.length==0){
+		return a1;
+	}
+			a2 = a2.slice(0); //shallow clone
+
+			var ans = $.map(a1,function(x){
+				return (a2.length>0)?[x,a2.shift()]/*consume array2*/:x;
+			})
+			if(a2.length){ //finish your leftovers
+				ans.push.apply(ans,a2);
+			}
+			return ans
+		}
+
 
 
 
@@ -3832,7 +4088,6 @@ web.toBinary=function(int,padding,asArray) { // asArray should be 0||null||undef
 
 
 //http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript
-web.random=web.random||{};
 web.GUID=function(format,source,callback){
 	format=format||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
 	return format.replace(/[xy]/g, function(c) {
@@ -3840,6 +4095,29 @@ web.GUID=function(format,source,callback){
 		return v.toString(16);
 	});
 }
+
+
+//Source http://www.paulirish.com/2009/random-hex-color-code-snippets/
+web.randomColor=function(type,a0,a1,a2){
+	type=type.toLowerCase();
+	if(type!=null || type=='hex'){
+		return '#'+ ('000000' + Math.floor(Math.random()*16777215).toString(16)).slice(-6);
+		//'#'+ ('000000' + (Math.random()*0xFFFFFF<<0).toString(16)).slice(-6);
+	}else if(type=='rgb'){
+		var a =[0,255];
+		return 'rgb(' + W.random.apply(W.random,a0||a) + ',' + W.random.apply(W.random,a1||a) + ',' + W.random.apply(W.random,a2||a) + ')';
+	}else if(type='hsl'){
+		return 'hsl(' + W.random.apply(W.random,a0||[0,360]) + ',' + W.random.apply(W.random,a1||[0,100]) + '%,' + W.random.apply(W.random,a2||[0,100]) + '%)';
+	}
+}
+
+
+//TODO
+// W.clone=function(o,){
+//   if(W.isFunction(o) instanceof){
+//     return o.bind({});
+//   }
+
 
 
 //http://stackoverflow.com/questions/646628/how-to-check-if-a-string-startswith-another-string
