@@ -1,3 +1,6 @@
 [submodule "dependencies/SlickGrid"]
 	path = dependencies/SlickGrid
 	url = https://github.com/mleibman/SlickGrid.git
+[submodule "dependencies/pnotify"]
+	path = dependencies/pnotify
+	url = https://github.com/sciactive/pnotify.git
