@@ -293,12 +293,7 @@ Stallion.userAgent=function(o){
 
 
 
-//source http://shebang.brandonmintern.com/foolproof-html-escaping-in-javascript/
-Stallion.escapeHTML=function escapeHtml(str) {
-	var div = document.createElement('div');
-	div.appendChild(document.createTextNode(str));
-	return div.innerHTML;
-};
+
 
 Stallion.Array = Stallion.Array || {};
 /**
@@ -621,6 +616,18 @@ web.isObject=function(obj,level){
 }
 web.isCollection=web.isContainer=function(obj){
 	return web.isObject(obj) || web.isArray(obj)
+}
+
+web.isEmpty=function(o){
+	if(web.isType(o,'String')){
+		return (o=='')
+	}else if(web.isType(o,'Object')){
+		return (web.keys(o).length==0)
+	}else if(web.isType('Array')){
+		return (o.length==0)
+	}else{
+			throw 'idk how to see if this is empty'
+	}
 }
 
 //https://www.inkling.com/read/javascript-definitive-guide-david-flanagan-6th/chapter-7/array-like-objects
@@ -1008,6 +1015,7 @@ web.regExp={alphabetical:/[a-zA-Z]/g
 			,validJSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
 			,commaSeperatedTrimSplit:/\W*,\W*/
 			,blockQuotes:/\*.*\*/
+			,getYoutubeHash:/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/
 		}
 
 
@@ -3267,9 +3275,14 @@ web.toDOM=function(obj){
 	return JsonHuman.format(obj) //but JsonHuman is MIT license and simplistic. //TODO I will update this to support above features
 }
 
-
+//This template allows the developer to use data-attributes to crate templates then compile them using doT
+//The precomile will be longer but the actual data interpolation will be super fast!
+//the developer can still use doT type syntax within their template or they dont have to use it at all!
+//Win-win winning!~
+//oh you can also associate a ID with the parent element
 //using jquery compile to doT template return as jquery obj
-web.template=function $_webTemplate(template,removeDataAttr,map){
+web.template=function $_webTemplate(template,removeDataAttr,options){
+	//Argument manipulation
 	if(removeDataAttr!=undefined){
 		if(web.isObject(removeDataAttr)){
 			map=varSwap(removeDataAttr,removeDataAttr=map)
@@ -3281,15 +3294,18 @@ web.template=function $_webTemplate(template,removeDataAttr,map){
 	if(removeDataAttr===undefined){
 		removeDataAttr=true
 	}
+	var map = options.map
+	//todo options.defaults
+	//todo options.functions (like escape and other doT functions)
 
 
-	
+	//find all data-attributes and convert them to doT data variables
 	template.find('*').each(function(){
 		var elem = $(this);
 		var data =elem.data()
 		var results=[]
 		_.forEach(data,function(val,key,array){
-			if(val===''){
+			if(val===''){ //only take keys that have values equal to empty string
 				results.push(key)
 			}
 		})
@@ -3301,7 +3317,6 @@ web.template=function $_webTemplate(template,removeDataAttr,map){
 			}else{
 				key=results[i]
 			}
-			console.error(results)
 			elem.prepend(document.createTextNode('{{=data.'+key+'||""}}'))
 			if(removeDataAttr){
 				//elem.removeData()
@@ -3310,25 +3325,29 @@ web.template=function $_webTemplate(template,removeDataAttr,map){
 
 		}
 	})
-	console.log(template.outerHTML())
+	//get manipulated html and compile using doT
 	var compiled = doT.template(template.outerHTML())
-
-
 
 	return function $_webCompiledTemplate(data,id,map){
 		if(web.isObject(id)){
 			map=varSwap(id,id=map);
 		}//let jquery handle ids that are undefined 0 or null
+
+		//SUPER FAST doT precomiled template then convert to jquery for adding id and returning
 		var instance=$(compiled(data))
-		
+
+		//this will either set the id or return (if the id var was null undefined etc)
 		instance.attr("id",id); //make sure not to chain on returns in case id==undefined cause it will return an empty stirng 
-		return instance;
+		
+		return instance; //congrats! super awesome syntax and optimized template compile times with just enough sugar to keep your dev from dieing sad unfufilled
 	}
 }
 
 
 
-//usinmg jquery comile at runtime... silly
+//using jquery comile at runtime... silly
+//but it does allow us to handle each data object to template intimately
+//though Iam not sure that is useful
 // web.template=function(input,removeDataAttr,map){
 // 	if(removeDataAttr!=undefined){
 // 		if(web.isObject(removeDataAttr)){
@@ -3372,53 +3391,16 @@ web.template=function $_webTemplate(template,removeDataAttr,map){
 // }
 
 
-// web.template=function(input){
-// 	if(typeof input== 'string'){
-// 		var key;
-// 		input.replace(/data-(.*?)[\s>=]|</g,function(match,p1,offset,string){
-// 			var end=match.slice(-1)
-// 			if(end=='='){ //already set, skip it
-// 				return match;
-// 			}else{
-// 				key=match.slice(5,-1)
-// 				if(end=='>'){
-// 					console.error(string.charAt(offset+match.length+ 1))
-// 					if(true){
-// 						//then insert
-// 					}else{
-// 						//wait to insert on the opening bracket
-// 					}
-// 				}
-// 			}
-// 			console.warn(match,'@',p1,'@',string.charAt(offset+match.length+ 1),'@',offset,'@',string)
 
-// 		})
-// 	}
-
-// 	return function(data,id,map){
-// 		var output = input.clone()
-		
-// 		output.find('*').each(function(){
-// 			var elem = $(this)
-// 			var results=Object.getOwnPropertyNames(elem.data())
-// 			var l = results.length
-// 			var value;
-// 			if(!l){return}
-// 			for(var i=0,l=results.length;i<l;i++){
-// 				map[results[i]]
-// 				value=data[results[i]];
-// 				if(value != null){
-// 					elem.html(value)
-// 				}
-// 			}
-// 		})
-
-// 		return output;
-// 	}
-// }
-
-
-
+//source: http://stackoverflow.com/questions/3452546/javascript-regex-how-to-get-youtube-video-id-from-url
+web.getYoutubeHash=function (url){
+	var match = url.match(web.regExp.getYoutubeHash);
+	if (match&&match[7].length==11){
+		return match[7];
+	}else{
+		throw console.error("Unable to extract hash from expected youtube url"+url);
+	}
+}
 
 web.outsideClickDismissPopover=function(){
 	$('body').on('click', function (e) {
@@ -3790,6 +3772,13 @@ web.replaceAll=function(str,find,replace){
 	return str.split(find).join(replace);
   //return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
 }
+
+//source http://shebang.brandonmintern.com/foolproof-html-escaping-in-javascript/
+web.escapeHTML=function(str) {
+	var div = document.createElement('div');
+	div.appendChild(document.createTextNode(str));
+	return div.innerHTML;
+};
 
 
 
