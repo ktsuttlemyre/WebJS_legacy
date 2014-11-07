@@ -3004,7 +3004,7 @@ web.toObject=function(input,type,callback){
 			}
 			if(!x2js){x2js = new X2JS({
 					// Escaping XML characters. Default is true from v1.1.0+
-					escapeMode : true, 	 	 	 	 	 	 	  
+					escapeMode : true,
 				 	 // XML attributes prefix. Default is "_"
 				 	 attributePrefix : "@",
 				 	 // Array access form (none|property). Use property if you want X2JS generate additional property <element>_asArray to access in array form any element
@@ -3012,9 +3012,9 @@ web.toObject=function(input,type,callback){
 				 	 arrayAccessForm : "none",
 				 	 // Handling empty nodes (text|object). 
 				 	 // When X2JS found empty node like <test></test> it will be transformed to test : '' for 'text' mode, 
-				 	 // or to Object for 'object' mode  
+				 	 // or to Object for 'object' mode
 				 	 // Default is 'text'
-				 	 emptyNodeForm  : "text",
+				 	 emptyNodeForm: "text",
 
 				 	 // Enable/Disable auxiliary function in generated JSON object to print text nodes with __text/__cdata
 				 	 // Default is true
