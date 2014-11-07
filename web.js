@@ -3294,6 +3294,7 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 	if(removeDataAttr===undefined){
 		removeDataAttr=true
 	}
+	options=options||{}
 	var map = options.map
 	//todo options.defaults
 	//todo options.functions (like escape and other doT functions)
