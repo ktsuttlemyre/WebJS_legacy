@@ -2061,7 +2061,7 @@ web.ascii=function(key){
 
 
 if(web.global.doT){
-	doT.templateSettings.varname='o'
+	doT.templateSettings.varname='data'
 }
 
 
