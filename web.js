@@ -54,7 +54,32 @@ if (!(function f() {}).name) {
 end pollyfills
 *************************/
 
-
+     	(function($) {
+    		$.fn.disabled = function(bool){
+		        return this.each(function(){
+		        	if(bool===undefined){
+		            	this.disabled = !this.disabled;
+		            }else{
+		            	this.disabled = bool;
+		            }
+		        });
+		    };
+		    $.fn.readOnly = function(bool){
+		        return this.each(function(){
+		        	if(bool===undefined){
+		            	this.readOnly = !this.readOnly;
+		            }else{
+		            	this.readOnly = bool;
+		            }
+		        });
+		    };
+		    $.fn.outterHTML = function(){
+		    	if(this[0].outerHTML){
+		    		return this[0].outerHTML
+		    	}
+		    	return this.wrapAll('<div></div>').parent().html()
+		    }
+		})(jQuery);
 
 
 
@@ -3228,48 +3253,100 @@ web.toDOM=function(obj){
 }
 
 
-//using jquery
-web.template=function(input,removeDataAttr,map){
+//using jquery compile to doT template return as jquery obj
+web.template=function(template,removeDataAttr,map){
 	if(removeDataAttr!=undefined){
 		if(web.isObject(removeDataAttr)){
 			map=varSwap(removeDataAttr,removeDataAttr=map)
 		}
 	}
-	if(typeof input=='string'){
-		input=$(input)
+	if(typeof template=='string'){
+		template=$(template)
 	}
+	if(removeDataAttr===undefined){
+		removeDataAttr=true
+	}
+
+
+	
+	template.find('*').each(function(){
+		var elem = $(this);
+		var results=_.filter(elem.data(),function(val,key){if(val===''){return true}})
+		var l = results.length,value,key;
+		if(!l){return}
+		for(var i=0,l=results.length;i<l;i++){
+			if(map){
+				key=map[results[i]]
+			}else{
+				key=results[i]
+			}
+			elem.prepend(document.createTextNode('{{data.'+key+'}}'))
+			if(removeDataAttr){
+				//elem.removeData()
+				elem.removeAttr('data-'+results[i])
+			}
+
+		}
+	})
+	var compiled = doT.template(template.outerHTML())
+
+
 
 	return function(data,id,map){
 		if(web.isObject(id)){
 			map=varSwap(id,id=map);
 		}//let jquery handle ids that are undefined 0 or null
-
-		var output = input.clone()
-		output.find('*').each(function(){
-			var elem = $(this);
-			var results=Object.getOwnPropertyNames(elem.data())
-			var l = results.length,value,key;
-			if(!l){return}
-			for(var i=0,l=results.length;i<l;i++){
-				if(map){
-					key=map[results[i]]
-				}else{
-					key=results[i]
-				}
-				value=data[key];
-				if(value != null){
-					elem.append(value)
-					if(removeDataAttr){
-						//elem.removeData()
-						elem.removeAttr('data-'+key)
-					}
-				}
-			}
-		})
-		output.attr("id",id); //make sure not to chain on returns in case id==undefined cause it will return an empty stirng 
-		return output;
+		var instance=$(compiled(data))
+		
+		instance.attr("id",id); //make sure not to chain on returns in case id==undefined cause it will return an empty stirng 
+		return instance;
 	}
 }
+
+
+
+//usinmg jquery comile at runtime... silly
+// web.template=function(input,removeDataAttr,map){
+// 	if(removeDataAttr!=undefined){
+// 		if(web.isObject(removeDataAttr)){
+// 			map=varSwap(removeDataAttr,removeDataAttr=map)
+// 		}
+// 	}
+// 	if(typeof input=='string'){
+// 		input=$(input)
+// 	}
+
+// 	return function(data,id,map){
+// 		if(web.isObject(id)){
+// 			map=varSwap(id,id=map);
+// 		}//let jquery handle ids that are undefined 0 or null
+
+// 		var output = input.clone()
+// 		output.find('*').each(function(){
+// 			var elem = $(this);
+// 			var results=Object.getOwnPropertyNames(elem.data())
+// 			var l = results.length,value,key;
+// 			if(!l){return}
+// 			for(var i=0,l=results.length;i<l;i++){
+// 				if(map){
+// 					key=map[results[i]]
+// 				}else{
+// 					key=results[i]
+// 				}
+// 				value=data[key];
+// 				if(value != null){
+// 					elem.append(value)
+// 					if(removeDataAttr){
+// 						//elem.removeData()
+// 						elem.removeAttr('data-'+results[i])
+// 					}
+// 				}
+// 			}
+// 		})
+// 		output.attr("id",id); //make sure not to chain on returns in case id==undefined cause it will return an empty stirng 
+// 		return output;
+// 	}
+// }
 
 
 // web.template=function(input){
