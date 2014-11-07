@@ -73,7 +73,7 @@ end pollyfills
 		            }
 		        });
 		    };
-		    $.fn.outterHTML = function(){
+		    $.fn.outerHTML = function(){
 		    	if(this[0].outerHTML){
 		    		return this[0].outerHTML
 		    	}
