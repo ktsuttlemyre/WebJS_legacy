@@ -16,3 +16,6 @@
 [submodule "dependencies/ua-parser-js"]
 	path = dependencies/ua-parser-js
 	url = https://github.com/faisalman/ua-parser-js.git
+[submodule "dependencies/doT"]
+	path = dependencies/doT
+	url = https://github.com/olado/doT.git
