@@ -268,9 +268,10 @@ Stallion.userAgent=function(o){
 
 
 
-Stallion.css = Stallion.css || {};
-Stallion.constants= Stallion.constants ||{}
-Stallion.constants.ghostDelimiter=String.fromCharCode(0x01);
+//Used a lot in other languages for complex spliting
+//https://www.google.com/search?q=soh+character&oq=SOH+charac&aqs=chrome.1.69i57j0l5.4423j1j7&sourceid=chrome&es_sm=91&ie=UTF-8#safe=off&q=SOH+character+split
+//http://en.wikipedia.org/wiki/Control_character#Transmission_control
+web.SOH=web.delimiter=String.fromCharCode(0x01);
 //source http://shebang.brandonmintern.com/foolproof-html-escaping-in-javascript/
 Stallion.escapeHTML=function escapeHtml(str) {
 	var div = document.createElement('div');
@@ -2030,7 +2031,9 @@ web.ascii=function(key){
 	}
 
 
-
+if(doT){
+	doT.templateSettings.varname='o'
+}
 
 
 if(typeof PNotify!='undefined'){
@@ -2997,7 +3000,7 @@ web.toObject=function(input,type,callback){
 			}
 			if(!x2js){x2js = new X2JS({
 					// Escaping XML characters. Default is true from v1.1.0+
-					escapeMode : true, 	 	 	 	 	 	 	 	
+					escapeMode : true, 	 	 	 	 	 	 	  
 				 	 // XML attributes prefix. Default is "_"
 				 	 attributePrefix : "@",
 				 	 // Array access form (none|property). Use property if you want X2JS generate additional property <element>_asArray to access in array form any element
@@ -3005,9 +3008,9 @@ web.toObject=function(input,type,callback){
 				 	 arrayAccessForm : "none",
 				 	 // Handling empty nodes (text|object). 
 				 	 // When X2JS found empty node like <test></test> it will be transformed to test : '' for 'text' mode, 
-				 	 // or to Object for 'object' mode 	
+				 	 // or to Object for 'object' mode  
 				 	 // Default is 'text'
-				 	 emptyNodeForm 	: "text",
+				 	 emptyNodeForm  : "text",
 
 				 	 // Enable/Disable auxiliary function in generated JSON object to print text nodes with __text/__cdata
 				 	 // Default is true
@@ -3219,6 +3222,100 @@ window.addEventListener("drop",function(e){
 web.toDOM=function(obj){
 	return JsonHuman.format(obj) //but JsonHuman is MIT license and simplistic. //TODO I will update this to support above features
 }
+
+
+//using jquery
+web.template=function(input,removeDataAttr,map){
+	if(removeDataAttr!=undefined){
+		if(web.isObject(removeDataAttr)){
+			map=varSwap(removeDataAttr,removeDataAttr=map)
+		}
+	}
+	if(typeof input=='string'){
+		input=$(input)
+	}
+
+	return function(data,id,map){
+		if(web.isObject(id)){
+			map=varSwap(id,id=map);
+		}//let jquery handle ids that are undefined 0 or null
+
+		var output = input.clone()
+		output.find('*').each(function(){
+			var elem = $(this);
+			var results=Object.getOwnPropertyNames(elem.data())
+			var l = results.length,value,key;
+			if(!l){return}
+			for(var i=0,l=results.length;i<l;i++){
+				if(map){
+					key=map[results[i]]
+				}else{
+					key=results[i]
+				}
+				value=data[key];
+				if(value != null){
+					elem.append(value)
+					if(removeDataAttr){
+						//elem.removeData()
+						elem.removeAttr('data-'+key)
+					}
+				}
+			}
+		})
+		output.attr("id",id); //make sure not to chain on returns in case id==undefined cause it will return an empty stirng 
+		return output;
+	}
+}
+
+
+// web.template=function(input){
+// 	if(typeof input== 'string'){
+// 		var key;
+// 		input.replace(/data-(.*?)[\s>=]|</g,function(match,p1,offset,string){
+// 			var end=match.slice(-1)
+// 			if(end=='='){ //already set, skip it
+// 				return match;
+// 			}else{
+// 				key=match.slice(5,-1)
+// 				if(end=='>'){
+// 					console.error(string.charAt(offset+match.length+ 1))
+// 					if(true){
+// 						//then insert
+// 					}else{
+// 						//wait to insert on the opening bracket
+// 					}
+// 				}
+// 			}
+// 			console.warn(match,'@',p1,'@',string.charAt(offset+match.length+ 1),'@',offset,'@',string)
+
+// 		})
+// 	}
+
+// 	return function(data,id,map){
+// 		var output = input.clone()
+		
+// 		output.find('*').each(function(){
+// 			var elem = $(this)
+// 			var results=Object.getOwnPropertyNames(elem.data())
+// 			var l = results.length
+// 			var value;
+// 			if(!l){return}
+// 			for(var i=0,l=results.length;i<l;i++){
+// 				map[results[i]]
+// 				value=data[results[i]];
+// 				if(value != null){
+// 					elem.html(value)
+// 				}
+// 			}
+// 		})
+
+// 		return output;
+// 	}
+// }
+
+
+
+
 web.outsideClickDismissPopover=function(){
 	$('body').on('click', function (e) {
 	    //http://stackoverflow.com/questions/11703093/how-to-dismiss-a-twitter-bootstrap-popover-by-clicking-outside
