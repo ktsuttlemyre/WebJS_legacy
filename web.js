@@ -2062,6 +2062,21 @@ web.ascii=function(key){
 
 if(web.global.doT){
 	doT.templateSettings.varname='data'
+	/*
+	templateSettings = {
+  evaluate:    /\{\{([\s\S]+?)\}\}/g,
+  interpolate: /\{\{=([\s\S]+?)\}\}/g,
+  encode:      /\{\{!([\s\S]+?)\}\}/g,
+  use:         /\{\{#([\s\S]+?)\}\}/g,
+  define:      /\{\{##\s*([\w\.$]+)\s*(\:|=)([\s\S]+?)#\}\}/g,
+  conditional: /\{\{\?(\?)?\s*([\s\S]*?)\s*\}\}/g,
+  iterate:     /\{\{~\s*(?:\}\}|([\s\S]+?)\s*\:\s*([\w$]+)\s*(?:\:\s*([\w$]+))?\s*\}\})/g,
+  varname: 'it',
+  strip: true,
+  append: true,
+  selfcontained: false
+};
+*/
 }
 
 
@@ -3254,7 +3269,7 @@ web.toDOM=function(obj){
 
 
 //using jquery compile to doT template return as jquery obj
-web.template=function(template,removeDataAttr,map){
+web.template=function $_webTemplate(template,removeDataAttr,map){
 	if(removeDataAttr!=undefined){
 		if(web.isObject(removeDataAttr)){
 			map=varSwap(removeDataAttr,removeDataAttr=map)
@@ -3271,16 +3286,23 @@ web.template=function(template,removeDataAttr,map){
 	
 	template.find('*').each(function(){
 		var elem = $(this);
-		var results=_.filter(elem.data(),function(val,key){if(val===''){return true}})
+		var data =elem.data()
+		var results=[]
+		_.forEach(data,function(val,key,array){
+			if(val===''){
+				results.push(key)
+			}
+		})
 		var l = results.length,value,key;
 		if(!l){return}
-		for(var i=0,l=results.length;i<l;i++){
+		for(var i=0;i<l;i++){
 			if(map){
 				key=map[results[i]]
 			}else{
 				key=results[i]
 			}
-			elem.prepend(document.createTextNode('{{data.'+key+'}}'))
+			console.error(results)
+			elem.prepend(document.createTextNode('{{=data.'+key+'||""}}'))
 			if(removeDataAttr){
 				//elem.removeData()
 				elem.removeAttr('data-'+results[i])
@@ -3288,11 +3310,12 @@ web.template=function(template,removeDataAttr,map){
 
 		}
 	})
+	console.log(template.outerHTML())
 	var compiled = doT.template(template.outerHTML())
 
 
 
-	return function(data,id,map){
+	return function $_webCompiledTemplate(data,id,map){
 		if(web.isObject(id)){
 			map=varSwap(id,id=map);
 		}//let jquery handle ids that are undefined 0 or null
