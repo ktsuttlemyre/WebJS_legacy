@@ -268,10 +268,6 @@ Stallion.userAgent=function(o){
 
 
 
-//Used a lot in other languages for complex spliting
-//https://www.google.com/search?q=soh+character&oq=SOH+charac&aqs=chrome.1.69i57j0l5.4423j1j7&sourceid=chrome&es_sm=91&ie=UTF-8#safe=off&q=SOH+character+split
-//http://en.wikipedia.org/wiki/Control_character#Transmission_control
-web.SOH=web.delimiter=String.fromCharCode(0x01);
 //source http://shebang.brandonmintern.com/foolproof-html-escaping-in-javascript/
 Stallion.escapeHTML=function escapeHtml(str) {
 	var div = document.createElement('div');
@@ -372,6 +368,14 @@ var web=(function(web,global,environmentFlags,undefined){
 	};
 	web.id="$Id$"
 	
+
+
+//Used a lot in other languages for complex spliting
+//https://www.google.com/search?q=soh+character&oq=SOH+charac&aqs=chrome.1.69i57j0l5.4423j1j7&sourceid=chrome&es_sm=91&ie=UTF-8#safe=off&q=SOH+character+split
+//http://en.wikipedia.org/wiki/Control_character#Transmission_control
+web.SOH=web.delimiter=String.fromCharCode(0x01);
+
+
 	web.isNodeJS=function(){
 		return environmentFlags.platform=='nodejs';
 	}
@@ -2031,7 +2035,7 @@ web.ascii=function(key){
 	}
 
 
-if(doT){
+if(web.global.doT){
 	doT.templateSettings.varname='o'
 }
 
