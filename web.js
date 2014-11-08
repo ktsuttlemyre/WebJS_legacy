@@ -2852,7 +2852,26 @@ web.set=function(context,path,value){
   return o;
 };
 
+
+//only supports dot notation for now. no brackets
+//todo support bracket notation
+//inspiration http://stackoverflow.com/questions/14375753/parse-object-dot-notation-to-retrieve-a-value-of-an-object
 web.get=function(key){
+	var obj = setScope(this,undefined)
+	if(web.isValue(obj)){
+	    var parts = key.split('.'),
+	        current = obj || window;
+	    for (var i = 0; i < parts.length; i += 1) {
+	        if (current[parts[i]]) {
+	            current = current[parts[i]];
+	        } else {
+	          if (i >= parts.length - 1)
+	            return undefined;
+	        }
+	    }
+	    return current;
+	}
+
 	//inspiration http://stackoverflow.com/questions/2010892/storing-objects-in-html5-localstorage
     var value = localStorage.getItem(key);
     return value && JSON.parse(value);
@@ -3334,6 +3353,10 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 			map=varSwap(id,id=map);
 		}//let jquery handle ids that are undefined 0 or null
 
+		//mapping for super easy data element casting
+		if(map){
+
+		}
 		//SUPER FAST doT precomiled template then convert to jquery for adding id and returning
 		var instance=$(compiled(data))
 
@@ -3391,7 +3414,52 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 // 	}
 // }
 
+web.imagePlaceholder=function(width,height){
+	if(!height){
+		height=width
+	}
+	//if(type=='url'){
+		return "http://placehold.it/"+width+"x"+height
+	//}else{
+//		return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAACsklEQVR4Xu2Y24upYRTGl0PI0JSimHDjMIVETVMzpvzrziLSTIkiLpTcjJLzcfaziuz2Njufsb8La93o+3jX+65nHX55NZ+fnzu6YdOIAFIB0gIyA254BpIMQaGAUEAoIBQQCtywAoJBwaBgUDAoGLxhCMifIcGgYFAwKBgUDAoGb1iBizHYbDap3+/Tbrcjp9NJwWCQNBrNQdJflKF6vU5ms5lisdhv353S/Ro+T+11kQCNRoN6vR7p9Xr2v16vyev1kt/v52eIkkql+L3BYKBEIkFarfbberuGz+82VCzAZrOhdDrNGX17e6PVakXdbpesVis9PDzwnq1Wi9/BTCYTvb6+0mQyoff3d9LpdBSPx2k8HhOCNhqNFIlEKJvNnu3zuOLO7WbFAiyXSz7sdrvloOfzObdAIBDgM8xmM8rlcuTxeGg0GtF0OmWhcNhKpULD4ZBsNhuvw3eoGqxX6vPcwPe/VywAertarbIftADKHIYgQqEQlctlzm4ymaRSqUSLxeIgwLF4WHN/f09PT090ic//LgAynM/nuXRfXl44i8VikXs9HA6zOHd3d+R2u6ndbnOl+Hw+foZ1Oh1+D3t+fuYqutSnEhEUVwAyjhmA3oYA+2cI8Pj4SLVa7Y/zYACiIjAcM5nMoWrsdjtFo9GDDyU+/zVcT4mjWAAEgQpA1lwuF3+irx0OB1cAyhyGg6EdIBAyjeA+Pj5oMBiQxWLhykF1YABirVKfSrKPNYoFwGIMsEKhQCACDO2AXkaQx4bWgACgAAYiBNnTA0KA+5gje5qc61MVChwHiGEHQ0Z/yq7h829nu6gCfipYNf2IAHIjJDdCciMkN0JqTmG19xYKCAWEAkIBoYDak1jN/YUCQgGhgFBAKKDmFFZ7b6GAUEAoIBQQCqg9idXcXyhw6xT4AgyAjZ+ww1kxAAAAAElFTkSuQmCC'
+//	}
 
+}
+
+
+/*map looks like this
+{
+	artist:artist
+	artist2:child.artist[0]
+	artist3:child.artist[1]||"none"
+}
+
+*/
+web.remap=function(original,map,fill){
+	var output={}
+	var key,to,fallback;
+	if(fill){ //todo optimize fill
+		$.extend(true,output,original)
+	}
+	for(var keys=web.keys(map),i=0,l=keys.length;i<l;i++){
+		key=keys[i]
+		to=map[key].split('||') //TODO optimize by using indexof!
+		if(to.length==1){
+			to=to.pop()
+			fallback='';
+		}else{
+			fallback=to.pop()
+			if(fallback.charAt(0)=='"'&&fallback.charAt(-1)=='"'){
+				fallback=fallback.slice(1,-1)
+			}else{
+				fallback=parseFloat(fallback)
+			}
+			to=to.pop()
+		}
+		web.put.call(output,key, web.get.call(original,key) || fallback);
+	}
+	return output;
+}
 
 //source: http://stackoverflow.com/questions/3452546/javascript-regex-how-to-get-youtube-video-id-from-url
 web.getYoutubeHash=function (url){
