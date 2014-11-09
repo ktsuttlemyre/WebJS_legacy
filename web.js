@@ -3347,6 +3347,7 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 	})
 	//get manipulated html and compile using doT
 	var compiled = doT.template(template.outerHTML())
+	console.error(template.outerHTML())
 
 	return function $_webCompiledTemplate(data,id,map){
 		if(web.isObject(id)){
