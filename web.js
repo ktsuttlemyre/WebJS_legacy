@@ -79,6 +79,14 @@ end pollyfills
 		    	}
 		    	return this.wrapAll('<div></div>').parent().html()
 		    }
+		    //http://stackoverflow.com/questions/3086068/how-do-i-check-whether-a-jquery-element-is-in-the-dom
+		    $.fn.isDetached = function(){
+		    	return (!jQuery.contains(document, this[0]));
+		    }
+		    $.fn.isAttached = function(){
+		    	return (jQuery.contains(document, this[0]));
+		    }
+
 		})(jQuery);
 
 
@@ -412,6 +420,75 @@ web.SOH=web.delimiter=String.fromCharCode(0x01);
 	var $=(web.global.$)?web.global.$:require('cheerio')
 
 
+
+
+
+web.stack=function(index){
+	if(index){
+		return (new Error).stack.split("\n")[index]
+	}
+	return (new Error).stack.split("\n")
+}
+web.lineNumber=function(){
+	return (new Error).stack.split("\n")[2]
+}
+
+
+//http://getfirebug.com/wiki/index.php/Firebug_Lite_1.2#Firebug_Lite_API
+web.consoleHandler=(function(){
+	if(web.global.Firebug && web.global.console.firebuglite){
+			var tmp=window.console
+			delete window.console
+			//TODO make firebug show large commandline
+			//Firebug.chrome.showLargeCommandLine()
+			return tmp
+	}else{
+		console.warn('web.consoleHandler is browsers console')
+		return console
+	}
+})()
+
+web.bug=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
+	logWithIcon(err,web.images.bug,'error')
+	callback && callback(arg,arg1,arg2,arg3,arg4,arg5)
+}
+web.error=function(err,defered,arg,arg1,arg2,arg3,arg4,arg5){
+	if(!err&&!defered){
+		return web.error.last;
+	}
+	if(web.isFunction(err)){
+		defered=err
+		err=null
+	}
+
+	if(err){
+		var error=(new Error)
+		var stack = error.stack;
+		var line = (stack)?stack.split("\n")[2]:error.lineNumber;
+		//web.error('Error '+line.trim()+' :'+err);
+		//TODO send error back to server!
+	}
+	if(defered){
+		web.error.last=err
+
+		defered && defered(arg,arg1,arg2,arg3,arg4,arg5)
+		web.error.last=undefined
+	}
+	return err
+}
+web.cancel=web.error
+web.depricated=function(reason,fn){
+	console.error('This function is depricated for reason:',reason,fn)
+}
+web.warning=null;
+web.event=null;
+var errorSilently=web.errorSilently={
+	removeIndex:true
+}
+
+
+
+
 	web.extend=function(a1,a2){
 		a1.push.apply(a1,a2)
 		return a1;
@@ -429,6 +506,7 @@ web.SOH=web.delimiter=String.fromCharCode(0x01);
 	}
 
 	function parseQueryString(query){
+		web.depricated('Do not use private method parseQueryString, instead use public web.queryString')
 		if(!web.global.location){
 
 		}
@@ -451,9 +529,9 @@ web.SOH=web.delimiter=String.fromCharCode(0x01);
 				new RegExp("([^?=&]+)(=([^&]*))?", "g"),
 				function($0, $1, $2, $3) { 
 					if(q[$1]){
-						q[$1].append($3);
+						q[$1].append(decodeURIComponent($3));
 					}else{
-						q[$1]=[$3]; 
+						q[$1]=[decodeURIComponent($3)]; 
 					}
 				}
 				);
@@ -462,11 +540,6 @@ web.SOH=web.delimiter=String.fromCharCode(0x01);
 	return query;
 	}
 
-	if(web.global.location){
-		web.queryParams=parseQueryString()
-	}else if(web.isNodeJS()){
-		web.queryParams=require('minimist')(process.argv.slice(2));
-	}
 
 
 
@@ -587,9 +660,13 @@ web.toInt=function(value){ return ~~value; }
 
 web.isArray=Array.isArray;
 
+
 web.isValue=function(o){
 	return o!=null;
 }
+
+
+
 
 
 //TODO cache will definately help
@@ -613,6 +690,9 @@ web.isObject=function(obj,level){
 	}else{
 		return obj === Object(obj);
 	}
+}
+web.isjQuery=function(o){
+	return (o instanceof jQuery)
 }
 web.isCollection=web.isContainer=function(obj){
 	return web.isObject(obj) || web.isArray(obj)
@@ -800,6 +880,129 @@ var webWrapper=function(obj){
 
 
 
+//to use as seen in web.pubSub
+//blocking = varSwap(namespace, namespace = blocking)
+//Inspiration http://stackoverflow.com/questions/16201656/how-to-swap-two-variables-in-javascript
+//Example: b=varSwap(a,a=b)
+var varSwap=web.varSwap=function(x){
+	return x;
+}
+
+
+//TODO add regular expression that trims characters that test positive for regexp
+web.trimLeft=function(str,word,keep,deep){
+	if(!word){
+		return str.replace(web.RegExp.leadingWhitespace, '');
+	}
+	return str.slice( ((deep)?str.lastIndexOf(word):str.indexOf(word)) + ((keep)?0:word.length))
+}
+web.trimRight=function(str,word,keep,deep){
+	if(!word){
+		//todo faster implementation for long strings
+		return str.replace(web.RegExp.trailingWhitespace, '');
+	}
+	return str.slice( 0, ((deep)?str.indexOf(word):str.lastIndexOf(word)) + ((keep)?word.length:0))
+}
+web.deepTrimRight=function(str,word,keep){
+	return web.trimRight(str,word,keep,true)
+}
+web.deepTrimLeft=function(str,word,keep){
+	return web.trimLeft(str,word,keep,true)
+}
+
+web.trim=function(str){
+	//todo faster implementatoins
+	//http://blog.stevenlevithan.com/archives/faster-trim-javascript
+	//http://yesudeep.wordpress.com/2009/07/31/even-faster-string-prototype-trim-implementation-in-javascript/
+	return str.trim()
+
+}
+/*tests
+web.trimLeft('#JustGirlThings','Girl')
+"Things"
+web.trimLeft('#JustGirlThings','Girl',true)
+"GirlThings"
+web.trimRight('#JustGirlThings','Girl')
+"#Just"
+web.trimRight('#JustGirlThings','Girl',true)
+"#JustGirl"*/
+
+
+
+/*
+In browser:
+	() returns query object (a hashmap of values. if mutli values are found returns them as an array)
+	(url [String]) returns query object
+	(url [String], variable[value]) returns that variable value.
+	(url [undefined||String], variable[value]) like above url is location.href
+	(url [undefined||String], variable[value], replace[value]) variable will be replaced in url and returned
+In NodeJS:
+	()returns arguments as object
+*/
+web.queryString=function(url,variable,replace) {
+    var query;
+	//if(!web.isValue(variable) && !web.isValue(replace)){
+	//	variable = varSwap(url, url=variable);//catch url on the next check
+	//}
+	if(!url){
+		if(web.isNode()){
+			return require('minimist')(process.argv.slice(2));
+		}
+		url=web.global.location.href
+		query=web.global.location.search.substring(1);
+	}else{
+		query=web.trimLeft(url,'?')
+	}
+
+	if(web.isValue(replace)){ //http://stackoverflow.com/questions/5413899/search-and-replace-specific-query-string-parameter-value-in-javascript
+		return url.replace(new RegExp('('+variable+'=)[^\&]+'), '$1' + encodeURIComponent(replace));
+	}else if(web.isValue(variable)){ //http://stackoverflow.com/questions/2090551/parse-query-string-in-javascript
+	    var vars = query.split('&');
+	    for (var i = 0; i < vars.length; i++) {
+	        var pair = vars[i].split('=');
+	        if (decodeURIComponent(pair[0]) == variable) {
+	            return decodeURIComponent(pair[1]);
+	        }
+	    }
+	    console.warn('web.queryString did not find variable %s in %s', variable,url);
+	}else{ //inspiration http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
+		console.log('url',url)
+		var queryObject={
+					/*the browser does a simple trim left.
+						test http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
+						location.search
+						"?ggks=6h=%22s"
+						location.hash
+						"#dfs"#lkjsdf=9"
+						*/
+					'?': web.deepTrimRight(web.trimLeft(url,'?'),'#') //NOTE this is how the browser does it!	
+					,'#':'?'+web.trimLeft(url,'#') //NOTE this is how the browser does it!	//'?'+location.hash.slice(1) //added a ? just to make parsing easier
+				}
+		_.forEach(queryObject,function(value,key){
+			var q={}
+			value.replace(new RegExp("([^?=&]+)(=([^&]*))?", "g")
+				,function($0, $1, $2, $3) { 
+					if(q[$1]){
+						if(web.isArray(q[$1])){
+							q[$1].append(decodeURIComponent($3));
+						}else{
+							q[$1]=[q[$1],decodeURIComponent($3)]
+						}
+					}else{
+						q[$1]=decodeURIComponent($3); 
+					}
+				}
+				);
+			queryObject[key]=q;
+		})
+		return queryObject;		
+	}
+}
+
+
+
+
+
 web.Object=web.Object||{};
 web.Object.putAdd=function(obj,key,value){
     obj[key]=(obj[key]!==undefined)?obj[key]+value:value;
@@ -862,6 +1065,215 @@ web.inIframe=function(){
 	return window.frameElement && window.frameElement.nodeName=='IFRAME'
 }
 
+
+
+web.abyss=function(elem,template,queryFn){
+	elem=$(elem)
+	if(web.isString(template)){
+		template=web.template(template)
+	}//else assume web template compiled?
+
+	elem.addClass('web-abyss')
+
+
+	var deferedActions=[]
+	
+	var loading=false;
+
+	var grid
+		,dataView = new Slick.Data.DataView()
+		,columns = [
+			{	
+				name: ""
+				//,id: "contact-card"
+				//, cssClass: "contact-card-cell"
+				,formatter:function renderCell(row, cell, value, columnDef, data) {
+					return template(data, 'data_'+data.uid).outerHTML()
+				}
+			}
+		]
+		,options = {
+			editable: false
+			,enableAddRow: false
+			,enableCellNavigation: false
+			,enableColumnReorder: false
+			,forceFitColumns: true
+			,headerHeight: 0
+			,leaveSpaceForNewRows:true
+			,resizable:false
+			//,autoHeight:true
+			,showHeaderRow:false
+		};
+
+
+		function init (datum){
+
+			console.log(options.rowHeight=web.height(template(datum)))
+			//options.rowHeight=54
+			grid = new Slick.Grid(elem, dataView, columns, options);
+			elem.find(".slick-header").css("height","0px").css('display','none')
+			grid.resizeCanvas()
+
+			// wire up model events to drive the grid
+			dataView.onRowCountChanged.subscribe(function (e, args) {
+			  grid.updateRowCount();
+			  grid.render();
+			});
+
+			dataView.onRowsChanged.subscribe(function (e, args) {
+			  grid.invalidateRows(args.rows);
+			  grid.render();
+			});
+
+
+
+			//queryFn=_.debounce(queryFn,500)
+			grid.onScroll.subscribe(_.debounce(function(e,args){
+				//calculate in pixels how close we are to the bottom
+				//(this.getDataLength()*options.rowHeight)-args.scrollTop
+				//OR calculate in number of items
+				if(!loading && this.getViewport().bottom>=dataView.getLength()-5){
+					loading=true;
+					//console.log('polling...',dataView.getItem(dataView.getLength()-1))
+					queryFn(dataView.getItem(dataView.getLength()-1),appendData)
+				}
+
+			},50))
+
+			//do all defered actions now
+			_.forEach(deferedActions,function(fn){fn()})
+		}
+
+	// When user clicks button, fetch data via Ajax, and bind it to the dataview. 
+
+	var appendData=function(array){
+		if(!grid){
+			init(array[0])
+		}
+
+		_.forEach(array,function(item){dataView.addItem(item)})
+		//this will replace all data
+		//dataView.beginUpdate();
+		//dataView.setItems(array);
+		//dataView.endUpdate();
+		//grid.render();
+
+		//trying to update settings... does not work currently
+		//options.rowHeight= 140//template(grid.getData()).height()
+		//grid.setOptions(options);
+		//grid.invalidate();
+		loading=false
+	}
+
+	queryFn(undefined,appendData)
+	
+	var face= {
+		append:function(data){
+			if(!data){
+				queryFn(data)
+			}
+			dataView.addItem(data);
+    		dataView.refresh();
+		},
+		clear:function(){
+			grid.invalidateAllRows();
+			dataView.setItems(undefined, "Id");
+			grid.render();
+		},
+		click:function(fn){
+			if(grid){
+				grid.onClick.subscribe(fn);
+			}else{
+				deferedActions.push(_.bind(face.click,face,fn))
+			}
+		}
+	}
+	return face
+
+}
+
+
+
+/*
+for undersanding of height types see
+				 padding  border  margin
+height 				x 		x 		x
+innerHeight 		x 		x 		x
+outerHeight 		x 		x 		x
+outerHeight(true)	x 		x 		x
+
+Source: http://www.texelate.co.uk/blog/post/91-jquery-whats-the-difference-between-height-innerheight-and-outerheight/
+*/
+//height,innerHeight,outerHeight,outerHeight(true)
+//element,padding,border,margin
+web.height=function(elem,type){
+	if(web.isjQuery(elem)){
+    	dummyDiv.append(elem)
+    	var val;
+		switch(type){
+			case 'element':
+				val=elem.height();
+				break;
+			case 'padding':
+				val=elem.innerHeight();
+				break;
+			case 'border':
+				val= elem.outerHeight();
+				break;
+			case 'margin':
+			default:
+				val=elem.outerHeight(true);
+		}
+
+    	
+    	resetDummyDiv()
+    	return val
+    }else{
+    	throw 'need to implment height for other elements'
+    }
+}
+
+//original Inspiration http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
+web.width=function(text,css){
+	if(web.isjQuery(text)){
+    	dummyDiv.append(elem)
+    	var val;
+
+		switch(type){
+			case 'element':
+				val=elem.width();
+				break;
+			case 'padding':
+				val=elem.innerWidth();
+				break;
+			case 'border':
+				val= elem.outerWidth();
+				break;
+			case 'margin':
+			default:
+				val= elem.outerWidth(true);
+		}
+
+    	
+    	resetDummyDiv()
+    	return val
+    }else{
+		var f;
+		//TODO css can be just a font style,or css string, or object hash
+		if(css.indexOf(':')==-1){
+			f=css,css=''
+		}else{
+			f='12px arial' //TODO get default body font
+		}
+		dummyDiv.addAttr('style',css||'').text(text) //$('<div style="'+(css||'')+'">' + text + '</div>')
+		    .css({'font': f}),
+		w = dummyDiv.width();
+		resetDummyDiv()
+	  return w;
+	}
+}
+
+
 var tmpArray=[];
 web.pub=function(context,message,targetOrigin,transfer){
 	if(!web.isArray(context)){
@@ -885,13 +1297,7 @@ web.pub=function(context,message,targetOrigin,transfer){
 web.sub=function(){
 
 }
-//to use as seen in web.pubSub
-//blocking = varSwap(namespace, namespace = blocking)
-//Inspiration http://stackoverflow.com/questions/16201656/how-to-swap-two-variables-in-javascript
-//Example: b=varSwap(a,a=b)
-var varSwap=web.varSwap=function(x){
-	return x;
-}
+
 
 //Inspiration http://benjii.me/2013/02/quickevent-a-tiny-javascript-event-engine/
 web.pubSub=function(namespace,blocking) {
@@ -940,82 +1346,26 @@ web.pubSub=function(namespace,blocking) {
 	return subPub;
 };
 
+web.grid=function(){
 
-
-web.stack=function(index){
-	if(index){
-		return (new Error).stack.split("\n")[index]
-	}
-	return (new Error).stack.split("\n")
-}
-web.lineNumber=function(){
-	return (new Error).stack.split("\n")[2]
 }
 
-
-//http://getfirebug.com/wiki/index.php/Firebug_Lite_1.2#Firebug_Lite_API
-web.consoleHandler=(function(){
-	if(web.global.Firebug && web.global.console.firebuglite){
-			var tmp=window.console
-			delete window.console
-			//TODO make firebug show large commandline
-			//Firebug.chrome.showLargeCommandLine()
-			return tmp
-	}else{
-		console.warn('web.consoleHandler is browsers console')
-		return console
-	}
-})()
-
-web.bug=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
-	logWithIcon(err,web.images.bug,'error')
-	callback && callback(arg,arg1,arg2,arg3,arg4,arg5)
-}
-web.error=function(err,defered,arg,arg1,arg2,arg3,arg4,arg5){
-	if(!err&&!defered){
-		return web.error.last;
-	}
-	if(web.isFunction(err)){
-		defered=err
-		err=null
-	}
-
-	if(err){
-		var error=(new Error)
-		var stack = error.stack;
-		var line = (stack)?stack.split("\n")[2]:error.lineNumber;
-		//web.error('Error '+line.trim()+' :'+err);
-		//TODO send error back to server!
-	}
-	if(defered){
-		web.error.last=err
-
-		defered && defered(arg,arg1,arg2,arg3,arg4,arg5)
-		web.error.last=undefined
-	}
-	return err
-}
-web.cancel=web.error
-web.depricated=function(reason,fn){
-	console.error('This function is depricated for reason:',reason,fn)
-}
-web.warning=null;
-web.event=null;
-var errorSilently=web.errorSilently={
-	removeIndex:true
-}
 web.Event=function(){};
 
 web.Event.removeSelf=function(e){
 	document.body.removeChild(e.target);
 }
 
-web.regExp={alphabetical:/[a-zA-Z]/g
+web.RegExp={alphabetical:/[a-zA-Z]/g
 			,majorAtoms:/[a-gi-zA-GI-Z]/g
 			,validJSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
 			,commaSeperatedTrimSplit:/\W*,\W*/
 			,blockQuotes:/\*.*\*/
-			,getYoutubeHash:/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/
+			,leadingWhitespace:/^\s+/
+			,trailingWhitespace:/\s+$/
+			,getYoutubeHash:/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|watch\/)([^#\&\?]*).*/
+			,validateYoutubeHash:/^[a-zA-Z0-9_-]{11}$/
+			//				/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/
 		}
 
 
@@ -1337,7 +1687,7 @@ web.isValidJSIdentifier=function(string,strict){
 	if(strict){
 		throw "really? do you really want to do this?"
 	}
-	return web.RegExps.validJSASCIIIdentifier.test(string)
+	return web.RegExp.validJSASCIIIdentifier.test(string)
 }
 web.toPropertyNotation=function(array,favorBracket){
 	var a='';
@@ -1886,6 +2236,8 @@ document.getElementById('file-input')
 web.images={}
 web.images.spotify="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAbUUlEQVR4Ae2dCZRdVZnvf9++Qw2pSqoyDxUCmUggYY6gSSMIrIcjaBBoFF8/FEXwPXvZ3bZ2P7EZtMFG+9kPEEHgtfgCtCBhMIRJhgRFECEEZEgIhMyQpCqppIY7nP2K960F1WfV8bt331s3Fch/rbP2ueecS1bx/+9v2t/ZV3iP4WdPHpHJFbcd7KRwCBQOEPJTIT9ZpDgSCq1CsQWiehGfhf6QnPeux5PqENLtntR27zPrPZlXIf0a1K9MuxHPA3neQ5C+/2HszcgV22cJ3ceJ9C4Quo/oG6cLPgMgMXkLpcPHP3vwSB7qVnvf8MfI1y33NDwCvMReDLn6dwewN8F7GS50f9y57o8Ju08QyU/oT65InGy9FoeYpCu8j92PXY98ZrOn6SHvG5dEvu4eYCd7EeSq305lqKMY9TZkUn4hdJ7pZNeJIr4uTrohAoXYlsDHT2IfvU/+7L30epp/433TonxRbge6GeKQf1s+iaGKlHNHOuk8X+g8TaQ4fCCiE0kXiBMtggFj9ntTDP3OUzsjP/y2yDddDTw9hC3AZIYS2rvWSWvDhIUiHX/jpPsY6Udm0nlcAHHyJdwC6BATQf9n/ADXffycxt8XoxFXtHdvuh3wDCHIpQ8yVOBaGsb+Vycd/+AkN73/DLdEECfeFoKtAI8x+w0hxM/1+exq70d+f3vX5n8HIvYJQNHSMO4sJ+0XSR/xcZJFbJMvpYugNP4TZn3SZ++BAQiP31cRqBCKUet3gUXsYciVj49jj8GnPyCy/cdvm/okwmOCMIhPEEHsmoWEWW+b+nhskGwN0LHhiciP/Drw5B4UwCRqDe9TLSIdP3Ky868EJE6+AMnXrJggbiUUEhADeFAkm/cEohOswcDXfORH/J++4xtABzWG/O/l+1FLeLo/66T930QK45Xg+Gy3ryVaggTSJTwGiJNtzPyBzX+CBYgJI7058qO+DvxHbQVQIxcgDBvueetqR+fniJNoWwDiJAsDCcKKC+x00Hts/2+Tn0x0kjB0JPLNi4QxXwV21sgFTGWwUYg6P5hyHTc78lNCyU8g3D4fQBw2kvx5LLBLIFyvh4vA+8zayI8+C/htDQpBEwbZ3/de4Fz7vzp8xiI/ds+wAMlBoIhdIbSIx4jkE86DRRC/h5d80Y/8BnDlIAtgFIMBR0td5Ldc52TX2f0JZUDSEwg2BEP8v2tYhKTqoPclpn4BPj9RBKZAdIx80y+cjPsS0Ds4LmD5NKqNou9tFbbeJdKzIHzGm+QnPGO7Agk1/fFoP0AEA4rItAgNyyM/6lNAO1WG/HhZG9VEFOWmpFz7AyL5GcnkmDO+9FggwQJYtQNQiG367bSujAAw3CJkVsO4k4DXq5wGVk8AxSh3oJPtDwqFtjjJFqkSHh+A9WxCPBCDsbgDPlwEtkWw6wVEPr0+8iNPBF6mSpD/9dhYqoRDRbYtFSmOl1DS9TxOZAD5dtqYANu/WyKwg71kkRiWAyDyqbfrBScDK4aSAA4U2faI0Ed+hZF+RaTb7qVEGLPaTOWSr+u59d82xKAiOA54eY8LwMMUx7blIsU2AcJMv/0chnWw/43yYQduNmH29dKfAz2PAHx6fTEauQBYC+GQf300XADOZVu93/x7J4UZGDO3yqY/4N8IQQBR1XUFhiXJrIJxRwPtNc8CdnavzzbX1T0o0vsXAiDgKics7Lv2c8EInb2GqTfItgUVvfNc3bKUtJ0UWieQK5dNIwT5aNO/O+n6ggBU0b+XY9Yx4oDkiD9cBLb/DyA0IE6Ad0UQ+WE3AV8IiwEeHRaynHu+yM6rRKC2sz9cKOEI9+XUzAqA9y1fA64KEEAL5SDy7hgn7Y+J+IwAVNVUG4FfYPGoUpjEY/t0gny8Kap+35V8MWo9FniCMiA/emRkOT35zc51PCcU97dnf4zEgDWAUPPPIAmAKrmB8PTPsgLp14vRiEOATkqE/PDhUZQKJ10/F+k+O4k0wme9WeO3BbLnBEAZboBw828WibSfoDEeD1hpYGOJpj+zUGTHbSEzMqQugJ4HLxVTZQFQrqkPTxcrtzi+9bPAbSW6gFYsFCI/IuU6/+SkODE0ICNsCTi8Wyj2fDBCun6quzQcsMKY2pQvNs8GdmBAfvCbFiykXO+1Qve5pQRkoKMDKMmUG/dCBVCtNDAWbBkCCHMPBtH9n4sSYgeI9xE0/gw4144BHmkEkuGj7JEiHU+JIKG+nVCyEyqFRu1hgPPqmX8w1v9DXUWCuAiPFXwUtcyzXkuTKywLILuXO/LzRYDKS7YGqYaFCH1nQD+Hk2+2iAX0DCSKJSA2SFw+zj4OLDCygCxJ8NSfIey8xSLE8ulUFOTFCIn6/fFFyPdCLgdREXI9er2Qg0Ie6uohlQZBx/oGSGegoRHEgRN01ANxNvlxc0uZAsAgrdRKISVnIyP+EriFZAGMYCDszu1wjdnUi0Jxpm2yE2oC5VgGoFiAXC9074ZtG6Fjqx7tOrJjm97b3QldnTrmc5QJFcOwJmhshsZhMKwZhrdCyyhoHQ0jRsLIMXqMnqBCSmf0e3EzHSfdyhYIzPchLHXEp1/ZlSvMTnoXUS6+jwHRkGk628munwdF6jpCwjN4KOSUxHWvwsY1sOUNeGsjbFoL27aAjxgSyNbB+MkwbhKMa4PxbTDpAJg8DRqb9b64BCJNARjkhcQBA4pv+BeAmxIswPABZv9OacykXhIpzlTS4kSWX4fv7YatG2D1c7D2JVi/GtatVlO9NyKVUhHsN0PHKTNg6kHQ0AyZTLgA7EAwpACVWrU7VzwQ8KYF0NnffKpI5x2VFGjwsHM7vPQHWLUCVq+Aja/xnkZdA8yYCzPmwMxDVRCNwyGdqVgABsF2MBn55k8Di4lB/uU3zcQh9CxH8vMFkICiTiEPDyyCh/4DdnXwPoUK4sDDYO7RMPcYGDcZMnVAiACMQNBOCzMDZgRyxcMZ+iMq1h/qXOezgm32B/rsi3DT5fC7JexDP4jAAbPh4A/AYfNh/1kqBo+RLRgCKC/DaD0ceDZWB2iN5b7d14j0fCVUAI/dATf/kH0w8LYY5n0EjvqIZhouZQig33kULJL6nwLnxQRQjwK6cj31DRnZJOJbyl11Q0cuPAPe2sA+lIh0BuZ+ED5wIhwyHxqG2QKw44GkZ6Uj7SZOBLrfbQh5ZBIKyBd3nAG7bjH9foIAtm+E/3k6gdiHsW0w/+PwwZNh5DhAqisAHZvOBG59Nwh8qAkFeHKLneROgZDVPI30f3gBFWIfhg2H+R+DYz8NYyeBuNIFYAeE2TuBU/sJIKsnNDd7tr8l4uvMDp0EAWx+HS76PFXBPmgF8thT4fiFMGoiQOUCwEuv1jjp1BjgoVEAFH33QiddtyWs2pkCQMBH8K1PQWcHNYXW/AG0rBtHb4+mplERerrZ69DQBCeeAcd9BppawgUA77gBbRjp7wK8z10vkjsnXAA6LrkR7r6eiuGc+sSxk9QfjhoDrWNh9DgYNgKampXsphGQziRvASOxkyiCrl3QvUvXEnbtgI5tsP1NaN+q47Y3Ycs62P4WQwpjJsFn/zvM/RDgKhFA3Q3AF1EB1AEQkV8vRJNCBaDP6Ez70QXw2p8oGS1jYNrBmhu3TYMJU2DCZEhlEtb3AzaCkoCNArt2w+Z1emx4Dda+DK+9DFvWs8fgHHz+7+GYj9sCSA4I3QagTTuCHnJEUeMMkV2vGF06JXfi9OyCm38ET97PgJiwPxw8D2YdCdPnQsvopDX8BIKTxWBvBJXwjPeY0GfUgrz+Crz6Arz4DLz8DHTuqG2F8R9ugNFt2MvOyTuPzARWyWUPNCESnQNd15sCKLODd9Pr8NwyNaf1jbD/bJh9JIwcGycx+RzCRWALwYa9bbwe69bAS0/D80/Bc09ATxeDihPOgM9cAJ4wAXjf+EXgBrn8gUY8BfX/xuw2BZDgHozzpPuli2CQhOC99SMSA+8qms/Bi0/DH5fpsXUTVcek6WoFfPCOJtn/HwfI5Q9mgeIKKB5SBQtg9+gZrVzJVsD2/+X8SoiISbixe1jpW8qufh6WL4En7tegsxpoboXL7rQFkNyAmloJHCIX3Uu6Ls1uEbLhAkDvBQrAJj2B8Pi1ACGATTqh5MfIKeTh2cdh2d3w7HK9F4rxU+A7N1UiAHI9eYbJP9/fOMe5rpVgzO4y+/Bt05/8bIAIFFKrGMDYT9jsK9T1kvtuhmX3aLNMufjQJ+Bz30wgucRdzKKocW5fENh4hkjXLeECqOLO3nYsECSCasUA8VmfTH7pXcW7OuHRO+C+RaUX0JyDb98IEw8w9i40X0JpPFP++YG6v3fSe5ktAEMMAXEA5e7s6aFQ0OZRX4TI69i1W6PuQj4mBIHGRqgbBtnsux3AqZQWj1zKEEYC8eHkJ/X6qRV46Jew5CYtUiUDTj0PTjrL3s3MFkD9t/tcQOanQv7LhnkP26EzwPR7j7Z692j0/OYGHXdshZ3tenRs1Vy8p0uPUmdNfaM2cg5v0c7fprfHVk1Lx07UqmPrWBVLRps9DVcQsMm0IYadHXD3DfDYnSr0/qgfBp/5Kiz4VGkk25tbZq+Ty+5P3wuFkw0BGH0AYaZfIxEtya57Bd54+1gFb67XI9dLzVHfoEJomwZtU2HydD2Gt+iag7gQ8m1XEP9e+5vwzDJ4cx0gmvYdtgDqm5LfR7BJjwsmvbRPAKknoTjPFoBp4u1zgUIv7NyujaKvPKsl442vQRQxZCGireHT58D0uXqMa1OxIDHyQwPDBItRzgsp8Xu2AFJ/6BOAexWiqRX7e8PMv7UefrdUq2Wvv6jmbW/G2Ila1Txono7DWyCVDiA/4Tn7dTTr3P6O925NXwwg7YJvGczizrOPwS9+oEWQ9+q6/awjtLXr8AUaU7h0APm2GAzzb5Eef046+gRAj0BdWIBnFXS0SeTyr2iw9n5Atk5bwI88DuYcrRU7RZVmfzkCsJ/rfVsAXrD31iXQDfzfK2D5Xbwv0dwCR5+k7V1t0yCVCZj9hkBM62DEAokCsOOA0kq8F58Nm9fyvoZzag3mf0LdRF19AvmBs58Sq4EMKID78INZ3PnH0zSl2QcAbXo54XQ4/FjNIkoj3MoUwgNF+f5SfHhubxd/fvg1WLOSQYdooac/yPUM3Wxj0jQ48XSYdwJk6pNdg/fhP2JlxwIqgB6EOgkSgL26t/xuuPkKgjFilK58jWvT6HrEKB2Ht2olr65Bic/WDbzyVyxombVrt45aUXx3v4E3N2rDypb1KphaY+oc+OQ5MPNwSKWr7wqMWKC3TwDSjviWwarr+wiu/Ft4+Wl7Bo/fDw44SI/9D1TiG5oqW/kTSkf7W7D+Va1Grn1Zx81vgPeDX2g66gT46Bf0b0YqLhrZ517fFOoTgFuNRNNsARj3E62Azqw7r9VsoJD/z2/CHHw0zD5KZ0BjU/krf6HdP1Li+v/unfDKCu37W7UC1rwIPhq89u/P/R0ccXxAXBAUC7g18r2l7kkhmld6HBC+utezG15/CXwBJk6HkWMSCE8QAZQnBKq4S5hC1y2ef0IbO1b+TgVS7TrC310DE6cObslYP6ae6hNAaolQ/KiITWrIT7jbjR2GCAzTbwih6vD9TqJIe/9+fz88/YjuX1QNHHMynP3tqhSNjMAyvbRPAOlrhMJX7GAvsHU7QTQBIrBNf8IHqQbhif0AinweVizXZdwXnqQijBwPl9xqz35TDGZwmLlWLl2a+aaQvzywf69yK2CJIEAI8WvBKvD2JR878egS7sN3wG9/rX0L5aKxGX5wTy1KxtlvyaX3Zk8XcrcOSKrt220rYIkg3PTXPgYwiI/f7+2Ch2+HB24t531JfX/ib38SUDIuO1aoP7MvC2ic433XytAI3ybd/ly56Q83++HuoHSLkO9V13DvTaUJ4cxvwPxP8g78IK0fQONc+ad7SGdS2hZeSYQ/sAUxSA03/bbZr2JbuBED2A2jHkCDxCU/h4dvS94e78Aj4IIrQMRYPay8TpDLFxn2tgDIpNwKiA4J8e3xa+bnYBFoVS8qQlSAYlFf++7tRo8u6O2FYh68B0GRzmh/X32DjsOGa/XQpSCV1vvOlej/QxpGB7i+dSMsvhb++PC799MZ7fU75cuQzpqzPWD2xwXgngMOle/d6wB3HRS+ZJNuWwFDBEYQqATnc9o/sG0ztG/WcfsWLd12dujWczu3h/YYaMGpWUvJtI6BUeNh9Hh9/XrCFBVJVvv/bOtgEJ98T/+WTa+90/On+wP5yhtLoZQycfpnwLl9AkjjvfyVSP5GM8IP7eVPuFfMQ65HCV6/Cras0wh6yxvaDRwVqTnE6X5+kw7QBZtpc2C/mbrekMoY7iCgczjRzCcTW6UqYd05wI19Aqgj8n66k9wqgEqsgD3rNSB65Y+6QrjhVVi/WmfzUEZjs27rNuNQOPgDWq/PNhCHPevj5wb5tjUIrxNEPjsDWC2XLMmiBOXXCb5NiRqcat/OrfDz78OqZ9mLoZbhoHm6pj95hsYWEDTrDfKr31iqn2U9MBmgzwIIetFdJ1L8kk16mAjwcP2FsPJx3lOYMguOOBYOPx5GTQDnBp182/SbYlD/jwogDUAU8WmRwq8SfLkRANr+f/smuPjzvEehQeMRx8GHPqaiyGRLtwhVtwbGM57sQuBXAHKpugDyxVxT2vGWCPXhViD5+uoVcNU3eF9g1pG6tdvMo1QIAxJfKfnhVcKefJExwC4A+e7dvIOUc7eLRJ8xrECQ/9++GS79/CC1gjVAQ5NG6i4F/VHQTKPv0EJMLVvEZh4BHzkNDjwK0pkaxQHm7E/9ClgIir4gMAUovJfTRAq/FAKrfYYIrvxrWPN8eT/tMnqibqY8epKejxgFLWO05bpltJrecmr+XZ3Q2a7H1o2wdZO+q7/pdT0GQyBzPqjdPm0HgkA4+eXUABJFkj0d+CUoNAtAUSjm6tMp2QS+pRpWIP5s+xb4yTdh64aBtzyZMksLIhOn6k5iYydDKhXe9iVCWSgWVARvvAyrn9NsZdvmam0KrZs6nHiWirgfKQHkhxWKPNJRKPoJQA9AzAUoUi51lVA8P7jaZ4gg36sl0I2r9XXntukwZbbO6vh3CNj5QwL68bwnEe1vagfQyt9qX2MhD+FQYZ9/hQreJt829eW5iPTVwAUA/SxAOlbMkEOE/Ap7hoeLgGqv/QuJkCquAvZ2axr75P3w4h/CewMXnAKn/Y+BSQolH+wagKPhMGAF/SDfW9JAHJHvfRSiY0NTPqiGCGq09h8A77V6+cS9sGyxtpiXg9axcOHNtU4N3WPAh4lBLvm1Iw7vU58U8ndVpbfP3tWr4rYvMUx8NQhPQrEIK5bB/Ytgw+rSu3+/v9ggP+FaeHaQ+RRwN8QFcE+GOApRXlJO/iT4WYMmgmoKwRRDDRpDPLzwe7jvF7D2Rf4sph8G5/+LUReoKvnyUiHyBwGeGOS7dzEgUi79l0JhUUjKV7kIqtv/J4TDGxc8EMczj8Jd12rtIw4ROO9ymHF4wK5jgamhSPZzwCIGgFz66yzEoZVBl3LyQqlWoFQR6GCSGx4DVDMa9NblhOteexoeuQ0eulXfhwBoatHg75C/qDL59uw/GIgALAsQtwILoXCbAFUTQdBGj+ExQHUsQHhjSCGnr5ulUjDhAEilLeKDU8MEoaRPA24nAXLxPWn+PKJHhehYQlu9jfsBr3uZZl9q6P9jH+3+gBqSDwNH/rEg0Bl/sDscCk8LSOUpn0F2gBDiz9SqKTR+KYx4g1zjviEW70kfCTwDEGwBFP4nUDzPMO+GCKra8x9e/BFs+KBbFvH2rK8e+XhS1wBfBTAEkMJCMSoOfzstBD+p+iKwrUF4JbAyK+ADawQm8bGT6vcLyMZi5GcDOzGgQSA2UpI+BQqLa1HylSTypMqLQAHwvoz4QOLP27M+UBCxe+lTgTsBbAtwd5rSEd0A0X8LEkFAupc42324jxcJINkg3CA94N2BsKKQDu5G4ByAEgXgKBWFKGpKOVkBfqoAVEUEChHb9NtiqOGrYTHSIZT4apIva4qRPxTYRYmQC21DEa8NzIPCciBbkggCXYIlhAQxKCrfIcRWgRgvjlb/3QGDfHLepxcAT1EG5J/uSlM2xJ8rFK8FCBZBaM4vsVPL1PsgsxD7XoD/D6gNVFYXSH0ZuI4yIRfdnSIE3vufiURfDC/+hP3Sl9S++BNGesBLI+F1AffOL4EGCMARgmIUZZ2TpYI/PoHkAGtg+PtKF4FqvChkEY+vvC7gkYejyJ8M5AiAxgDhGOGcPCH4WeHFn3AhhC8ChbMfQLpBvMIH1QXkpWLkjwF2oKi5AMDT5pwsF/yUgYi0hRBY9/cJYqiJBUggXQJjAJ/8bHKcIG8UIz8fWA8QLoDFVAPTnfCICJMqb/oIMPs+6fkaFIQE8NVdH7AzAdkoZI4DVlEh5OK7slQDHj/H+/xSUwQBQghaBAoWhUG2Ioh0i/hSyYf0fwGepwqQi+7KUC0Uo/x0J/Ig4qcEdP8MXgewlJ7qhfv/yom3U0NZ68icFDjzAyxAAApRrs2JPID4WVVt+jDEUIMYMGw3sSrFBB55KYr8SWE+PzwGCM8ORO5A/PECUKPun9rHAFWpBNolY031Ph0a7ddeAIqsiFwt+C+GdP+EF4BqsE9gAOnhXULu+shH59t5/pATgMK51Ln44pUIWbvpo9bFnxoUhcK7hHKQ+lpIebfMtYAUgw1B5nlfvAX8VLv7pwoFIBnEpmBfeUHIbg+TNSKpM+2FnapkAWlqgWKx0CQiPxb8OTGijUpgcCYQ9pAPFEY1KoGA93KD9/7rwC5qALnwDmoKEXcKRFcKtP1Z0+/DxWDzHkayQXh4h5CebAB3gd3JU20XsNhRa0Q+Gi4ilwn+PEBKF0J4JlDzDKB04r1HrvHef8vu4durLIAND4c5kR+DPza0+0eCrFAYuQGkGzGAPAapvwaeYQ9Bvrs4zZ6GJ1oo+EvAzw7v/qn9iyHhXULyIsiFwG0YqIEAHEMBkY+cE3cG+O+oEMosAHlqnwdKmQUhJf6SyEe3AhFDAPKdOxhqECfuEx7/N4L/MP0hAcUfX4UsQAwXYRSE1NTLFZGP7ond2ScAA3NF5CvgzxJoxaoGDq22sHaQRd77nwIrCcI+ASg89SLuE+DPBP9xgXqofUXQmxfo8cgSkJu9zvYehjjkO79ib0OTiDsJ/EfBnwxMlj24HOhhHchSkHu9jx4IL+DsE0AopjlxCzx+Pvh5wEFAdpBawnLAn0CeAnnc+2g58Co29gmghkgDM0XcweD3B6YC+wGjwI/SkUagjv+MXqAL2AayTUfeANaAvO599ALwClDgPYT/BwKkJihPE/EuAAAAAElFTkSuQmCC"
 web.images.bug="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAxklEQVR4nI3RoWvCQRjG8c9PTDKYYZhsW9k/YRbTQAw2wbawsCK2VasLK1aj0QXDwsL+ABEMumAUMcxg1eD9QA5/uKfcvTz3fd/n7pJ2uSxSDRV84zM2c1HdwBidsDZiII8ChnjGDt0zf4cSPvCKVR57vGOKv7gjbtHCKp0AX0hwH+pHzMN+G+JdvMNV5dDHEsWMM8Xgj1LgBQ/4zQAWwa/HkWYZwE8cCZq4QQ8bHLDGm9NDVFMgCT89CdD2woQ7DPB0DvxbR6+YIyyigNVdAAAAAElFTkSuQmCC"
+//http://stackoverflow.com/questions/6018611/smallest-data-uri-image-possible-for-a-transparent-image
+web.images.ghostPixel='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 //Apple console api
 //https://developer.apple.com/library/ios/documentation/AppleApplications/Conceptual/Safari_Developer_Guide/Console/Console.html
 web.log=function(/*arguments*/){
@@ -2019,7 +2371,7 @@ web.top=function(){
 	
 }
 web.contains=function(str,word){
-	return (str.indexOf(word)>=0)
+	return (String(str).indexOf(word)>=0)
 }
 
 web.startsWith=function(str,prefix,caseInsensitive){
@@ -2650,8 +3002,12 @@ web.hasInterface=function(obj,inter){
 
 //if true returns absolute url, if false returns false
 web.isURL=function(url){
-	var tmp,url=web.toAbsoluteURL(url);
+	console.warn('isURl is broken for now need to add options to web.toAbsoluteURL so bare words are not prepended to current location')
+	var tmp,url=web.toAbsoluteURL(url),count=0;
 	URI.withinString(url,function(u){tmp=u;return ''})
+	if(count>0){
+		return false;
+	}
 	return (tmp==url)?tmp:false;
 }
 web.isRelativeURL=function(url){
@@ -2665,10 +3021,11 @@ web.origin=function(){
 }
 
 web.toAbsoluteURL = function(url) {
+	//if already absolute then return
 	if((/^\w+:\/\//).test(url)){
 		return url
 	}
-	if(document){
+	if(document){//if browser then use this
     	var link = document.createElement("a");
     	link.href = url;
     	return (link.protocol+"//"+link.host+link.pathname+link.search+link.hash);
@@ -3032,6 +3389,14 @@ var dummyObject={}
 var dummyFunction=function(){};
 var dummyArray=[]
 
+
+var dummyDivCSS={'position': 'absolute', 'float': 'left', 'white-space': 'nowrap', 'visibility': 'hidden','padding':0,'margin':0} //{'visibility':'hidden','position':'absolute','bottom':(window.innerHeight+window.innerWidth)*1000,'right':(window.innerHeight+window.innerWidth)*1000}
+var dummyDiv=$('<div></div>').css(dummyDivCSS)
+var resetDummyDiv=function(){
+	dummyDiv.removeAttr("style").css(dummyDivCSS)
+}
+$(function(){$('body').append(dummyDiv)})
+
 //xml.pathway().reaction(1).compound(2,'attributes').name
 var x2js =null;
 web.toObject=function(input,type,callback){
@@ -3206,12 +3571,20 @@ web.xmlToEvents=function(html,callback){
 }
 web.parseHTML=function(input,options){
 	var output=''
-	if(options.stopImageLoad){
+	if(options.stopImageLoad||options.deferLoads){
 		output=web.xmlToEvents(input,function(e){
 			var str=''
+			//todo support all tags and their url loading counterparts 
+			//http://stackoverflow.com/questions/2725156/complete-list-of-html-tag-attributes-which-have-a-url-value
 			if(e.tag=='IMG'){
-				str=e.raw.replace(/src\s*=\s*["'].+?["']/gi,function(rawMatch,offset,string){
-					return 'data-'+rawMatch
+				str=e.raw.replace(/src\s*=\s*("|').+?["']/gi,function(rawMatch,paren,offset,string){
+					//var url = rawMatch.slice(rawMatch.indexOf(paren)+1,rawMatch.lastIndexOf(paren))
+					//rawMatch=rawMatch.replace(url,web.images.bug)
+					//rawMatch=web.replaceRange(rawMatch,rawMatch.indexOf(paren)+1,rawMatch.lastIndexOf(paren),web.images.bug)
+				 
+
+					return 'src="'+web.images.bug+'" onload="web.parseHTML.deferedImageLoad(this,\''+web.UID()+'\');" data-'+rawMatch
+					//return 'onerror="console.warn(\'^^^You may ignore the above GET error^^^\');this.src=web.images.bug;return true;" ' +rawMatch
 				})
 			}
 			return str ||e.raw
@@ -3219,6 +3592,15 @@ web.parseHTML=function(input,options){
 	}
 
 	return jQuery.parseHTML(output,options.context||undefined,options.keepScripts||false)
+}
+var deferedImageLoadCache={};
+web.parseHTML.deferedImageLoad=function(elem,id){
+	if(!deferedImageLoadCache[id]){
+		deferedImageLoadCache[id]=true;
+		return
+	}else{
+		elem.src=elem.getAttribute('data-src');
+	}
 }
 
 web.partitionHTML=function(input){
@@ -3301,6 +3683,7 @@ web.toDOM=function(obj){
 //oh you can also associate a ID with the parent element
 //using jquery compile to doT template return as jquery obj
 web.template=function $_webTemplate(template,removeDataAttr,options){
+	var partial = false; //if partal equals true then return a string that is a partial template
 	//Argument manipulation
 	if(removeDataAttr!=undefined){
 		if(web.isObject(removeDataAttr)){
@@ -3308,11 +3691,19 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 		}
 	}
 	if(typeof template=='string'){
-		template=$(template)
+		if(typeof removeDataAttr=='string'){
+			partial=true;
+			template='{{? '+template.replace('-','.')+' }}'+removeDataAttr+'{{?}}'
+		}
+		template=$(web.parseHTML(template,{deferLoads:true}))
 	}
 	if(removeDataAttr===undefined){
 		removeDataAttr=true
 	}
+
+
+
+
 	options=options||{}
 	var map = options.map
 	//todo options.defaults
@@ -3345,9 +3736,36 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 
 		}
 	})
+
+		// template.find('img[data-src]').each(function(){
+		// 	var elem=$(this);
+		// 	// modify src however you need to, maybe make
+		// 	// a function called 'getAbsoluteUrl'
+		// 	elem.attr('onload','this.src=(this.src==web.images.bug)?web.images.ghostPixel:this.getAttribute("data-src")') //.prop('src', elem.data('src'));
+		// 	elem.attr('src',web.images.bug)
+		// });
+
+
 	//get manipulated html and compile using doT
-	var compiled = doT.template(template.outerHTML())
-	console.error(template.outerHTML())
+	template = template.outerHTML();
+
+	// template=web.xmlToEvents(template,function(e){
+	// 		var str=''
+	// 		//todo support all tags and their url loading counterparts 
+	// 		//http://stackoverflow.com/questions/2725156/complete-list-of-html-tag-attributes-which-have-a-url-value
+	// 		if(e.tag=='IMG'){
+	// 			str=e.raw.replace(/data-src\s*=\s*["'].+?["']/gi,function(rawMatch,offset,string){
+	// 				return rawMatch.slice(5) //remove 'data-'
+	// 			})
+	// 		}
+	// 		return str ||e.raw
+	// })
+
+	if(partial){
+		return template //this is a partial template because first 2 params are strings
+	}
+	//template.replace
+	var compiled = doT.template(template)
 
 	return function $_webCompiledTemplate(data,id,map){
 		if(web.isObject(id)){
@@ -3364,6 +3782,17 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 		//this will either set the id or return (if the id var was null undefined etc)
 		instance.attr("id",id); //make sure not to chain on returns in case id==undefined cause it will return an empty stirng 
 		
+		/*
+		//inspiration
+		//http://stackoverflow.com/questions/19160474/how-to-prevent-an-img-tag-from-loading-its-image
+	 	// Only modify the images that have 'data-src' attribute
+		instance.find('img[data-src]').each(function(){
+			var elem=$(this);
+			// modify src however you need to, maybe make
+			// a function called 'getAbsoluteUrl'
+			elem.prop('src', elem.data('src'));
+		});*/
+
 		return instance; //congrats! super awesome syntax and optimized template compile times with just enough sugar to keep your dev from dieing sad unfufilled
 	}
 }
@@ -3436,8 +3865,7 @@ web.imagePlaceholder=function(width,height){
 }
 
 */
-web.remap=function(original,map,fill){
-	var output={}
+web.remap=function(output,original,map,fill){
 	var key,to,fallback;
 	if(fill){ //todo optimize fill
 		$.extend(true,output,original)
@@ -3457,20 +3885,11 @@ web.remap=function(original,map,fill){
 			}
 			to=to.pop()
 		}
-		web.put.call(output,key, web.get.call(original,key) || fallback);
+		web.put.call(output,to, web.get.call(original,key) || fallback);
 	}
 	return output;
 }
 
-//source: http://stackoverflow.com/questions/3452546/javascript-regex-how-to-get-youtube-video-id-from-url
-web.getYoutubeHash=function (url){
-	var match = url.match(web.regExp.getYoutubeHash);
-	if (match&&match[7].length==11){
-		return match[7];
-	}else{
-		throw console.error("Unable to extract hash from expected youtube url"+url);
-	}
-}
 
 web.outsideClickDismissPopover=function(){
 	$('body').on('click', function (e) {
@@ -3490,6 +3909,7 @@ web.outsideClickDismissPopover=function(){
 	    */
 	});
 }
+
 
 //DO NOT USE yet
 web.keyboard=function(element, keyCombo,callback){
@@ -3843,12 +4263,64 @@ web.replaceAll=function(str,find,replace){
   //return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
 }
 
-//source http://shebang.brandonmintern.com/foolproof-html-escaping-in-javascript/
-web.escapeHTML=function(str) {
-	var div = document.createElement('div');
-	div.appendChild(document.createTextNode(str));
-	return div.innerHTML;
+//inspiration http://stackoverflow.com/questions/23013573/swap-key-with-value-json
+web.hashSwap=function(data,fn){//fn handles collisions
+  // var ret = {};
+  // for(var key in json){
+  //   ret[json[key]] = key;
+  // }
+  // return ret;
+
+	return web.keys(data).reduce(function(obj,key){
+		if(obj.hasOwnProperty(data[key])){
+			fn&&fn(data,obj,key)
+		}
+		obj[ data[key] ] = key;
+		return obj;
+	},{});
+}
+
+
+//inspiration http://shebang.brandonmintern.com/foolproof-html-escaping-in-javascript/
+//inspiration for "secure" way
+//http://stackoverflow.com/questions/24816/escaping-html-strings-with-jquery
+//which is apparently from mustache 
+//https://github.com/janl/mustache.js/blob/master/mustache.js#L82
+var escapeHTMLMap = {
+	"&": "&amp;",
+	"<": "&lt;",
+	">": "&gt;",
+	'"': '&quot;',
+	"'": '&#39;',
+	"/": '&#x2F;'
 };
+web.escapeHTML=function(str) {
+	//if(document){
+	//	var div = document.createElement('div');
+	//	div.appendChild(document.createTextNode(str));
+	//	return div.innerHTML;
+	//}else{
+	    return str.replace(/[&<>"'\/]/g, function (s) {
+	      return escapeHTMLMap[s];
+	    });
+	//}
+};
+
+var unescapeHTMLMap=web.hashSwap(escapeHTMLMap)
+web.unescapeHTML=function(str){
+	//if(document){
+    //	var div = document.createElement('div');
+    //	div.innerHTML = str;
+   // 	var child = div.childNodes[0];
+    //	return child ? child.nodeValue : '';
+	//}else{
+	    return str.replace(/&(amp|lt|gt|quot|#39|#x2F);/g, function (s) {
+	      return unescapeHTMLMap[s];
+	    });
+	//}
+}
+web.escape
+
 
 
 
@@ -3871,7 +4343,7 @@ web.splitOnNth=function(string,characters,index,flags){
 web.splitOnNth.bank={}
 
 web.removeWhitespace=function(str,trim){
-	return ((trim)?str.trim():str).split(web.regExp.concurrentWhitespace)
+	return ((trim)?str.trim():str).split(web.RegExp.concurrentWhitespace)
 }
 
 web.insert=function(array,index,value){
@@ -3896,6 +4368,128 @@ web.screenshot=function(targetElement,type,callback){
 	}
 }
 
+
+//TODO validate
+//http://stackoverflow.com/questions/2742813/how-to-validate-youtube-video-ids
+
+//http://stackoverflow.com/questions/3717115/regular-expression-for-youtube-links
+//inspiration: http://stackoverflow.com/questions/3452546/javascript-regex-how-to-get-youtube-video-id-from-url
+web.getYoutubeHash=function(url){
+	if(!url){return ''}
+	var match = url.match(web.RegExp.getYoutubeHash);
+	var hash=(match)?match[2].trim():'';
+	if(web.RegExp.validateYoutubeHash.test(hash)){
+		return hash;
+	}else if(web.startsWith(hash,'v=')){
+		return hash.slice(2)
+	}else if(web.endsWith(hash,'/')){
+		return hash.slice(0,-1)
+	}else{ //now we will either just get the u= variable or the v= variablel //in that order yeah it isn't right but I do it
+		//http://www.youtube.com/attribution_link?a=5X4P22YNTKU&amp;u=%2Fwatch%3Fv%3DT2NUk5AFImw%26feature%3Dshare
+		var v = web.queryString(web.queryString(web.unescapeHTML(url),'u')||url,'v') 
+		if(v&&web.RegExp.validateYoutubeHash.test(v)){
+			return v
+		}else{ //just trim off the url and see if the value is at the end of the url
+			v = web.deepTrimLeft(url,'/')
+			if(v&&web.RegExp.validateYoutubeHash.test(v)){
+				return v
+			}
+		}
+	}
+	console.error("Unable to extract hash from expected youtube url "+url+' hashvalue =\''+hash+'\' length'+hash.length);
+	return 
+};
+/*tests*/
+(function(tests){
+	console.warn('!!!!unit testing for web.getYoutubeHash')
+	_.forEach(tests,function(answer,url,urls){
+		var hash = web.getYoutubeHash(url);
+		console.assert(hash==answer,"input: "+url+" web returned "+hash+" but it should have been "+answer)
+	})
+})
+/*({		//Tests																								Answers
+//pCoWDoGG tests (mine!)
+"http://www.youtube.com/attribution_link?a=5X4P22YNTKU&amp;u=%2Fwatch%3Fv%3DT2NUk5AFImw%26feature%3Dshare"	:'T2NUk5AFImw',
+
+
+
+//Lasnv http://stackoverflow.com/questions/3452546/javascript-regex-how-to-get-youtube-video-id-from-url
+'http://www.youtube.com/watch?v=0zM3nApSvMg&feature=feedrec_grec_index'										:'0zM3nApSvMg',
+'http://www.youtube.com/user/IngridMichaelsonVEVO#p/a/u/1/QdK8U-VIH_o'										:'QdK8U-VIH_o',
+'http://www.youtube.com/v/0zM3nApSvMg?fs=1&amp;hl=en_US&amp;rel=0'											:'0zM3nApSvMg',
+'http://www.youtube.com/watch?v=0zM3nApSvMg#t=0m10s'														:'0zM3nApSvMg',
+'http://www.youtube.com/embed/0zM3nApSvMg?rel=0'															:'0zM3nApSvMg',
+'http://www.youtube.com/watch?v=0zM3nApSvMg'																:'0zM3nApSvMg',
+'http://youtu.be/0zM3nApSvMg'																				:'0zM3nApSvMg',
+//Jeffreypriebe
+//'http://www.youtube.com/v/0zM3nApSvMg?fs=1&amp;hl=en_US&amp;rel=0'											:'0zM3nApSvMg',
+//'http://www.youtube.com/embed/0zM3nApSvMg?rel=0'															:'0zM3nApSvMg',
+//'http://www.youtube.com/watch?v=0zM3nApSvMg&feature=feedrec_grec_index'										:'0zM3nApSvMg',
+//'http://www.youtube.com/watch?v=0zM3nApSvMg'																:'0zM3nApSvMg',
+//'http://youtu.be/0zM3nApSvMg'																				:'0zM3nApSvMg',
+//'http://www.youtube.com/watch?v=0zM3nApSvMg#t=0m10s'														:'0zM3nApSvMg',
+//'http://www.youtube.com/user/IngridMichaelsonVEVO#p/a/u/1/QdK8U-VIH_o'										:'QdK8U-VIH_o',
+//xronosiam
+'http://www.youtube.com/v/0zM3nApSvMg?fs=1&hl=en_US&rel=0'													:'0zM3nApSvMg',
+//'http://www.youtube.com/embed/0zM3nApSvMg?rel=0'															:'0zM3nApSvMg',
+//'http://www.youtube.com/watch?v=0zM3nApSvMg&feature=feedrec_grec_index'										:'0zM3nApSvMg',
+//'http://www.youtube.com/watch?v=0zM3nApSvMg'																:'0zM3nApSvMg',
+//'http://youtu.be/0zM3nApSvMg'																				:'0zM3nApSvMg',
+//'http://www.youtube.com/watch?v=0zM3nApSvMg#t=0m10s'														:'0zM3nApSvMg',
+'http://www.youtube.com/user/IngridMichaelsonVEVO#p/a/u/1/KdwsulMb8EQ'										:'KdwsulMb8EQ',
+'http://youtu.be/dQw4w9WgXcQ'																				:'dQw4w9WgXcQ',
+'http://www.youtube.com/embed/dQw4w9WgXcQ'																	:'dQw4w9WgXcQ',
+'http://www.youtube.com/v/dQw4w9WgXcQ'																		:'dQw4w9WgXcQ',
+'http://www.youtube.com/e/dQw4w9WgXcQ'																		:'dQw4w9WgXcQ',
+'http://www.youtube.com/watch?v=dQw4w9WgXcQ'																:'dQw4w9WgXcQ',
+'http://www.youtube.com/?v=dQw4w9WgXcQ'																		:'dQw4w9WgXcQ',
+'http://www.youtube.com/watch?feature=player_embedded&v=dQw4w9WgXcQ'										:'dQw4w9WgXcQ',
+'http://www.youtube.com/?feature=player_embedded&v=dQw4w9WgXcQ'												:'dQw4w9WgXcQ',
+'http://www.youtube.com/user/IngridMichaelsonVEVO#p/u/11/KdwsulMb8EQ'										:'KdwsulMb8EQ',
+'http://www.youtube-nocookie.com/v/6L3ZvIMwZFM?version=3&hl=en_US&rel=0'									:'6L3ZvIMwZFM',
+// suya
+//'http://www.youtube.com/watch?v=0zM3nApSvMg&feature=feedrec_grec_index'										:'0zM3nApSvMg',
+//'http://www.youtube.com/user/IngridMichaelsonVEVO#p/a/u/1/QdK8U-VIH_o'										:'QdK8U-VIH_o',
+'http://youtube.googleapis.com/v/0zM3nApSvMg?fs=1&hl=en_US&rel=0'											:'0zM3nApSvMg',
+//'http://www.youtube.com/watch?v=0zM3nApSvMg#t=0m10s'														:'0zM3nApSvMg',
+'http://www.youtube.com/embed/0zM3nApSvMg?rel=0"'															:'0zM3nApSvMg',
+//'http://www.youtube.com/watch?v=0zM3nApSvMg'																:'0zM3nApSvMg',
+//'http://youtu.be/0zM3nApSvMg'																				:'0zM3nApSvMg',
+'http://www.youtube.com/watch?v=0zM3nApSvMg/'																:'0zM3nApSvMg',
+'http://www.youtube.com/watch?feature=player_detailpage&v=8UVNT4wvIGY'										:'8UVNT4wvIGY',
+//Poppy Deejay
+'http://www.youtube.com/watch?v=iwGFalTRHDA '																:'iwGFalTRHDA',
+'https://www.youtube.com/watch?v=iwGFalTRHDA '																:'iwGFalTRHDA',
+'http://www.youtube.com/watch?v=iwGFalTRHDA&feature=related '												:'iwGFalTRHDA',
+'http://youtu.be/iwGFalTRHDA '																				:'iwGFalTRHDA',
+'http://www.youtube.com/embed/watch?feature=player_embedded&v=iwGFalTRHDA'									:'iwGFalTRHDA',
+'http://www.youtube.com/embed/watch?v=iwGFalTRHDA'															:'iwGFalTRHDA',
+'http://www.youtube.com/embed/v=iwGFalTRHDA'																:'iwGFalTRHDA',
+'http://www.youtube.com/watch?feature=player_embedded&v=iwGFalTRHDA'										:'iwGFalTRHDA',
+'http://www.youtube.com/watch?v=iwGFalTRHDA'																:'iwGFalTRHDA',
+'www.youtube.com/watch?v=iwGFalTRHDA '																		:'iwGFalTRHDA',
+'www.youtu.be/iwGFalTRHDA '																					:'iwGFalTRHDA',
+'youtu.be/iwGFalTRHDA '																						:'iwGFalTRHDA',
+'youtube.com/watch?v=iwGFalTRHDA '																			:'iwGFalTRHDA',
+'http://www.youtube.com/watch/iwGFalTRHDA'																	:'iwGFalTRHDA',
+'http://www.youtube.com/v/iwGFalTRHDA'																		:'iwGFalTRHDA',
+'http://www.youtube.com/v/i_GFalTRHDA'																		:'i_GFalTRHDA',
+'http://www.youtube.com/watch?v=i-GFalTRHDA&feature=related '												:'i-GFalTRHDA',
+'http://www.youtube.com/attribution_link?u=/watch?v=aGmiw_rrNxk&feature=share&a=9QlmP1yvjcllp0h3l0NwuA'		:'aGmiw_rrNxk',
+'http://www.youtube.com/attribution_link?a=fF1CWYwxCQ4&u=/watch?v=qYr8opTPSaQ&feature=em-uploademail'		:'qYr8opTPSaQ',
+'http://www.youtube.com/attribution_link?a=fF1CWYwxCQ4&feature=em-uploademail&u=/watch?v=qYr8opTPSaQ'		:'qYr8opTPSaQ',
+
+//jrom
+'//www.youtube.com/watch?v=iwGFalTRHDA'																		:'iwGFalTRHDA',
+'//www.youtube.com/watch?v=iwGFalTRHDA&feature=related'														:'iwGFalTRHDA',
+'http://youtu.be/iwGFalTRHDA'																				:'iwGFalTRHDA',
+'http://youtu.be/n17B_uFF4cA'																				:'n17B_uFF4cA',
+'http://www.youtube.com/embed/watch?feature=player_embedded&v=r5nB9u4jjy4'									:'r5nB9u4jjy4',
+'http://www.youtube.com/watch?v=t-ZRX8984sc'																:'t-ZRX8984sc',
+'http://youtu.be/t-ZRX8984sc'																				:'t-ZRX8984sc'
+}) 
+
+*/
 
 /**********************************************************************
 ***********************************************************************
@@ -4377,7 +4971,10 @@ web.GUID=function(format,source,callback){
 		return v.toString(16);
 	});
 }
-
+var uid=0
+web.UID=function(){
+	return uid++;
+}
 
 //Source http://www.paulirish.com/2009/random-hex-color-code-snippets/
 web.randomColor=function(type,a0,a1,a2){
@@ -5030,9 +5627,9 @@ web.functionArguments=function(src){
     	}
     	return functionArgumentsCache[src]=web.functionArguments(web.replaceRange(src,c1,c2+2))
     }//else fall through
-    return functionArgumentsCache[src]=src.slice(p1+1,p2).trim().split(web.regExp.commaSeperatedTrimSplit)
+    return functionArgumentsCache[src]=src.slice(p1+1,p2).trim().split(web.RegExp.commaSeperatedTrimSplit)
     // don't think this is needed? if(c1==-1){
-    // don't think this is needed? 	return names.trim().split(web.regExp.commaSeperatedTrimSplit)
+    // don't think this is needed? 	return names.trim().split(web.RegExp.commaSeperatedTrimSplit)
     // don't think this is needed? }
     // don't think this is needed? return web.functionArguments(web.replaceRange(names,c1,c2+2))
 
@@ -5211,23 +5808,7 @@ web.select=function(){
     return this; // Don't break the chain
 };
 }
-//original Inspiration http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
-web.getTextPixelWidth=function(text,css){
-	var f;
-	//TODO css can be just a font style,or css string, or object hash
-	if(css.indexOf(':')==-1){
-		f=css,css=''
-	}else{
-		f='12px arial' //TODO get default body font
-	}
-	var o = $('<div style="'+(css||'')+'">' + text + '</div>')
-	    .css({'position': 'absolute', 'float': 'left', 'white-space': 'nowrap', 'visibility': 'hidden', 'font': f})
-	    .appendTo($('body')),
-	w = o.width();
 
-	o.remove();
-  return w;
-}
 //Original inspiration 
 //http://stackoverflow.com/questions/2026335/how-to-add-extra-info-to-copied-web-text
 web.editSelection=function(arg0,hidden){
@@ -5672,7 +6253,7 @@ defer(function(){web.proxy('get','google.com',defer())}
 web.css=function(input,elem){
 	var raw = input
 	if(web.isType(input,'String')){
-		input=input.replace(web.regExp.blockQuotes)
+		input=input.replace(web.RegExp.blockQuotes)
 
 		if(!elem){
 			//add stylesheet					
