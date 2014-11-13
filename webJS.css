@@ -10,18 +10,31 @@ textarea[disabled]{
 }
 
 
+html.single-page, html.single-page body{
+	height: 100%;
+	width:100%;
+	margin:0;padding: 0;
+}
+
+
+
+
+/***********************/
+/* Main layout classes */
+/***********************/
+.body-row, .body-col { overflow: hidden; position: absolute; }
+.body-row { left: 0; right: 0; }
+.body-col { top: 0; bottom: 0; }
+
+
 
 /******************/
 /*  WebJS classes */
 /******************/
-	.unselectable {
-		-moz-user-select: -moz-none;
-		-khtml-user-select: none;
-		-webkit-user-select: none;
-		-o-user-select: none;
-		user-select: none;
-	}
-
+.scroll-no	{overflow: hidden;}
+.scroll-x	{overflow-x: auto;}
+.scroll-y	{overflow-y: auto;}
+.scroll-both{overflow:scroll;}
 
 	/*helper classes*/
 	.click-off{
@@ -213,6 +226,7 @@ textarea[disabled]{
 		transition-timing-function: linear, linear;
 		-webkit-overflow-scrolling: touch;
 	}
+
 
 
 /********************************/
