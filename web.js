@@ -35,15 +35,15 @@ if(!window.performance.now){
 //http://stackoverflow.com/questions/6903762/function-name-not-supported-in-ie
 // Fix Function#name on browsers that do not support it (IE):
 if (!(function f() {}).name) {
-    Object.defineProperty(Function.prototype, 'name', {
-        get: function() {
-            var name = this.toString().match(/^\s*function\s*(\S*)\s*\(/)[1];
-            // For better performance only parse once, and then cache the
-            // result through a new accessor for repeated access.
-            Object.defineProperty(this, 'name', { value: name });
-            return name;
-        }
-    });
+	Object.defineProperty(Function.prototype, 'name', {
+		get: function() {
+			var name = this.toString().match(/^\s*function\s*(\S*)\s*\(/)[1];
+			// For better performance only parse once, and then cache the
+			// result through a new accessor for repeated access.
+			Object.defineProperty(this, 'name', { value: name });
+			return name;
+		}
+	});
 }
 
 
@@ -54,38 +54,38 @@ if (!(function f() {}).name) {
 end pollyfills
 *************************/
 
-     	(function($) {
-    		$.fn.disabled = function(bool){
-		        return this.each(function(){
-		        	if(bool===undefined){
-		            	this.disabled = !this.disabled;
-		            }else{
-		            	this.disabled = bool;
-		            }
-		        });
-		    };
-		    $.fn.readOnly = function(bool){
-		        return this.each(function(){
-		        	if(bool===undefined){
-		            	this.readOnly = !this.readOnly;
-		            }else{
-		            	this.readOnly = bool;
-		            }
-		        });
-		    };
-		    $.fn.outerHTML = function(){
-		    	if(this[0].outerHTML){
-		    		return this[0].outerHTML
-		    	}
-		    	return this.wrapAll('<div></div>').parent().html()
-		    }
-		    //http://stackoverflow.com/questions/3086068/how-do-i-check-whether-a-jquery-element-is-in-the-dom
-		    $.fn.isDetached = function(){
-		    	return (!jQuery.contains(document, this[0]));
-		    }
-		    $.fn.isAttached = function(){
-		    	return (jQuery.contains(document, this[0]));
-		    }
+		(function($) {
+			$.fn.disabled = function(bool){
+				return this.each(function(){
+					if(bool===undefined){
+						this.disabled = !this.disabled;
+					}else{
+						this.disabled = bool;
+					}
+				});
+			};
+			$.fn.readOnly = function(bool){
+				return this.each(function(){
+					if(bool===undefined){
+						this.readOnly = !this.readOnly;
+					}else{
+						this.readOnly = bool;
+					}
+				});
+			};
+			$.fn.outerHTML = function(){
+				if(this[0].outerHTML){
+					return this[0].outerHTML
+				}
+				return this.wrapAll('<div></div>').parent().html()
+			}
+			//http://stackoverflow.com/questions/3086068/how-do-i-check-whether-a-jquery-element-is-in-the-dom
+			$.fn.isDetached = function(){
+				return (!jQuery.contains(document, this[0]));
+			}
+			$.fn.isAttached = function(){
+				return (jQuery.contains(document, this[0]));
+			}
 
 		})(jQuery);
 
@@ -602,7 +602,7 @@ web.camelCaseToReadable=function(str,strict){
 
 
 web.isWindow=function( obj ) {
-    return obj != null && obj == obj.window;
+	return obj != null && obj == obj.window;
 }
 web.isString=function(obj){
 	return typeof obj == 'string';
@@ -629,16 +629,16 @@ web.isStrict=function(){
 //Returns true if it is a DOM node
 web.isNode=function(o){
   return (
-    typeof Node === "object" ? o instanceof Node : 
-    o && typeof o === "object" && typeof o.nodeType === "number" && typeof o.nodeName==="string"
+	typeof Node === "object" ? o instanceof Node : 
+	o && typeof o === "object" && typeof o.nodeType === "number" && typeof o.nodeName==="string"
   );
 }
 
 //Returns true if it is a DOM element    
 web.isElement=function(o){
   return (
-    typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
-    o && typeof o === "object" && o !== null && o.nodeType === 1 && typeof o.nodeName==="string"
+	typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
+	o && typeof o === "object" && o !== null && o.nodeType === 1 && typeof o.nodeName==="string"
 );
 }
 
@@ -649,11 +649,11 @@ var isFunction= web.isFunction= function(value) {
 // detect native method in object not same scope of isHostObject
   //https://github.com/dperini/nwevents/blob/ac33e52c1ed1c1c3a1bb1612384ca5b2f7a9b3ef/src/nwmatcher.js#L41
 web.isNativeFunction = function(fn) {
-    return typeof fn =='function' &&
-      // IE/W3C browsers will return [native code]
-      // Safari 2.0.x and older will return [function]
-      (/\{\s*\[native code[^\]]*\]\s*\}|^\[function\]$/).test(fn);
-    }
+	return typeof fn =='function' &&
+	  // IE/W3C browsers will return [native code]
+	  // Safari 2.0.x and older will return [function]
+	  (/\{\s*\[native code[^\]]*\]\s*\}|^\[function\]$/).test(fn);
+	}
 
 //http://stackoverflow.com/questions/596467/how-do-i-convert-a-number-to-an-integer-in-javascript
 web.toInt=function(value){ return ~~value; }
@@ -717,15 +717,15 @@ web.isEmpty=function(o){
 // nodes have a numeric length property, and may need to be excluded 
 // with an additional o.nodeType != 3 test.
 web.isArrayLike=function(o) {
-    if (o &&                                // o is not null, undefined, etc.
-        typeof o === "object" &&            // o is an object
-        isFinite(o.length) &&               // o.length is a finite number
-        o.length >= 0 &&                    // o.length is non-negative
-        o.length===Math.floor(o.length) &&  // o.length is an integer
-        o.length < 4294967296)              // o.length < 2^32
-        return true;                        // Then o is array-like
-    else
-        return false;                       // Otherwise it is not
+	if (o &&                                // o is not null, undefined, etc.
+		typeof o === "object" &&            // o is an object
+		isFinite(o.length) &&               // o.length is a finite number
+		o.length >= 0 &&                    // o.length is non-negative
+		o.length===Math.floor(o.length) &&  // o.length is an integer
+		o.length < 4294967296)              // o.length < 2^32
+		return true;                        // Then o is array-like
+	else
+		return false;                       // Otherwise it is not
 }
 
 web.duckType=function(obj,compare,threshold){
@@ -753,24 +753,24 @@ web.duckType=function(obj,compare,threshold){
 //Inspiration http://tokenposts.blogspot.com.au/2012/04/javascript-objectkeys-browser.html
 var properties = function(o,level){
 	var k=[],p,enu;
-  	for (p in o){
-  		if(Object.prototype.hasOwnProperty.call(o,p)){
-  			if(level&&Object.prototype.propertyIsEnumreable && level!='properties'){
-  				enu=Object.prototype.propertyIsEnumreable.call(o,p)
-  				if(level=='keys'&&enu){
-  					k.push(p)
-  				}else if(level=='nonEnumerables'&&!enu){
-  					k.push(p)
-  				}else{
-  					throw  'IDK WHY THIS HAPPENED!'
-  				}
-  				continue;
-  			}
-  			k.push(p);
-  			}
-  		}
-  	return k;
-  	}
+	for (p in o){
+		if(Object.prototype.hasOwnProperty.call(o,p)){
+			if(level&&Object.prototype.propertyIsEnumreable && level!='properties'){
+				enu=Object.prototype.propertyIsEnumreable.call(o,p)
+				if(level=='keys'&&enu){
+					k.push(p)
+				}else if(level=='nonEnumerables'&&!enu){
+					k.push(p)
+				}else{
+					throw  'IDK WHY THIS HAPPENED!'
+				}
+				continue;
+			}
+			k.push(p);
+			}
+		}
+	return k;
+	}
 
 
 if(!Object.keys){
@@ -940,7 +940,7 @@ In NodeJS:
 	()returns arguments as object
 */
 web.queryString=function(url,variable,replace) {
-    var query;
+	var query;
 	//if(!web.isValue(variable) && !web.isValue(replace)){
 	//	variable = varSwap(url, url=variable);//catch url on the next check
 	//}
@@ -957,14 +957,14 @@ web.queryString=function(url,variable,replace) {
 	if(web.isValue(replace)){ //http://stackoverflow.com/questions/5413899/search-and-replace-specific-query-string-parameter-value-in-javascript
 		return url.replace(new RegExp('('+variable+'=)[^\&]+'), '$1' + encodeURIComponent(replace));
 	}else if(web.isValue(variable)){ //http://stackoverflow.com/questions/2090551/parse-query-string-in-javascript
-	    var vars = query.split('&');
-	    for (var i = 0; i < vars.length; i++) {
-	        var pair = vars[i].split('=');
-	        if (decodeURIComponent(pair[0]) == variable) {
-	            return decodeURIComponent(pair[1]);
-	        }
-	    }
-	    console.warn('web.queryString did not find variable %s in %s', variable,url);
+		var vars = query.split('&');
+		for (var i = 0; i < vars.length; i++) {
+			var pair = vars[i].split('=');
+			if (decodeURIComponent(pair[0]) == variable) {
+				return decodeURIComponent(pair[1]);
+			}
+		}
+		console.warn('web.queryString did not find variable %s in %s', variable,url);
 	}else{ //inspiration http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
 		console.log('url',url)
 		var queryObject={
@@ -1005,8 +1005,8 @@ web.queryString=function(url,variable,replace) {
 
 web.Object=web.Object||{};
 web.Object.putAdd=function(obj,key,value){
-    obj[key]=(obj[key]!==undefined)?obj[key]+value:value;
-    return obj;
+	obj[key]=(obj[key]!==undefined)?obj[key]+value:value;
+	return obj;
 }
 
 /*
@@ -1173,7 +1173,7 @@ web.abyss=function(elem,template,queryFn){
 				queryFn(data)
 			}
 			dataView.addItem(data);
-    		dataView.refresh();
+			dataView.refresh();
 		},
 		clear:function(){
 			grid.invalidateAllRows();
@@ -1186,6 +1186,9 @@ web.abyss=function(elem,template,queryFn){
 			}else{
 				deferedActions.push(_.bind(face.click,face,fn))
 			}
+		},
+		setID:function(){ //TODO
+
 		}
 	}
 	return face
@@ -1208,8 +1211,8 @@ Source: http://www.texelate.co.uk/blog/post/91-jquery-whats-the-difference-betwe
 //element,padding,border,margin
 web.height=function(elem,type){
 	if(web.isjQuery(elem)){
-    	dummyDiv.append(elem)
-    	var val;
+		dummyDiv.append(elem)
+		var val;
 		switch(type){
 			case 'element':
 				val=elem.height();
@@ -1225,19 +1228,19 @@ web.height=function(elem,type){
 				val=elem.outerHeight(true);
 		}
 
-    	
-    	resetDummyDiv()
-    	return val
-    }else{
-    	throw 'need to implment height for other elements'
-    }
+		
+		resetDummyDiv()
+		return val
+	}else{
+		throw 'need to implment height for other elements'
+	}
 }
 
 //original Inspiration http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
 web.width=function(text,css){
 	if(web.isjQuery(text)){
-    	dummyDiv.append(elem)
-    	var val;
+		dummyDiv.append(elem)
+		var val;
 
 		switch(type){
 			case 'element':
@@ -1254,10 +1257,10 @@ web.width=function(text,css){
 				val= elem.outerWidth(true);
 		}
 
-    	
-    	resetDummyDiv()
-    	return val
-    }else{
+		
+		resetDummyDiv()
+		return val
+	}else{
 		var f;
 		//TODO css can be just a font style,or css string, or object hash
 		if(css.indexOf(':')==-1){
@@ -1266,7 +1269,7 @@ web.width=function(text,css){
 			f='12px arial' //TODO get default body font
 		}
 		dummyDiv.addAttr('style',css||'').text(text) //$('<div style="'+(css||'')+'">' + text + '</div>')
-		    .css({'font': f}),
+			.css({'font': f}),
 		w = dummyDiv.width();
 		resetDummyDiv()
 	  return w;
@@ -1308,38 +1311,38 @@ web.pubSub=function(namespace,blocking) {
 
 	var subPub=(blocking)?(function(arg0,arg1,arg2,arg3,arg4,arg5){
 			var scope = (this===subPub)?web.global:this;
-		    for (var i=0,l=listeners.length;i<l;i++) {
-		        listeners[i]&&listeners[i].apply(scope,arg0,arg1,arg2,arg3,arg4,arg5);
-		    }
+			for (var i=0,l=listeners.length;i<l;i++) {
+				listeners[i]&&listeners[i].apply(scope,arg0,arg1,arg2,arg3,arg4,arg5);
+			}
 		}):(function(arg0,arg1,arg2,arg3,arg4,arg5){
 			var scope = (this===subPub)?web.global:this;
-		    for (var i=0,l=listeners.length;i<l;i++) {
-		        listeners[i]&&web.defer.call(scope,listeners[i],arg0,arg1,arg2,arg3,arg4,arg5);
-		    }
+			for (var i=0,l=listeners.length;i<l;i++) {
+				listeners[i]&&web.defer.call(scope,listeners[i],arg0,arg1,arg2,arg3,arg4,arg5);
+			}
 		})
 
 
 	subPub.alter=subPub.subscribe=subPub.unsubscribe=function(input){
 		var type = typeof input;
 		if(type == 'function'){
-	    	listeners[nextSubscriberId] = input;
-	    	return nextSubscriberId++;
-	    }else if(type =='number'){
-	   		var handle = subPub[input];
-	    	delete listeners[input];
-	    	return handle
-	    }else if(type=='object'){ //iframe,window,or worker
-	    	throw 'to implement'
+			listeners[nextSubscriberId] = input;
+			return nextSubscriberId++;
+		}else if(type =='number'){
+			var handle = subPub[input];
+			delete listeners[input];
+			return handle
+		}else if(type=='object'){ //iframe,window,or worker
+			throw 'to implement'
 
-	    }else if(input=='destroy'||input=='delete'){
+		}else if(input=='destroy'||input=='delete'){
 			for (var i=0,l=subPub.length;i<l;i++) {
-		    	listeners[i]=undefined
-		    	delete listeners[i]
+				listeners[i]=undefined
+				delete listeners[i]
 			}
 			nextSubscriberId=undefined
-	    }else{
-	    	throw new Error('type not handled')
-	    }
+		}else{
+			throw new Error('type not handled')
+		}
 	};
 	
 	if(namespace){web.put.call(web.pubSub,namespace,subPub)}
@@ -1418,91 +1421,91 @@ var _1bit = web.toBiteLength(_2bytes,2)
 */
 
 var chain = web.chain = function(o,A,B,C,D,E,F,G,H,I,J,K){
-    //var g=_.defaultCall[Object.prototype.toString.call(o)];
-    //function r(A,B,C,D,E,F,G,H,I,J,K){
+	//var g=_.defaultCall[Object.prototype.toString.call(o)];
+	//function r(A,B,C,D,E,F,G,H,I,J,K){
    // 	else{ //if (arg0,arg1) is not a function call it accordingl
-    //        //if(g){
-     //       //    return o[g](A,B,C,D,E,F,G,H,I,J)
-      //      //}
+	//        //if(g){
+	 //       //    return o[g](A,B,C,D,E,F,G,H,I,J)
+	  //      //}
 
-    var _=function (A,B,C,D,E,F,G,H,I,J,K){
-        if(!this===_){
-            alert('oats')
-        }
-        //handle A types
-        var type=typeof A;
-        if(A===undefined){return o;} //calling () removes wrapper
-        else if(A === null){throw 'problem'} //calling (null) throws error
-        else if(type == 'object'){ //calling ({o},{hash}) iterates object props
-            for(var y in A){
-                if(!A.hasOwnProperty(y)){continue;} //make sure to skip inherit properties
-                _(y,A[y]);
-            }
-            return _;
-        }else if(type== 'function'){
-            throw 'I don\'t even'
-        }else if(type!='string'){
-            throw "I don't know what to do if first arugment isn't a string!"
-        }
-        //ok so A is a string by now (maybe)
+	var _=function (A,B,C,D,E,F,G,H,I,J,K){
+		if(!this===_){
+			alert('oats')
+		}
+		//handle A types
+		var type=typeof A;
+		if(A===undefined){return o;} //calling () removes wrapper
+		else if(A === null){throw 'problem'} //calling (null) throws error
+		else if(type == 'object'){ //calling ({o},{hash}) iterates object props
+			for(var y in A){
+				if(!A.hasOwnProperty(y)){continue;} //make sure to skip inherit properties
+				_(y,A[y]);
+			}
+			return _;
+		}else if(type== 'function'){
+			throw 'I don\'t even'
+		}else if(type!='string'){
+			throw "I don't know what to do if first arugment isn't a string!"
+		}
+		//ok so A is a string by now (maybe)
 
-        var f=_.map[A]
-        if(f){
-	        f(o,B,C,D,E,F,G,H,I,J,K);
-        }else{
-	        f=o[A];
-	        if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
-	            f(B,C,D,E,F,G,H,I,J,K);
-	        }else{
-	            o[A]=B;
-	        }
-    	}
-        return _;
-    }
-    _._=_.object=o;
-    _.t=_.type=typeof o;
-    _.c=_.class=Object.prototype.toString.call(o);
-    _.set=_;
-    _.map=web.dummyObject||{};
-    _.setMap=function(map){_.map=map;return _}
-    _.valueOf=function(){return o.valueOf()}
-    _.toString=function(){return o.toString()}
-    //_.callable=(typeof o == 'function'); //TODO accept callable functions
+		var f=_.map[A]
+		if(f){
+			f(o,B,C,D,E,F,G,H,I,J,K);
+		}else{
+			f=o[A];
+			if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
+				f(B,C,D,E,F,G,H,I,J,K);
+			}else{
+				o[A]=B;
+			}
+		}
+		return _;
+	}
+	_._=_.object=o;
+	_.t=_.type=typeof o;
+	_.c=_.class=Object.prototype.toString.call(o);
+	_.set=_;
+	_.map=web.dummyObject||{};
+	_.setMap=function(map){_.map=map;return _}
+	_.valueOf=function(){return o.valueOf()}
+	_.toString=function(){return o.toString()}
+	//_.callable=(typeof o == 'function'); //TODO accept callable functions
 
-    //_.get=function(A,B,C,D,E,F,G,H,I,J,K){
-     //   return o[A];
-    //}
-    //_.call=function(A,B,C,D,E,F,G,H,I,J,K){
-    //    var f=o[A] || o[B];
-    //    if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
-    //        return f(B,C,D,E,F,G,H,I,J,K);
-    //    }
-    //}
-        
-    if(o == null && (_.t != 'object' || _.t != 'function')){
-        throw 'problem'
-    }
-    //}else if(typeof o == 'function'){ //DO NOT DO THIS! treat functions as if they were "callable Objects"
-     //   o=o(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z);
-    //}
+	//_.get=function(A,B,C,D,E,F,G,H,I,J,K){
+	 //   return o[A];
+	//}
+	//_.call=function(A,B,C,D,E,F,G,H,I,J,K){
+	//    var f=o[A] || o[B];
+	//    if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
+	//        return f(B,C,D,E,F,G,H,I,J,K);
+	//    }
+	//}
+		
+	if(o == null && (_.t != 'object' || _.t != 'function')){
+		throw 'problem'
+	}
+	//}else if(typeof o == 'function'){ //DO NOT DO THIS! treat functions as if they were "callable Objects"
+	 //   o=o(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z);
+	//}
 
-    return _;
+	return _;
 }
 //chain.defaultCall={'[object HTMLDivElement]':function(A,B){if(typeof B=='string'{return 'setAttribute'}}}
 //chain.defaultCall.params='[object HTMLDivElement]'
 
 web.tag=function(o,A,B,C,D,E,F,G,H,I,J,K){
-    if(typeof o== 'string'){ //if string it is a document node. cause I SAID SO
-        o=document.createElement(o);
-        //if(A != null && typeof A == 'object'){
-        //    return chain(o,A,B,C,D,E,F,G,H,I,J,K); //if given a hash object then handle it.
-        //}
-        return chain(o,A,B,C,D,E,F,G,H,I,J,K).setMap({css:function(o,B,C,D,E,F,G,H,I,J,K){
-        	console.log(B)
-        	web.css(B,o)
-        }})
-    }
-    throw 'Error, not a string tag!'
+	if(typeof o== 'string'){ //if string it is a document node. cause I SAID SO
+		o=document.createElement(o);
+		//if(A != null && typeof A == 'object'){
+		//    return chain(o,A,B,C,D,E,F,G,H,I,J,K); //if given a hash object then handle it.
+		//}
+		return chain(o,A,B,C,D,E,F,G,H,I,J,K).setMap({css:function(o,B,C,D,E,F,G,H,I,J,K){
+			console.log(B)
+			web.css(B,o)
+		}})
+	}
+	throw 'Error, not a string tag!'
 }
 
 //test
@@ -1518,11 +1521,11 @@ document.body.appendChild(z);*/
 
 
 var simpleChain = function(o){
-    function f(p,v){
-        o[p]=v;
-        return f;
-    }
-    return f;
+	function f(p,v){
+		o[p]=v;
+		return f;
+	}
+	return f;
 }
 
 
@@ -1541,8 +1544,8 @@ web.Pointer=function(){//TODO accept multi pointers
 	})
 
 	/*.addEventListener('mousemove', function(e){ 
-	    pointer.x = e.clientX || e.pageX; 
-	    pointer.y = e.clientY || e.pageY 
+		pointer.x = e.clientX || e.pageX; 
+		pointer.y = e.clientY || e.pageY 
 	}, false);*/
 }
 	
@@ -1550,8 +1553,8 @@ web.Pointer.prototype.getLocation=function(){
 	//TODO
 	if(!pointer.target){
 
-    	//hooks were not hooked so guess where it is within the last eliment hovered
-    	var elem = $( ":hover" ).last()
+		//hooks were not hooked so guess where it is within the last eliment hovered
+		var elem = $( ":hover" ).last()
 		var offset = elem.offset();
 
 		var x = offset.left + elem.width() / 2,y = offset.top + elem.height() / 2;
@@ -1872,12 +1875,12 @@ web.toHTML=function(){
 web.toBase64=function(input){
 	if(web.isType(input)=='ArrayBuffer'){
 		var binary = '';
-	    var bytes = new Uint8Array( input );
-	    var len = bytes.byteLength;
-	    for (var i = 0; i < len; i++) {
-	        binary += String.fromCharCode( bytes[ i ] );
-	    }
-    	return window.btoa( binary );
+		var bytes = new Uint8Array( input );
+		var len = bytes.byteLength;
+		for (var i = 0; i < len; i++) {
+			binary += String.fromCharCode( bytes[ i ] );
+		}
+		return window.btoa( binary );
 	}
 	throw 'not implemented'
 	return
@@ -1895,7 +1898,7 @@ web.toDataURI=function(input,mimeType,callback){
 
 
 function fileSelected(evt) {
-    var files = evt.target.files;
+	var files = evt.target.files;
 	var type = '';
 	var fr = new FileReader();
 	fr.onload = function(event)
@@ -1909,8 +1912,8 @@ function fileSelected(evt) {
 		}
 	}
 	
-    for (var i = 0, f; f = files[i]; i++) {
-      
+	for (var i = 0, f; f = files[i]; i++) {
+	  
 	  //Gives name of file : f.name
 	  //Gives type of file : f.type e.g. text/plain or image/png etc
 	  //Gives size of file : f.size (in bytes)
@@ -1921,7 +1924,7 @@ function fileSelected(evt) {
 	  type = f.type;
 	if(f.type.indexOf("image") == 0)
 		fr.readAsDataURL(fileCopy); //on successful read, fr.onload function will be called and that will populate the result in fileContent container
-    }
+	}
   }
   
   //attach change event of file control
@@ -1932,7 +1935,7 @@ function fileSelected(evt) {
 
 //http://stackoverflow.com/questions/1760492/how-can-i-tell-if-a-javascript-object-is-an-image-or-a-canvas
 web.isImage = function(o){
-    return (o.nodeName.toLowerCase() === 'img'); //OR return i instanceof HTMLImageElement;
+	return (o.nodeName.toLowerCase() === 'img'); //OR return i instanceof HTMLImageElement;
 }
 
 
@@ -1953,7 +1956,7 @@ var dataURIToBlob = function(dataURI, mimetype) {
   var uInt8Array = new Uint8Array(rawLength);
 
   for (var i = 0; i < rawLength; ++i) {
-    uInt8Array[i] = raw.charCodeAt(i);
+	uInt8Array[i] = raw.charCodeAt(i);
   }
 
   var bb = new this.BlobBuilder();
@@ -2041,54 +2044,54 @@ web.inputFile=function(element,preview,callback){
 
 
 	var guid = web.GUID() //TODO find a way that I don't have to use this
-    var fileDropHTML=$('<div>'+
+	var fileDropHTML=$('<div>'+
 	'<fieldset id="'+guid+'"class="fd-zone media well well-sm" >'+
-      '<span class="glyphicon glyphicon-file pull-left" style="font-size:5em"></span><div class="media-body" style="align:left"><b> Input: </b><br>Drop, paste or'+
-      '<div><iframe src="javascript:false" name="fd_992" id="fd_992" style="display: none;"></iframe><form method="post" enctype="multipart/form-data" target="fd_992" style="position: relative;"><input type="hidden" name="fd-callback"><input type="file" name="fd-file" class=" fd-file" multiple="multiple"></form></div><p><button type="button" class="btn btn-default">select</button></p></div>'+
-     '<!-- Putting another element on top of file input so it overlays it and user can interact with it freely. -->'+
-      //'<p style="z-index: 10; position: relative">'+
-      //  '<input type="checkbox" id="multiple">'+
-      //  '<label for="multiple">Allow multiple selection</label>'+
-      //'</p>'+
-    '</fieldset>'+
-    '</div>');
+	  '<span class="glyphicon glyphicon-file pull-left" style="font-size:5em"></span><div class="media-body" style="align:left"><b> Input: </b><br>Drop, paste or'+
+	  '<div><iframe src="javascript:false" name="fd_992" id="fd_992" style="display: none;"></iframe><form method="post" enctype="multipart/form-data" target="fd_992" style="position: relative;"><input type="hidden" name="fd-callback"><input type="file" name="fd-file" class=" fd-file" multiple="multiple"></form></div><p><button type="button" class="btn btn-default">select</button></p></div>'+
+	 '<!-- Putting another element on top of file input so it overlays it and user can interact with it freely. -->'+
+	  //'<p style="z-index: 10; position: relative">'+
+	  //  '<input type="checkbox" id="multiple">'+
+	  //  '<label for="multiple">Allow multiple selection</label>'+
+	  //'</p>'+
+	'</fieldset>'+
+	'</div>');
 	
 	var notice;
 	if(!element){
 		//Pnotify
 		notice = new PNotify({
-		    text: fileDropHTML.html(),
-		    icon: false,
-		    width: 'auto',
-		    hide: false,
-		    buttons: {
-		        closer: false,
-		        sticker: false
-		    },
-		    insert_brs: false
+			text: fileDropHTML.html(),
+			icon: false,
+			width: 'auto',
+			hide: false,
+			buttons: {
+				closer: false,
+				sticker: false
+			},
+			insert_brs: false
 		});
 
 		/*notice.get().find('form.pf-form').on('click', '[name=cancel]', function() {
-		    notice.remove();
+			notice.remove();
 		}).submit(function() {
-		    var username = $(this).find('input[name=username]').val();
-		    if (!username) {
-		        alert('Please provide a username.');
-		        return false;
-		    }
-		    notice.update({
-		        title: 'Welcome',
-		        text: 'Successfully logged in as ' + username,
-		        icon: true,
-		        width: PNotify.prototype.options.width,
-		        hide: true,
-		        buttons: {
-		            closer: true,
-		            sticker: true
-		        },
-		        type: 'success'
-		    });
-		    return false;
+			var username = $(this).find('input[name=username]').val();
+			if (!username) {
+				alert('Please provide a username.');
+				return false;
+			}
+			notice.update({
+				title: 'Welcome',
+				text: 'Successfully logged in as ' + username,
+				icon: true,
+				width: PNotify.prototype.options.width,
+				hide: true,
+				buttons: {
+					closer: true,
+					sticker: true
+				},
+				type: 'success'
+			});
+			return false;
 		});*/
 
 	}else{
@@ -2108,8 +2111,8 @@ web.onEvent('paste.'+guid
 		)
 
 	 
-      // Attach FileDrop to an area ('zone' is an ID but you can also give a DOM node):
-      var zone = new FileDrop(guid/*, {iframe: {url: 'upload.php'}};*/);// Tell FileDrop we can deal with iframe uploads using this URL:
+	  // Attach FileDrop to an area ('zone' is an ID but you can also give a DOM node):
+	  var zone = new FileDrop(guid/*, {iframe: {url: 'upload.php'}};*/);// Tell FileDrop we can deal with iframe uploads using this URL:
 
 
 
@@ -2131,19 +2134,19 @@ web.onEvent('paste.'+guid
 
 zone.event('send', function (files) {
 	files.each(function (file) {
-	  	console.warn('File has mimeType=',file.mime)
-	  	
+		console.warn('File has mimeType=',file.mime)
+		
 
 /*read a file http://stackoverflow.com/questions/3582671/how-to-open-a-local-disk-file-with-javascript
-	  	function readSingleFile(e) {
+		function readSingleFile(e) {
   var file = e.target.files[0];
   if (!file) {
-    return;
+	return;
   }
   var reader = new FileReader();
   reader.onload = function(e) {
-    var contents = e.target.result;
-    displayContents(contents);
+	var contents = e.target.result;
+	displayContents(contents);
   };
   reader.readAsText(file);
 }
@@ -2156,10 +2159,10 @@ function displayContents(contents) {
 document.getElementById('file-input')
   .addEventListener('change', readSingleFile, false);*/
 
-	  	if(preview){
-	  		//TODO make preview work!
-	  		console.error('preview not implemented')
-		  	// file.readData(
+		if(preview){
+			//TODO make preview work!
+			console.error('preview not implemented')
+			// file.readData(
 		   //    function(str){
 		   //    	notice&&notice.remove()
 		   //      callback&&callback(null,str)
@@ -2169,52 +2172,52 @@ document.getElementById('file-input')
 		   //    	callback&&callback('Problem reading this file.');
 		   //    },'uri' //dataURI
 		   //  )
-	  	}
-	    file.readData(
-	      function(str){
-	      	//TODO handle preview
-	      	//(preview)?web.toDataURI(str,file.mime)
-	      	notice&&notice.remove()
-	        callback&&callback(null,str)
-	      },
-	      function(){
-	      	notice&&notice.remove()
-	      	callback&&callback('Problem reading this file.');
-	      },inputFileMimeHandlers[file.mime.split('/').shift()||'application']
-	    )
+		}
+		file.readData(
+		  function(str){
+			//TODO handle preview
+			//(preview)?web.toDataURI(str,file.mime)
+			notice&&notice.remove()
+			callback&&callback(null,str)
+		  },
+		  function(){
+			notice&&notice.remove()
+			callback&&callback('Problem reading this file.');
+		  },inputFileMimeHandlers[file.mime.split('/').shift()||'application']
+		)
 	})
 })
 
 
 
 		/*
-      // Do something when a user chooses or drops a file:
-      zone.event('send', function (files) {
-        // Depending on browser support files (FileList) might contain multiple items.
-        files.each(function (file) {
-          // React on successful AJAX upload:
-          file.event('done', function (xhr) {
-            // 'this' here points to fd.File instance that has triggered the event.
-            alert('Done uploading ' + this.name + ', response:\n\n' + xhr.responseText);
-          });
+	  // Do something when a user chooses or drops a file:
+	  zone.event('send', function (files) {
+		// Depending on browser support files (FileList) might contain multiple items.
+		files.each(function (file) {
+		  // React on successful AJAX upload:
+		  file.event('done', function (xhr) {
+			// 'this' here points to fd.File instance that has triggered the event.
+			alert('Done uploading ' + this.name + ', response:\n\n' + xhr.responseText);
+		  });
 
-          // Send the file:
-          file.sendTo('upload.php');
-        });
-      });
+		  // Send the file:
+		  file.sendTo('upload.php');
+		});
+	  });
 
-      // React on successful iframe fallback upload (this is separate mechanism
-      // from proper AJAX upload hence another handler):
-      zone.event('iframeDone', function (xhr) {
-        alert('Done uploading via <iframe>, response:\n\n' + xhr.responseText);
-      });*/
+	  // React on successful iframe fallback upload (this is separate mechanism
+	  // from proper AJAX upload hence another handler):
+	  zone.event('iframeDone', function (xhr) {
+		alert('Done uploading via <iframe>, response:\n\n' + xhr.responseText);
+	  });*/
 
 	//seems this is not nessissary
-      // // A bit of sugar - toggling multiple selection:
-      // fd.addEvent(fd.byID('multiple'), 'change', function (e) {
-      //   zone.multiple(e.currentTarget || e.srcElement.checked);
-      // });
-    
+	  // // A bit of sugar - toggling multiple selection:
+	  // fd.addEvent(fd.byID('multiple'), 'change', function (e) {
+	  //   zone.multiple(e.currentTarget || e.srcElement.checked);
+	  // });
+	
 
 
 
@@ -2233,11 +2236,22 @@ document.getElementById('file-input')
 }
 
 
-web.images={}
+web.images={
+	dataURI:{
+		ban32:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAWCAYAAAChWZ5EAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAACDQAAAg0Bd06+cAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAFWSURBVEjHzda/SgNBEAbwnwYLU4tPIFjlAXySgKKgCIJ/UFEEQSGKlaaxshd8AbGwEDufQBB9hWgRMQQLNTYnLMvdFbkLphi42/lmvm+ZndnV6/X8p/UXxAimMZ/YNEYGLgBTuEYbvcjaiW9qIAKwik4KcWwdrJYqAFcRyUey2zXM4gjPEeaqFAGoR4m3MJaCG8VNhK0XEoAJtIKE6znY3ZRytDBRREAzSHaQg9uOiG+D72YRAQ9BoskMzEZEvo5xvCb/D30JQAXdJMljTmeE5JuB7zJZ66LSj4BakPg8xb+CnwCzE/kbga9WVEAj8i1H5Hsp8adFBYQluAzWFyPy/Yz4+0IliA7hG6pYwHdAfpgRV8V7oUOY0obXEXkjJ+6srDaMB9GfneTEzOCrlEGUMYrvMJoxinfxWdoozrmMXnCMOSzhAk8DuYyG4joeigfJUDzJBmG/fn0lb5B4bw0AAAAASUVORK5CYII3c4f4f858712f7c13fb948316f8a56bb'
+	}
+	,url:{}
+	,font:{}
+	,html:{}
+}
 web.images.spotify="data:image/png;base64,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"
 web.images.bug="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAxklEQVR4nI3RoWvCQRjG8c9PTDKYYZhsW9k/YRbTQAw2wbawsCK2VasLK1aj0QXDwsL+ABEMumAUMcxg1eD9QA5/uKfcvTz3fd/n7pJ2uSxSDRV84zM2c1HdwBidsDZiII8ChnjGDt0zf4cSPvCKVR57vGOKv7gjbtHCKp0AX0hwH+pHzMN+G+JdvMNV5dDHEsWMM8Xgj1LgBQ/4zQAWwa/HkWYZwE8cCZq4QQ8bHLDGm9NDVFMgCT89CdD2woQ7DPB0DvxbR6+YIyyigNVdAAAAAElFTkSuQmCC"
 //http://stackoverflow.com/questions/6018611/smallest-data-uri-image-possible-for-a-transparent-image
 web.images.ghostPixel='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
+//TODO SOON do something like this web.image('ban','dataURI',32)
+
+
 //Apple console api
 //https://developer.apple.com/library/ios/documentation/AppleApplications/Conceptual/Safari_Developer_Guide/Console/Console.html
 web.log=function(/*arguments*/){
@@ -2259,52 +2273,52 @@ web.warn=_.bind(console.warn,console);
 //http://jsfiddle.net/yg6hk/5/
 function styledConsoleLog() {
 	if(!web.isNodeJS()){
-	    var argArray = [];
+		var argArray = [];
 
-	    if (arguments.length) {
-	        var startTagRe = /<span\s+style=(['"])([^'"]*)\1\s*>/gi;
-	        var endTagRe = /<\/span>/gi;
+		if (arguments.length) {
+			var startTagRe = /<span\s+style=(['"])([^'"]*)\1\s*>/gi;
+			var endTagRe = /<\/span>/gi;
 
-	        var reResultArray;
-	        argArray.push(arguments[0].replace(startTagRe, '%c').replace(endTagRe, '%c'));
-	        while (reResultArray = startTagRe.exec(arguments[0])) {
-	            argArray.push(reResultArray[2]);
-	            argArray.push('');
-	        }
+			var reResultArray;
+			argArray.push(arguments[0].replace(startTagRe, '%c').replace(endTagRe, '%c'));
+			while (reResultArray = startTagRe.exec(arguments[0])) {
+				argArray.push(reResultArray[2]);
+				argArray.push('');
+			}
 
-	        // pass through subsequent args since chrome dev tools does not (yet) support console.log styling of the following form: console.log('%cBlue!', 'color: blue;', '%cRed!', 'color: red;');
-	        for (var j = 1; j < arguments.length; j++) {
-	            argArray.push(arguments[j]);
-	        }
-	    }
+			// pass through subsequent args since chrome dev tools does not (yet) support console.log styling of the following form: console.log('%cBlue!', 'color: blue;', '%cRed!', 'color: red;');
+			for (var j = 1; j < arguments.length; j++) {
+				argArray.push(arguments[j]);
+			}
+		}
 	}
-    console.log.apply(console, argArray);
+	console.log.apply(console, argArray);
 }
 
 styledConsoleLog('<span style="color:hsl(0, 100%, 90%);background-color:hsl(0, 100%, 50%);"> Red </span> <span style="color:hsl(39, 100%, 85%);background-color:hsl(39, 100%, 50%);"> Orange </span> <span style="color:hsl(60, 100%, 35%);background-color:hsl(60, 100%, 50%);"> Yellow </span> <span style="color:hsl(120, 100%, 60%);background-color:hsl(120, 100%, 25%);"> Green </span> <span style="color:hsl(240, 100%, 90%);background-color:hsl(240, 100%, 50%);"> Blue </span> <span style="color:hsl(300, 100%, 85%);background-color:hsl(300, 100%, 25%);"> Purple </span> <span style="color:hsl(0, 0%, 80%);background-color:hsl(0, 0%, 0%);"> Black </span>');
 
 function styledMODIFIEDConsoleLog() { //MODIFIED
-    var argArray = [];
+	var argArray = [];
 
-    if (arguments.length) {
-        var startTagRe = /<span\s+style=(["])([^"]*)\1\s*>/gi;
-        var endTagRe = /<\/span>/gi;
+	if (arguments.length) {
+		var startTagRe = /<span\s+style=(["])([^"]*)\1\s*>/gi;
+		var endTagRe = /<\/span>/gi;
 
-        var reResultArray;
-        argArray.push(arguments[0].replace(startTagRe, '%c').replace(endTagRe, '%c'));
-        while (reResultArray = startTagRe.exec(arguments[0])) {
-            argArray.push(reResultArray[2]);
-            argArray.push('');
-        }
+		var reResultArray;
+		argArray.push(arguments[0].replace(startTagRe, '%c').replace(endTagRe, '%c'));
+		while (reResultArray = startTagRe.exec(arguments[0])) {
+			argArray.push(reResultArray[2]);
+			argArray.push('');
+		}
 
-        // pass through subsequent args since chrome dev tools does not (yet) support console.log styling of the following form: console.log('%cBlue!', 'color: blue;', '%cRed!', 'color: red;');
-        for (var j = 1; j < arguments.length; j++) {
-            argArray.push(arguments[j]);
-        }
-    }
+		// pass through subsequent args since chrome dev tools does not (yet) support console.log styling of the following form: console.log('%cBlue!', 'color: blue;', '%cRed!', 'color: red;');
+		for (var j = 1; j < arguments.length; j++) {
+			argArray.push(arguments[j]);
+		}
+	}
 
-    console.log.apply(console, argArray);
-    return argArray
+	console.log.apply(console, argArray);
+	return argArray
 }
 
 web.consoleIcon=function(){
@@ -2325,17 +2339,17 @@ web.consoleIcon=function(){
 //http://jmperezperez.com/console-log-favicon/
 var logWithIcon=function(text,icon,type) {
   var faviconUrl = icon||web.images.spotify,
-      css = "background-image: url('" + faviconUrl + "');" +
-            "background-repeat: no-repeat;" +
-            "display: block;" +
-            "background-size: 13px 13px;" +
-            "padding-left: 13px;" +
-            "margin-left: 5px;",
-      text = text||"Do you like coding? Visit www.spotify.com/jobs";
+	  css = "background-image: url('" + faviconUrl + "');" +
+			"background-repeat: no-repeat;" +
+			"display: block;" +
+			"background-size: 13px 13px;" +
+			"padding-left: 13px;" +
+			"margin-left: 5px;",
+	  text = text||"Do you like coding? Visit www.spotify.com/jobs";
   if (navigator.userAgent.match(/chrome/i)) {
-    console[type||'log'](text + '%c', css);
+	console[type||'log'](text + '%c', css);
   } else {
-    console[type||'log']('%c   ' + text, css);
+	console[type||'log']('%c   ' + text, css);
   }
 };
 
@@ -2483,16 +2497,16 @@ web.notify=function(title,message,options,callback){
 	}
 	var notice = new PNotify({
 		title:title,
-	    text: message,
-	    icon: false,
-	    type: type,
-	    width:'auto',
-	    hide: false,
-	    buttons: {
-	        closer: false,
-	        sticker: false
-	    },
-	    insert_brs: false
+		text: message,
+		icon: false,
+		type: type,
+		width:'auto',
+		hide: false,
+		buttons: {
+			closer: false,
+			sticker: false
+		},
+		insert_brs: false
 	});
 
 
@@ -2502,26 +2516,26 @@ web.notify=function(title,message,options,callback){
 	web.shadow() //TODO WHAT?!
 
 	notice.get().find('form.pf-form').on('click', '[name=cancel]', function() {
-	    notice.remove();
+		notice.remove();
 	}).submit(function() {
-	    var username = $(this).find('input[name=username]').val();
-	    if (!username) {
-	        alert('Please provide a username.');
-	        return false;
-	    }
-	    notice.update({
-	        title: 'Welcome',
-	        text: 'Successfully logged in as ' + username,
-	        icon: true,
-	        width: PNotify.prototype.options.width,
-	        hide: true,
-	        buttons: {
-	            closer: true,
-	            sticker: true
-	        },
-	        type: 'success'
-	    });
-	    return false;
+		var username = $(this).find('input[name=username]').val();
+		if (!username) {
+			alert('Please provide a username.');
+			return false;
+		}
+		notice.update({
+			title: 'Welcome',
+			text: 'Successfully logged in as ' + username,
+			icon: true,
+			width: PNotify.prototype.options.width,
+			hide: true,
+			buttons: {
+				closer: true,
+				sticker: true
+			},
+			type: 'success'
+		});
+		return false;
 	});
 
 	return notice
@@ -2548,22 +2562,22 @@ web.prompt=function(title,message,options,callback){
 	}
 
 	var notify=new PNotify({
-	    title: title,
-	    text: message,
-	    //icon: 'glyphicon glyphicon-question-sign',
-	    hide: false,
-	    confirm: {
-	        prompt: true,
-	        //prompt_multi_line: true,
-        	prompt_default: defaultValue
-	    },
-	    buttons: {
-	        closer: false,
-	        sticker: false
-	    },
-	    history: {
-	        history: false
-	    }
+		title: title,
+		text: message,
+		//icon: 'glyphicon glyphicon-question-sign',
+		hide: false,
+		confirm: {
+			prompt: true,
+			//prompt_multi_line: true,
+			prompt_default: defaultValue
+		},
+		buttons: {
+			closer: false,
+			sticker: false
+		},
+		history: {
+			history: false
+		}
 	})
 	web.callback(notify,callback)
 	return notify
@@ -2598,62 +2612,62 @@ web.attachTo=function(elem,parent){
 
 web.notice=function(){
 	function show_stack_bar_top(type) {
-    var opts = {
-        title: "Over Here",
-        text: "Check me out. I'm in a different stack.",
-        addclass: "stack-bar-top",
-        cornerclass: "",
-        width: "100%",
-        stack: stack_bar_top
-    };
-    switch (type) {
-    case 'error':
-        opts.title = "Oh No";
-        opts.text = "Watch out for that water tower!";
-        opts.type = "error";
-        break;
-    case 'info':
-        opts.title = "Breaking News";
-        opts.text = "Have you met Ted?";
-        opts.type = "info";
-        break;
-    case 'success':
-        opts.title = "Good News Everyone";
-        opts.text = "I've invented a device that bites shiny metal asses.";
-        opts.type = "success";
-        break;
-    }
-    new PNotify(opts);
+	var opts = {
+		title: "Over Here",
+		text: "Check me out. I'm in a different stack.",
+		addclass: "stack-bar-top",
+		cornerclass: "",
+		width: "100%",
+		stack: stack_bar_top
+	};
+	switch (type) {
+	case 'error':
+		opts.title = "Oh No";
+		opts.text = "Watch out for that water tower!";
+		opts.type = "error";
+		break;
+	case 'info':
+		opts.title = "Breaking News";
+		opts.text = "Have you met Ted?";
+		opts.type = "info";
+		break;
+	case 'success':
+		opts.title = "Good News Everyone";
+		opts.text = "I've invented a device that bites shiny metal asses.";
+		opts.type = "success";
+		break;
+	}
+	new PNotify(opts);
 }
 }
 web.toast=function(){
 	function show_stack_bar_bottom(type) {
-    var opts = {
-        title: "Over Here",
-        text: "Check me out. I'm in a different stack.",
-        addclass: "stack-bar-bottom",
-        cornerclass: "",
-        width: "70%",
-        stack: stack_bar_bottom
-    };
-    switch (type) {
-    case 'error':
-        opts.title = "Oh No";
-        opts.text = "Watch out for that water tower!";
-        opts.type = "error";
-        break;
-    case 'info':
-        opts.title = "Breaking News";
-        opts.text = "Have you met Ted?";
-        opts.type = "info";
-        break;
-    case 'success':
-        opts.title = "Good News Everyone";
-        opts.text = "I've invented a device that bites shiny metal asses.";
-        opts.type = "success";
-        break;
-    }
-    new PNotify(opts);
+	var opts = {
+		title: "Over Here",
+		text: "Check me out. I'm in a different stack.",
+		addclass: "stack-bar-bottom",
+		cornerclass: "",
+		width: "70%",
+		stack: stack_bar_bottom
+	};
+	switch (type) {
+	case 'error':
+		opts.title = "Oh No";
+		opts.text = "Watch out for that water tower!";
+		opts.type = "error";
+		break;
+	case 'info':
+		opts.title = "Breaking News";
+		opts.text = "Have you met Ted?";
+		opts.type = "info";
+		break;
+	case 'success':
+		opts.title = "Good News Everyone";
+		opts.text = "I've invented a device that bites shiny metal asses.";
+		opts.type = "success";
+		break;
+	}
+	new PNotify(opts);
 }
 }
 
@@ -2764,25 +2778,25 @@ else{
 
 queryDB(p.result)
 (function () {
-    if(results.length==0){
-    	return
-    }else{
-    	queryDB('select bana from types where bana',this.next())
-    }
+	if(results.length==0){
+		return
+	}else{
+		queryDB('select bana from types where bana',this.next())
+	}
 })
 (function () {
-    if(results.length==0){
-    	return
-    }else{
-    	queryDB('select bana from types where bana',this.next())
-    }
+	if(results.length==0){
+		return
+	}else{
+		queryDB('select bana from types where bana',this.next())
+	}
 })
 (function () {
-    if(results.length==0){
-    	return
-    }else{
-    	queryDB('select bana from types where bana',this.next())
-    }
+	if(results.length==0){
+		return
+	}else{
+		queryDB('select bana from types where bana',this.next())
+	}
 })
 */
 
@@ -2804,16 +2818,16 @@ MongoClient.connect(format("mongodb://%s:%s/node-mongo-examples?w=1", host, port
 })
 (function(result) {
 	var collection = db.collection('test');
-    // Erase all records from the collection, if any
-    return collection.remove({})    
+	// Erase all records from the collection, if any
+	return collection.remove({})    
 })
 (function(result) {
-      // Insert 3 records
-      for(var i = 0; i < 3; i++) {
-      	collection.insert({'a':i}, {w:0});
-      }
-      
-      return collection.count()
+	  // Insert 3 records
+	  for(var i = 0; i < 3; i++) {
+		collection.insert({'a':i}, {w:0});
+	  }
+	  
+	  return collection.count()
 })
 (function(count) {
 	console.log("There are " + count + " records in the test collection. Here they are:");
@@ -2847,8 +2861,8 @@ web.button=function(text,action,parent){
 }
 
 web.capitalize = function(string){
- 		return string.charAt(0).toUpperCase() + string.slice(1);
- 	}
+		return string.charAt(0).toUpperCase() + string.slice(1);
+	}
 
 web.charAt=function(input,i1,i2){
 	if(i2!=null){
@@ -2860,14 +2874,14 @@ web.charAt=function(input,i1,i2){
 }
 
 web.camelCase=function(string,agressive) {
-    var lower=true
-    return string.replace(/./g, function(m) {
-        if(m=='-'||m==' '||m=='_'){
-            lower=false;
-            return '';
-        }                  
-        return (lower)?((agressive)?m.toLowerCase():m):(lower=m.toUpperCase());
-    })
+	var lower=true
+	return string.replace(/./g, function(m) {
+		if(m=='-'||m==' '||m=='_'){
+			lower=false;
+			return '';
+		}                  
+		return (lower)?((agressive)?m.toLowerCase():m):(lower=m.toUpperCase());
+	})
 }
 //Test alert(camelCase('FOo BarBA-_fo_under'));
 
@@ -2898,15 +2912,15 @@ var class2type = {
 	"[object Undefined]":"Undefined",
 	"[object Null]":"Null"*/
 
-    //typeof keys
+	//typeof keys
 	'undefined':'Undefined'
 	//typeof null= 'object' SKIP THIS handle null differently
 	,'boolean':'Boolean'
 	,'number':'Number'
 	,'string':'String'
 	,'symbol':'Symbol' //EMAScript6
-    //Host object (provided by the JS environment)	Implementation-dependent
-    ,'function':'Function'//Function object (implements [[Call]] in ECMA-262 terms)	"function"
+	//Host object (provided by the JS environment)	Implementation-dependent
+	,'function':'Function'//Function object (implements [[Call]] in ECMA-262 terms)	"function"
 	//Any other object	"object"
 }
 
@@ -2921,61 +2935,61 @@ var class2type = {
  var typeCacheA=[]
  var typeCacheB=[]
  var type=web.isType=function(obj,equals,deep){ 
- 	var equalsType=typeof equals;
- 	if(equalsType=='function'){
+	var equalsType=typeof equals;
+	if(equalsType=='function'){
 
- 		//DO NOT RELY ON TESTING .prototype.constructor
- 		//See:https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
- 		//use prototype for it is not-writable, not-enumerable and not-configurable
- 		//see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/prototype
- 		return (deep)?obj instanceof equals:Object.getPrototypeOf(obj) == equals.prototype 
- 		//TODO isChild could go here maybe???!!!! //|| isChild(Object.getPrototypeOf(obj),equals)
- 	}
+		//DO NOT RELY ON TESTING .prototype.constructor
+		//See:https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
+		//use prototype for it is not-writable, not-enumerable and not-configurable
+		//see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/prototype
+		return (deep)?obj instanceof equals:Object.getPrototypeOf(obj) == equals.prototype 
+		//TODO isChild could go here maybe???!!!! //|| isChild(Object.getPrototypeOf(obj),equals)
+	}
 
- 	//Step1 typeof is the single fastest!
- 	var x=typeof obj;
- 	if(x!='object'){
- 		//string manipulation is faster than hash lookup return (equals)?class2type[x]==equals:class2type[x];
- 		if(equals){
- 			return class2type[x]==equals; // return x.charAt(0).toUpperCase() + x.slice(1)==equals
- 		}else{
- 			return class2type[x] //return x.charAt(0).toUpperCase() + x.slice(1)
- 		}
- 	}
- 	//Here and below it has to be an object
- 	//console.log('web.isType: type did not give conclusive')
- 	
- 	//was it null?
- 	if(!obj){ //do not put this any higher because it will only work after you check with 'typeof'
- 		//it is also silly to put it higher when it will only rule out 1 (uncommon) outcome
- 		//ps... this check is super dope fast
- 		return (equals)?'Null'==equals:'Null'
- 	} 
- 	//console.log('web.isType: not null')
- 	//http://jsperf.com/array-isarray-vs-instanceof-array/5
- 	if(obj.concat === dummyArray.concat){ //or obj instanceof Array){fastest //or Array.isArray(obj) //or Object.getPrototypeOf(obj) == Array.prototype
- 		//Note: I use the above as a quick check to see if it is an array.
- 		//positive ID means we exit faster, negitive ID means it will have to be identified further below.
- 		//if it is from another frame then it will be identified in the final lines of this function
- 		if(obj instanceof Array){ //Array.isArray(obj){ //we did a dirty fast check but now confirm
- 			return (equals)?'Array'==equals:'Array'
- 		}
- 	}
+	//Step1 typeof is the single fastest!
+	var x=typeof obj;
+	if(x!='object'){
+		//string manipulation is faster than hash lookup return (equals)?class2type[x]==equals:class2type[x];
+		if(equals){
+			return class2type[x]==equals; // return x.charAt(0).toUpperCase() + x.slice(1)==equals
+		}else{
+			return class2type[x] //return x.charAt(0).toUpperCase() + x.slice(1)
+		}
+	}
+	//Here and below it has to be an object
+	//console.log('web.isType: type did not give conclusive')
+	
+	//was it null?
+	if(!obj){ //do not put this any higher because it will only work after you check with 'typeof'
+		//it is also silly to put it higher when it will only rule out 1 (uncommon) outcome
+		//ps... this check is super dope fast
+		return (equals)?'Null'==equals:'Null'
+	} 
+	//console.log('web.isType: not null')
+	//http://jsperf.com/array-isarray-vs-instanceof-array/5
+	if(obj.concat === dummyArray.concat){ //or obj instanceof Array){fastest //or Array.isArray(obj) //or Object.getPrototypeOf(obj) == Array.prototype
+		//Note: I use the above as a quick check to see if it is an array.
+		//positive ID means we exit faster, negitive ID means it will have to be identified further below.
+		//if it is from another frame then it will be identified in the final lines of this function
+		if(obj instanceof Array){ //Array.isArray(obj){ //we did a dirty fast check but now confirm
+			return (equals)?'Array'==equals:'Array'
+		}
+	}
 
- 	//idk if this test is reliable
- 	//if(Object.getPrototypeOf(obj)===Object.prototype){
- 	//	return (equals)?'Object'==equals:'Object'
- 	//}
- 	
- 	//TODO test this!!!!!!!@@@@@
- 	//if(Object.getPrototypeOf(obj)==Object.prototype){
- 	//	return (equals)?'Object'==equals:'Object'
- 	//}
+	//idk if this test is reliable
+	//if(Object.getPrototypeOf(obj)===Object.prototype){
+	//	return (equals)?'Object'==equals:'Object'
+	//}
+	
+	//TODO test this!!!!!!!@@@@@
+	//if(Object.getPrototypeOf(obj)==Object.prototype){
+	//	return (equals)?'Object'==equals:'Object'
+	//}
 	//console.log('web.isType: not array')
 /* 	var l = typeCacheA.length;
 	while(l--) {
 	  if(obj===typeCacheA[l]){
-	  	return typeCacheB[l]
+		return typeCacheB[l]
 	  }
 	}
 
@@ -2984,15 +2998,15 @@ var class2type = {
 	}*/
 
 	//below here is the slowest step!
- 	var type = Object.prototype.toString.call(obj);
- 	//using slice is faster than hash lookup 
- 	//http://jsperf.com/afaaasdfjhdsf
- 	if(equals){
- 		//hash lookup slower than string manipulation return ( class2type[type] || (class2type[type]=type.slice(8,-1)) )==equals;
- 		return type.slice(8,-1)==equals
- 	}
- 	//hash lookup slower than string manipulation return class2type[type] || (class2type[type]=type.slice(8,-1));
- 	return type.slice(8,-1)
+	var type = Object.prototype.toString.call(obj);
+	//using slice is faster than hash lookup 
+	//http://jsperf.com/afaaasdfjhdsf
+	if(equals){
+		//hash lookup slower than string manipulation return ( class2type[type] || (class2type[type]=type.slice(8,-1)) )==equals;
+		return type.slice(8,-1)==equals
+	}
+	//hash lookup slower than string manipulation return class2type[type] || (class2type[type]=type.slice(8,-1));
+	return type.slice(8,-1)
  }
  var isType=type;
 
@@ -3026,32 +3040,32 @@ web.toAbsoluteURL = function(url) {
 		return url
 	}
 	if(document){//if browser then use this
-    	var link = document.createElement("a");
-    	link.href = url;
-    	return (link.protocol+"//"+link.host+link.pathname+link.search+link.hash);
-    }else{
-    	//inspiration http://stackoverflow.com/questions/14780350/convert-relative-path-to-absolute-using-javascript
-    	var base=location.href;
-	    var stack = base.split("/")
-	    if(url.slice(0,2)=='//'){
-	    	return stack.shift()+url
-	    }else if(url.charAt(0)=='/'){
-	    	return web.origin()+url
-	    }
-	    var parts = url.split("/");
+		var link = document.createElement("a");
+		link.href = url;
+		return (link.protocol+"//"+link.host+link.pathname+link.search+link.hash);
+	}else{
+		//inspiration http://stackoverflow.com/questions/14780350/convert-relative-path-to-absolute-using-javascript
+		var base=location.href;
+		var stack = base.split("/")
+		if(url.slice(0,2)=='//'){
+			return stack.shift()+url
+		}else if(url.charAt(0)=='/'){
+			return web.origin()+url
+		}
+		var parts = url.split("/");
 
-	    stack.pop(); // remove current file name (or empty string)
-	                 // (omit if "base" is the current folder without trailing slash)
-	    for (var i=0; i<parts.length; i++) {
-	        if (parts[i] == ".")
-	            continue;
-	        if (parts[i] == "..")
-	            stack.pop();
-	        else
-	            stack.push(parts[i]);
-	    }
-	    return stack.join("/");
-    }
+		stack.pop(); // remove current file name (or empty string)
+					 // (omit if "base" is the current folder without trailing slash)
+		for (var i=0; i<parts.length; i++) {
+			if (parts[i] == ".")
+				continue;
+			if (parts[i] == "..")
+				stack.pop();
+			else
+				stack.push(parts[i]);
+		}
+		return stack.join("/");
+	}
 }
 
 web.context=function(){return web}
@@ -3059,73 +3073,73 @@ web.context=function(){return web}
 var webPutDeferedPrefix='web.put[Defered]='
  //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
  web.put=function(path,value,callback){ //path only supports dotNotation and now brakets! :-D
- 	var firstChar=path.charAt(0);
- 	
- 	var obj = setScope(this,undefined)
+	var firstChar=path.charAt(0);
+	
+	var obj = setScope(this,undefined)
 
- 	if(!web.isValue(obj)){ //not using call
-	 	//remote storage
-	 	if(firstChar=='.'||firstChar=='/'){//relative path url put
-	 		$.ajax({
+	if(!web.isValue(obj)){ //not using call
+		//remote storage
+		if(firstChar=='.'||firstChar=='/'){//relative path url put
+			$.ajax({
 			   url: value,
 			   data:value,
 			   type: 'POST', //maybe use put? idk
 			   success: callback,
 			   error: function(response){
-			   	web.put(webPutDeferedPrefix,web.push( (web.get(webPutDeferedPrefix)||[]), this.url+'?'+this.data))
-			   	web.error.call(this,'Defered: saved to local storage till connnectivity returns',callback.call(this,response))
+				web.put(webPutDeferedPrefix,web.push( (web.get(webPutDeferedPrefix)||[]), this.url+'?'+this.data))
+				web.error.call(this,'Defered: saved to local storage till connnectivity returns',callback.call(this,response))
 			   }
 			});
-	 	}else if((/^.{4,7}:\/\//).test(path)){//absolute path put can be remote or local
-	 		if(web.startsWith('http')){ //remote
-		 		$.ajax({
+		}else if((/^.{4,7}:\/\//).test(path)){//absolute path put can be remote or local
+			if(web.startsWith('http')){ //remote
+				$.ajax({
 				   url: value,
 				   data:value,
 				   type: 'POST', //maybe use put? idk
 				   success: callback,
 				   error: function(response){
-				   	web.put(webPutDeferedPrefix,web.push( (web.get(webPutDeferedPrefix)||[]), this.url+'?'+this.data))
-				   	web.error.call(this,'Defered: saved to local storage till connnectivity returns',callback.call(response))
+					web.put(webPutDeferedPrefix,web.push( (web.get(webPutDeferedPrefix)||[]), this.url+'?'+this.data))
+					web.error.call(this,'Defered: saved to local storage till connnectivity returns',callback.call(response))
 				   }
 				});
-	 		}else if(web.startsWith('store')){
-	 			//http://stackoverflow.com/questions/2010892/storing-objects-in-html5-localstorage
+			}else if(web.startsWith('store')){
+				//http://stackoverflow.com/questions/2010892/storing-objects-in-html5-localstorage
 				localStorage.setItem(path.slice(path.indexOf('://')+3), JSON.stringify(value));
-	 			callback&&web.defer(callback)
-	 			return undefined
-	 		}else if(web.startsWith('file')){
-	 			throw 'not implmented'
-	 		}
-	 	}
-	 	localStorage.setItem(path, JSON.stringify(value));
-	 	callback&&web.defer(callback)
-	 	return undefined
- 	}
+				callback&&web.defer(callback)
+				return undefined
+			}else if(web.startsWith('file')){
+				throw 'not implmented'
+			}
+		}
+		localStorage.setItem(path, JSON.stringify(value));
+		callback&&web.defer(callback)
+		return undefined
+	}
 
- 	//example path 
- 	//root["variable"].child[9]['pee'][89]
+	//example path 
+	//root["variable"].child[9]['pee'][89]
 
- 	if(web.isString(obj)){
- 		web.depricated('Use call on web.input instead')
+	if(web.isString(obj)){
+		web.depricated('Use call on web.input instead')
 		value=path
 		path=obj
 		obj=web.global
 	}
- 	obj=obj||web.global;
+	obj=obj||web.global;
  
- 	var partitionChar='@' //TODO find the programmers secret delimiter trick from C++
+	var partitionChar='@' //TODO find the programmers secret delimiter trick from C++
 	  var bracketsPattern=/\[(\D*?)\]/g
 	  var arrayPattern = /\[\d+?\]/g;
 	  var bracketVariables=[];
 
 	if(web.isString(path)){
 	  path=path.replace(bracketsPattern,function(a){
-	  	bracketVariables.push(a.slice(2,a.length-2))
-	  	return '.'+partitionChar
+		bracketVariables.push(a.slice(2,a.length-2))
+		return '.'+partitionChar
 	  })
 
 	  if(path.charAt(0)=='.'){ //remove  
-	  	path=path.slice(1)
+		path=path.slice(1)
 	  }
 
 	  path = path.split('.');
@@ -3201,7 +3215,7 @@ web.set=function(context,path,value){
   var ns = path.split('.'), o =(context=context||window);
   var prop = ns.pop();
   for(var i = 0, l = ns.length; i < l; i++){
-    o = o[ns[i]] = o[ns[i]] || {};
+	o = o[ns[i]] = o[ns[i]] || {};
   }
   
   o[prop]=value;
@@ -3216,22 +3230,22 @@ web.set=function(context,path,value){
 web.get=function(key){
 	var obj = setScope(this,undefined)
 	if(web.isValue(obj)){
-	    var parts = key.split('.'),
-	        current = obj || window;
-	    for (var i = 0; i < parts.length; i += 1) {
-	        if (current[parts[i]]) {
-	            current = current[parts[i]];
-	        } else {
-	          if (i >= parts.length - 1)
-	            return undefined;
-	        }
-	    }
-	    return current;
+		var parts = key.split('.'),
+			current = obj || window;
+		for (var i = 0; i < parts.length; i += 1) {
+			if (current[parts[i]]) {
+				current = current[parts[i]];
+			} else {
+			  if (i >= parts.length - 1)
+				return undefined;
+			}
+		}
+		return current;
 	}
 
 	//inspiration http://stackoverflow.com/questions/2010892/storing-objects-in-html5-localstorage
-    var value = localStorage.getItem(key);
-    return value && JSON.parse(value);
+	var value = localStorage.getItem(key);
+	return value && JSON.parse(value);
 }
 
 web.take=function(array,n,n1){
@@ -3437,41 +3451,41 @@ web.toObject=function(input,type,callback){
 			if(!x2js){x2js = new X2JS({
 					// Escaping XML characters. Default is true from v1.1.0+
 					escapeMode : true,
-				 	 // XML attributes prefix. Default is "_"
-				 	 attributePrefix : "@",
-				 	 // Array access form (none|property). Use property if you want X2JS generate additional property <element>_asArray to access in array form any element
-				 	 // Default is none from v1.1.0+
-				 	 arrayAccessForm : "none",
-				 	 // Handling empty nodes (text|object). 
-				 	 // When X2JS found empty node like <test></test> it will be transformed to test : '' for 'text' mode, 
-				 	 // or to Object for 'object' mode
-				 	 // Default is 'text'
-				 	 emptyNodeForm: "text",
+					 // XML attributes prefix. Default is "_"
+					 attributePrefix : "@",
+					 // Array access form (none|property). Use property if you want X2JS generate additional property <element>_asArray to access in array form any element
+					 // Default is none from v1.1.0+
+					 arrayAccessForm : "none",
+					 // Handling empty nodes (text|object). 
+					 // When X2JS found empty node like <test></test> it will be transformed to test : '' for 'text' mode, 
+					 // or to Object for 'object' mode
+					 // Default is 'text'
+					 emptyNodeForm: "text",
 
-				 	 // Enable/Disable auxiliary function in generated JSON object to print text nodes with __text/__cdata
-				 	 // Default is true
-				 	 enableToStringFunc : true,
-				 	 
-				 	 // Array access paths (array). 
-				 	 // Use this option to configure paths to XML elements always in "array form". 
-				 	 // You can configure beforehand paths to all your array elements based on XSD or your knowledge
-				 	 // about XML structure
-				 	 // Every path could be a simple string (like 'parent.child1.child2'), a regex (like /.*\.child2/), or a custom function
-				 	 arrayAccessFormPaths : [],
+					 // Enable/Disable auxiliary function in generated JSON object to print text nodes with __text/__cdata
+					 // Default is true
+					 enableToStringFunc : true,
+					 
+					 // Array access paths (array). 
+					 // Use this option to configure paths to XML elements always in "array form". 
+					 // You can configure beforehand paths to all your array elements based on XSD or your knowledge
+					 // about XML structure
+					 // Every path could be a simple string (like 'parent.child1.child2'), a regex (like /.*\.child2/), or a custom function
+					 arrayAccessFormPaths : [],
 
-				 	 // Skip empty text tags for nodes with children
-				 	 skipEmptyTextNodesForObj : true,
+					 // Skip empty text tags for nodes with children
+					 skipEmptyTextNodesForObj : true,
 
-				 	 // Strip whitespaces (trimming text nodes)
-				 	 stripWhitespaces : true,
+					 // Strip whitespaces (trimming text nodes)
+					 stripWhitespaces : true,
 
-				 	 // DateTime access paths (array). 
-				 	 // Use this option to configure paths to XML elements for "datetimes form". 
-				 	 // You can configure beforehand paths to all your array elements based on XSD or your knowledge
-				 	 // about XML structure
-				 	 // Every path could be a simple string (like 'parent.child1.child2'), a regex (like /.*\.child2/), or a custom function
-				 	 // Default is empty array
-				 	 datetimeAccessFormPaths : []
+					 // DateTime access paths (array). 
+					 // Use this option to configure paths to XML elements for "datetimes form". 
+					 // You can configure beforehand paths to all your array elements based on XSD or your knowledge
+					 // about XML structure
+					 // Every path could be a simple string (like 'parent.child1.child2'), a regex (like /.*\.child2/), or a custom function
+					 // Default is empty array
+					 datetimeAccessFormPaths : []
 				});}
 			return x2js.xml_str2json(input)
 		}else{
@@ -3499,7 +3513,7 @@ web.toXML=function(){
 web.transpose=function(matrix){
 	return matrix[0].map(function(col, i) {
 	  return matrix.map(function(row) { 
-	    return row[i] 
+		return row[i] 
 	  })
 	});
 	/*
@@ -3785,7 +3799,7 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 		/*
 		//inspiration
 		//http://stackoverflow.com/questions/19160474/how-to-prevent-an-img-tag-from-loading-its-image
-	 	// Only modify the images that have 'data-src' attribute
+		// Only modify the images that have 'data-src' attribute
 		instance.find('img[data-src]').each(function(){
 			var elem=$(this);
 			// modify src however you need to, maybe make
@@ -3893,20 +3907,20 @@ web.remap=function(output,original,map,fill){
 
 web.outsideClickDismissPopover=function(){
 	$('body').on('click', function (e) {
-	    //http://stackoverflow.com/questions/11703093/how-to-dismiss-a-twitter-bootstrap-popover-by-clicking-outside
-	    //http://jsfiddle.net/mattdlockyer/C5GBU/72/
-	    if ($(e.target).data('toggle') !== 'popover'
-	        && $(e.target).parents('.popover.in').length === 0) { 
-	        $('[data-toggle="popover"]').popover('hide');
-	    }
-	    //buttons and icons within buttons
-	    /*
-	    if ($(e.target).data('toggle') !== 'popover'
-	        && $(e.target).parents('[data-toggle="popover"]').length === 0
-	        && $(e.target).parents('.popover.in').length === 0) { 
-	        $('[data-toggle="popover"]').popover('hide');
-	    }
-	    */
+		//http://stackoverflow.com/questions/11703093/how-to-dismiss-a-twitter-bootstrap-popover-by-clicking-outside
+		//http://jsfiddle.net/mattdlockyer/C5GBU/72/
+		if ($(e.target).data('toggle') !== 'popover'
+			&& $(e.target).parents('.popover.in').length === 0) { 
+			$('[data-toggle="popover"]').popover('hide');
+		}
+		//buttons and icons within buttons
+		/*
+		if ($(e.target).data('toggle') !== 'popover'
+			&& $(e.target).parents('[data-toggle="popover"]').length === 0
+			&& $(e.target).parents('.popover.in').length === 0) { 
+			$('[data-toggle="popover"]').popover('hide');
+		}
+		*/
 	});
 }
 
@@ -3929,21 +3943,21 @@ web.keyboard=function(element, keyCombo,callback){
 }
 web.keyboard.shift=(function(input){
 		var to={},from={};
-  		input.replace(/.(.)/g,function(a){
-  			from[a[0]]=a[1]
-  			to[a[1]]=a[0]
-  		});
-  		return {to:to,from:from};
+		input.replace(/.(.)/g,function(a){
+			from[a[0]]=a[1]
+			to[a[1]]=a[0]
+		});
+		return {to:to,from:from};
 })('~`!1@2#3$4%5^6&7*8(9)0_-+=QqWwEeRrTtYyUuIiOoPp{[}]|\\AaDdFfGgHhJjkKgmai,lLl:;"\'ZzXxCcVvBbNnMm<,>.?/')
 
 web.keyboard.watchModifiers=function(element){
 		web.keyboard.shift = false
-	 	web.keyboard.ctrl = false
-	 	web.keyboard.alt =false
+		web.keyboard.ctrl = false
+		web.keyboard.alt =false
 	 $(element||document).on('keyup keydown', function(e){
-	 	web.keyboard.shift = e.shiftKey
-	 	web.keyboard.ctrl = e.ctrlKey
-	 	web.keyboard.alt = e.altkey
+		web.keyboard.shift = e.shiftKey
+		web.keyboard.ctrl = e.ctrlKey
+		web.keyboard.alt = e.altkey
 	 } );
 }
 web.isShift=function(e){
@@ -4025,29 +4039,29 @@ web.swapState=function(elem,states){
  * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random
  */
 web.getRandomInt=function (min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+	return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-      	//Original inspiration
-      	//http://stackoverflow.com/questions/14952113/how-can-i-matches-the-nested-brackets-by-regex
-      	//TODO fix this!
-      	web.bracketParser = function(s,callback,i,tier){    
+		//Original inspiration
+		//http://stackoverflow.com/questions/14952113/how-can-i-matches-the-nested-brackets-by-regex
+		//TODO fix this!
+		web.bracketParser = function(s,callback,i,tier){    
 			var string = ''
 			callback=callback||[]
 			i=i||0
 			tier=tier||0
 			while(i < s.length){
-			        if (s[i] == '('){
-			            i = web.bracketParser(s,callback,i+1,tier+1)
-			        }else if (s[i] == ')'){
-			            if(Array.isArray(callback)){callback.push(string)}else{callback(string,i,tier,'####originalString')}
-			            return i+1
-			        }else{
-			            // process whatever is at s[i]
-			           string+=s[i]
-			          i += 1
-			          }
-			        }
-			    return (Array.isArray(callback))?callback:'###remainig string'
+					if (s[i] == '('){
+						i = web.bracketParser(s,callback,i+1,tier+1)
+					}else if (s[i] == ')'){
+						if(Array.isArray(callback)){callback.push(string)}else{callback(string,i,tier,'####originalString')}
+						return i+1
+					}else{
+						// process whatever is at s[i]
+					   string+=s[i]
+					  i += 1
+					  }
+					}
+				return (Array.isArray(callback))?callback:'###remainig string'
 			}
 			//example use
 			// web.bracketParser('(outer(middle(center)(side)))',function(string,i,tei,orignal){alert(string+'='+tei)})
@@ -4071,23 +4085,23 @@ web.getRandomInt=function (min, max) {
 			return function findMatches(q, cb) {
 				var matches, substrRegex;
 
-    // an array that will be populated with substring matches
-    matches = [];
+	// an array that will be populated with substring matches
+	matches = [];
 
-    // regex used to determine if a string contains the substring `q`
-    substrRegex = new RegExp(q, 'i');
+	// regex used to determine if a string contains the substring `q`
+	substrRegex = new RegExp(q, 'i');
 
-    // iterate through the pool of strings and for any string that
-    // contains the substring `q`, add it to the `matches` array
-    $.each(strs, function(i, str) {
-    	if (substrRegex.test(str)) {
-        // the typeahead jQuery plugin expects suggestions to a
-        // JavaScript object, refer to typeahead docs for more info
-        matches.push({ value: str });
-    }
+	// iterate through the pool of strings and for any string that
+	// contains the substring `q`, add it to the `matches` array
+	$.each(strs, function(i, str) {
+		if (substrRegex.test(str)) {
+		// the typeahead jQuery plugin expects suggestions to a
+		// JavaScript object, refer to typeahead docs for more info
+		matches.push({ value: str });
+	}
 });
 
-    cb(matches);
+	cb(matches);
 };
 };
 web.endsWith=function(string,suffix) {
@@ -4170,7 +4184,7 @@ web.proxy=function(type,url,queryString,callback){
 }
 web.extendMapList=function(obj,key,value){
 	if(obj[key]){
-    	obj[key].push(value);
+		obj[key].push(value);
 	}else{
 		obj[key]=[value];
 	}
@@ -4256,7 +4270,7 @@ web.partition=function(lines,condition,comparator){
 
 //http://stackoverflow.com/questions/1144783/replacing-all-occurrences-of-a-string-in-javascript
 web.escapeRegExp=function(string) {
-    return string.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+	return string.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
 }
 web.replaceAll=function(str,find,replace){
 	return str.split(find).join(replace);
@@ -4300,23 +4314,23 @@ web.escapeHTML=function(str) {
 	//	div.appendChild(document.createTextNode(str));
 	//	return div.innerHTML;
 	//}else{
-	    return str.replace(/[&<>"'\/]/g, function (s) {
-	      return escapeHTMLMap[s];
-	    });
+		return str.replace(/[&<>"'\/]/g, function (s) {
+		  return escapeHTMLMap[s];
+		});
 	//}
 };
 
 var unescapeHTMLMap=web.hashSwap(escapeHTMLMap)
 web.unescapeHTML=function(str){
 	//if(document){
-    //	var div = document.createElement('div');
-    //	div.innerHTML = str;
+	//	var div = document.createElement('div');
+	//	div.innerHTML = str;
    // 	var child = div.childNodes[0];
-    //	return child ? child.nodeValue : '';
+	//	return child ? child.nodeValue : '';
 	//}else{
-	    return str.replace(/&(amp|lt|gt|quot|#39|#x2F);/g, function (s) {
-	      return unescapeHTMLMap[s];
-	    });
+		return str.replace(/&(amp|lt|gt|quot|#39|#x2F);/g, function (s) {
+		  return unescapeHTMLMap[s];
+		});
 	//}
 }
 web.escape
@@ -4361,7 +4375,7 @@ web.screenshot=function(targetElement,type,callback){
 		var promise = html2canvas(targetElement||document.body)
 		if(callback){
 				promise.then(callback||function(canvas) {
-	    		document.body.appendChild(canvas);
+				document.body.appendChild(canvas);
 			})
 		}
 		return promise
@@ -4506,7 +4520,7 @@ web.google=web.google||{};
 web.google.analytics=function(){(function(i,s,o,g,r,a,m){
 	i['GoogleAnalyticsObject']=r;
 	i[r]=i[r]||function(){
-  		(i[r].q=i[r].q||[]).push(arguments)
+		(i[r].q=i[r].q||[]).push(arguments)
 	}
 	,i[r].l=1*new Date();
 	a=s.createElement(o)
@@ -4665,10 +4679,10 @@ web.toBaseAlpha=function(num){
 		sign='-',
 		num=Math.abs(num); //if negitive then make sign - and calculate using positive numbers
 	}
-    var mod = num % 26,
-        pow = num / 26 | 0,
-        out = mod ? String.fromCharCode(64 + mod) : (--pow, 'Z');
-    return sign + (pow ? web.toBaseAlpha(pow)+out : out);
+	var mod = num % 26,
+		pow = num / 26 | 0,
+		out = mod ? String.fromCharCode(64 + mod) : (--pow, 'Z');
+	return sign + (pow ? web.toBaseAlpha(pow)+out : out);
 }
 web.fromBaseAlpha=function(str) {
 	var sign=1;
@@ -4677,10 +4691,10 @@ web.fromBaseAlpha=function(str) {
 		str=str.slice(1);
 	}
 	var out = 0, len = str.length, pos = len;
-    while (--pos > -1) {
-        out += (str.charCodeAt(pos) - 64) * Math.pow(26, len - 1 - pos);
-    }
-    return sign*out;
+	while (--pos > -1) {
+		out += (str.charCodeAt(pos) - 64) * Math.pow(26, len - 1 - pos);
+	}
+	return sign*out;
 }
 
 
@@ -4700,8 +4714,8 @@ web.toRoman=function(num){
 		return false;
 	var	digits = String(+num).split(""),
 		key = ["","C","CC","CCC","CD","D","DC","DCC","DCCC","CM",
-		       "","X","XX","XXX","XL","L","LX","LXX","LXXX","XC",
-		       "","I","II","III","IV","V","VI","VII","VIII","IX"],
+			   "","X","XX","XXX","XL","L","LX","LXX","LXXX","XC",
+			   "","I","II","III","IV","V","VI","VII","VIII","IX"],
 		roman = "",
 		i = 3;
 	while (i--)
@@ -4737,41 +4751,41 @@ web.toWords=function(s,locale){
 	var tw = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
 
 
-    s = s.toString();
-    s = s.replace(/[\, ]/g, '');
-    if (s != parseFloat(s)) return 'not a number';
-    var x = s.indexOf('.');
-    if (x == -1) x = s.length;
-    if (x > 15) return 'too big';
-    var n = s.split('');
-    var str = '';
-    var sk = 0;
-    for (var i = 0; i < x; i++) {
-        if ((x - i) % 3 == 2) {
-            if (n[i] == '1') {
-                str += tn[Number(n[i + 1])] + ' ';
-                i++;
-                sk = 1;
-            } else if (n[i] != 0) {
-                str += tw[n[i] - 2] + ' ';
-                sk = 1;
-            }
-        } else if (n[i] != 0) {
-            str += dg[n[i]] + ' ';
-            if ((x - i) % 3 == 0) str += 'hundred ';
-            sk = 1;
-        }
-        if ((x - i) % 3 == 1) {
-            if (sk) str += th[(x - i - 1) / 3] + ' ';
-            sk = 0;
-        }
-    }
-    if (x != s.length) {
-        var y = s.length;
-        str += 'point ';
-        for (var i = x + 1; i < y; i++) str += dg[n[i]] + ' ';
-    }
-    return str.replace(/\s+/g, ' ');
+	s = s.toString();
+	s = s.replace(/[\, ]/g, '');
+	if (s != parseFloat(s)) return 'not a number';
+	var x = s.indexOf('.');
+	if (x == -1) x = s.length;
+	if (x > 15) return 'too big';
+	var n = s.split('');
+	var str = '';
+	var sk = 0;
+	for (var i = 0; i < x; i++) {
+		if ((x - i) % 3 == 2) {
+			if (n[i] == '1') {
+				str += tn[Number(n[i + 1])] + ' ';
+				i++;
+				sk = 1;
+			} else if (n[i] != 0) {
+				str += tw[n[i] - 2] + ' ';
+				sk = 1;
+			}
+		} else if (n[i] != 0) {
+			str += dg[n[i]] + ' ';
+			if ((x - i) % 3 == 0) str += 'hundred ';
+			sk = 1;
+		}
+		if ((x - i) % 3 == 1) {
+			if (sk) str += th[(x - i - 1) / 3] + ' ';
+			sk = 0;
+		}
+	}
+	if (x != s.length) {
+		var y = s.length;
+		str += 'point ';
+		for (var i = x + 1; i < y; i++) str += dg[n[i]] + ' ';
+	}
+	return str.replace(/\s+/g, ' ');
 }
 //http://www.techrepublic.com/article/detect-foreign-language-support-using-javascript/
 web.language=function(){
@@ -4829,16 +4843,16 @@ web.String.frequency=function(string,opt) {
 	if(opts instanceof RegExp){
 		filter=opts;
 	}
-    var freq = {};
-    for (var i=0,l=string.length; i<l;i++) {
-        var character = string.charAt(i);
-        if(filter.test(character)){
-        	continue;
-        }
-        web.Object.putAdd(freq,character,1)
-    }
+	var freq = {};
+	for (var i=0,l=string.length; i<l;i++) {
+		var character = string.charAt(i);
+		if(filter.test(character)){
+			continue;
+		}
+		web.Object.putAdd(freq,character,1)
+	}
 
-    return freq;
+	return freq;
 };
 
 web.resize=function(elem,debounce,callback){
@@ -4870,13 +4884,13 @@ web.scrollListener=function(elem,debounce,callback){
 	//TODO handle callback via web.onEvent
 	elem.scroll(_.debounce(function(){
 		web.trigger('scroll')
-	    //$('#scrollMsg').html('SCROLLING!');
-	    console.log('scrolling Start')
+		//$('#scrollMsg').html('SCROLLING!');
+		console.log('scrolling Start')
 	},debounce,{leading:true}));
 	elem.scroll(_.debounce(function(){
 		web.trigger('scrollStop')
-	    //$('#scrollMsg').html('DONE!');
-	    console.log('scrolling Stop')
+		//$('#scrollMsg').html('DONE!');
+		console.log('scrolling Stop')
 	},debounce));
 }
 
@@ -4902,17 +4916,17 @@ web.worker=true;
 var args=[];
 
 web.endsWith =function(str, suffix) {
-    return str.indexOf(suffix, str.length - suffix.length) !== -1;
+	return str.indexOf(suffix, str.length - suffix.length) !== -1;
 }
 //Inspiration: Martin Algesten
 // http://stackoverflow.com/questions/4250364/how-to-trim-a-file-extension-from-a-string-in-javascript
 //Inspiration: Boldewyn
 //http://stackoverflow.com/questions/1818310/regular-expression-to-remove-a-files-extension
 web.removeExtension = function(filename){
-    var lastDotPosition = filename.indexOf(".",filename.lastIndexOf('/')+1);
-    //TODO make exeception for hidden files
-    if (lastDotPosition === -1) return filename;
-    else return filename.substr(0, lastDotPosition);
+	var lastDotPosition = filename.indexOf(".",filename.lastIndexOf('/')+1);
+	//TODO make exeception for hidden files
+	if (lastDotPosition === -1) return filename;
+	else return filename.substr(0, lastDotPosition);
 }
 
 
@@ -4920,25 +4934,25 @@ if (!String.prototype.repeat) {
 	//http://jsperf.com/string-prototype-repeat-polyfill
 String.prototype.repeat = function (count) {
 	  if (this == null) {
-	    throw TypeError();
+		throw TypeError();
 	  }
 	  var string = String(this);
 	  // `ToInteger`
 	  var n = count ? Number(count) : 0;
 	  if (n != n) { // better `isNaN`
-	    n = 0;
+		n = 0;
 	  }
 	  // Account for out-of-bounds indices
 	  if (n < 0 || n == Infinity) {
-	    throw RangeError();
+		throw RangeError();
 	  }
 	  var result = '';
 	  while (n > 0) {
-	    if (n % 2 == 1) {
-	      result += string;
-	    }
-	    string += string;
-	    n >>= 1;
+		if (n % 2 == 1) {
+		  result += string;
+		}
+		string += string;
+		n >>= 1;
 	  }
 	  return result;
 	};
@@ -4948,18 +4962,18 @@ String.prototype.repeat = function (count) {
 //Inspiration http://stackoverflow.com/questions/10936600/javascript-decimal-to-binary-64-bit
 web.toBinary=function(int,padding,asArray) { // asArray should be 0||null||undefined for string, 1||true for array of boolean, 2 for array of numbers 
 	var val,s,l,padding=padding||64;
-    if (int>=0){
-    	s = "0", val=int.toString(2);
-    }else{
-    	s='1', val=(-int-1).toString(2).replace(/[01]/g, function(d){return +!+d;}) // hehe: inverts each char
-    }
-    var string = s.repeat(padding-val.length)+val;
-    if(asArray){ //true,1,2
-    	var arr=[];
+	if (int>=0){
+		s = "0", val=int.toString(2);
+	}else{
+		s='1', val=(-int-1).toString(2).replace(/[01]/g, function(d){return +!+d;}) // hehe: inverts each char
+	}
+	var string = s.repeat(padding-val.length)+val;
+	if(asArray){ //true,1,2
+		var arr=[];
 		string.replace(/./g, (asArray==2)?(function(c){arr.push((c=='1')?1:0)}):(function(c){arr.push((c=='1'))}));
-    	return arr;
-    }
-    return string;
+		return arr;
+	}
+	return string;
 }
 
 
@@ -5138,21 +5152,21 @@ web.$.gemake = function(selector,ifNotFound){
 
 
 web.on=function(elem,event,handler,bool){
-    if (elem.addEventListener) { // Modern
-        elem.addEventListener(event, handler, !!bool);
-    } else if (elem.attachEvent) { // Internet Explorer
-        elem.attachEvent("on" + event, handler);
-    } else { // others
-        elem["on" + event] = handler;
-    }
+	if (elem.addEventListener) { // Modern
+		elem.addEventListener(event, handler, !!bool);
+	} else if (elem.attachEvent) { // Internet Explorer
+		elem.attachEvent("on" + event, handler);
+	} else { // others
+		elem["on" + event] = handler;
+	}
 };
-    
+	
 
 
 web.comparator = web.comparator || {}
 //use with Array.sort
 web.comparator.numerical = function(a,b) {
-    return a - b;
+	return a - b;
 }
 
 
@@ -5176,10 +5190,10 @@ web.convertScales=function(value,minMax1,minMax2,invert){
 	minMax2.sort(web.comparator.numerical);
 	var OldRange = (minMax1[1] - minMax1[0])
 	if (OldRange <= 0){
-	    return minMax2[0];
+		return minMax2[0];
 	}else{
-	    varNewRange = (minMax2[1] - minMax2[0])  
-	    return (((value - minMax1[0]) * NewRange) / OldRange) + minMax2[0]
+		varNewRange = (minMax2[1] - minMax2[0])  
+		return (((value - minMax1[0]) * NewRange) / OldRange) + minMax2[0]
 	}
 }
 
@@ -5249,27 +5263,27 @@ web.convert = function kelvinToRGB(Temperature){
 
 
 web.convert.HexToRgb=function hexToRgb(hex) {
-    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
-    var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-    hex = hex.replace(shorthandRegex, function(m, r, g, b) {
-        return r + r + g + g + b + b;
-    });
+	// Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+	var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+	hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+		return r + r + g + g + b + b;
+	});
 
-    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-    } : null;
+	var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+	return result ? {
+		r: parseInt(result[1], 16),
+		g: parseInt(result[2], 16),
+		b: parseInt(result[3], 16)
+	} : null;
 }
 
 var componentToHex=function componentToHex(c) {
-    var hex = c.toString(16);
-    return hex.length == 1 ? "0" + hex : hex;
+	var hex = c.toString(16);
+	return hex.length == 1 ? "0" + hex : hex;
 }
 
 web.convert.rgbToHex=function rgbToHex(r, g, b) {
-    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+	return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
 }
 
 
@@ -5301,53 +5315,53 @@ web.ember.update=function(intensity,colorTemp,brightness){
 				this.body=web.body||$('body');
 				this.div =$('<div/>',{id:'ember-overlay'}).height($(document).height())
 					.css({
-			      	 	'pointer-events': 'none'
-				         ,'position': 'absolute'
-				         ,'top': 0
-				         ,'left': 0
-				         ,'background-color': "transparent"
-				         ,'width': '100%'
-				         ,'height': '100%'
-				         ,'z-index': web.max.zIndex
-		      			})
+						'pointer-events': 'none'
+						 ,'position': 'absolute'
+						 ,'top': 0
+						 ,'left': 0
+						 ,'background-color': "transparent"
+						 ,'width': '100%'
+						 ,'height': '100%'
+						 ,'z-index': web.max.zIndex
+						})
 				this.divTemp=$('<div/>',{id:'ember-overlay-temperature'})
 					.css({
-				      	 'pointer-events': 'none'
-				         ,'opacity' : intensity
-				         ,'position': 'absolute'
-				         ,'top': 0
-				         ,'right': 0
-				         ,'bottom': 0
-				         ,'left': 0
-				         ,'background-color': colorTemp
-				         ,'z-index': web.max.zIndex
-				      });
+						 'pointer-events': 'none'
+						 ,'opacity' : intensity
+						 ,'position': 'absolute'
+						 ,'top': 0
+						 ,'right': 0
+						 ,'bottom': 0
+						 ,'left': 0
+						 ,'background-color': colorTemp
+						 ,'z-index': web.max.zIndex
+					  });
 				this.divBright=$('<div/>',{id:'ember-overlay-brightness'})
 					.css({
-				      	 'pointer-events': 'none'
-				         ,'opacity' : brightness
-				         ,'position': 'absolute'
-				         ,'top': 0
-				         ,'right': 0
-				         ,'bottom': 0
-				         ,'left': 0
-				         ,'background-color': 'black'
-				         ,'z-index': web.max.zIndex
-				      });
+						 'pointer-events': 'none'
+						 ,'opacity' : brightness
+						 ,'position': 'absolute'
+						 ,'top': 0
+						 ,'right': 0
+						 ,'bottom': 0
+						 ,'left': 0
+						 ,'background-color': 'black'
+						 ,'z-index': web.max.zIndex
+					  });
 
 				//add them all to the dom
 				this.div.append(divTemp)
-	   				.append(divBright)
-	   				.appendTo(body);
+					.append(divBright)
+					.appendTo(body);
 			}
 		body.append(div.detach()); //so that we can hopefully stay on top of z-index
 		//update css (the whole reason you called this function)
 		this.divTemp.css('background-color','colorTemp').css('opacity',intensity);
-	    this.divBright.css('opacity',brightness)
-	    
-	    //TODO should this be done?   to stay on top of zindex and make sure up to date?
-	    //setInterval(function(){body.append(div.detach())},60000)
-  	})
+		this.divBright.css('opacity',brightness)
+		
+		//TODO should this be done?   to stay on top of zindex and make sure up to date?
+		//setInterval(function(){body.append(div.detach())},60000)
+	})
 }
 web.ember.init=function(arg0){
 	var opacity=0,bgColor="#FFBC84",opacityRange=[0,.3];//TODO Figure out what is best for nighttime opacity
@@ -5390,7 +5404,7 @@ web.ember.temperatures={
 	,warmIncandescent:2300
 	,tungsten:2700
 	,incandescent:3000 // FFB16E
- 	//opacity at 0.4 = 4811K on white
+	//opacity at 0.4 = 4811K on white
 	//		0.3 = 5170
 	,halogen:3400
 	,fluorescent:4200
@@ -5439,65 +5453,65 @@ web.slopeOf=function(values_x, values_y) {
 	if(!values_y){
 
 	}
-    var sum_x = 0;
-    var sum_y = 0;
-    var sum_xy = 0;
-    var sum_xx = 0;
-    var count = 0;
+	var sum_x = 0;
+	var sum_y = 0;
+	var sum_xy = 0;
+	var sum_xx = 0;
+	var count = 0;
 
-    /*
-     * We'll use those variables for faster read/write access.
-     */
-    var x = 0;
-    var y = 0;
-    var values_length = values_x.length;
+	/*
+	 * We'll use those variables for faster read/write access.
+	 */
+	var x = 0;
+	var y = 0;
+	var values_length = values_x.length;
 
-    if (values_length != values_y.length) {
-        throw new Error('The parameters values_x and values_y need to have same size!');
-    }
+	if (values_length != values_y.length) {
+		throw new Error('The parameters values_x and values_y need to have same size!');
+	}
 
-    /*
-     * Nothing to do.
-     */
-    if (values_length === 0) {
-        return [ [], [] ];
-    }
+	/*
+	 * Nothing to do.
+	 */
+	if (values_length === 0) {
+		return [ [], [] ];
+	}
 
-    /*
-     * Calculate the sum for each of the parts necessary.
-     */
-    for (var v = 0; v < values_length; v++) {
-        x = values_x[v];
-        y = values_y[v];
-        sum_x += x;
-        sum_y += y;
-        sum_xx += x*x;
-        sum_xy += x*y;
-        count++;
-    }
+	/*
+	 * Calculate the sum for each of the parts necessary.
+	 */
+	for (var v = 0; v < values_length; v++) {
+		x = values_x[v];
+		y = values_y[v];
+		sum_x += x;
+		sum_y += y;
+		sum_xx += x*x;
+		sum_xy += x*y;
+		count++;
+	}
 
-    /*
-     * Calculate m and b for the formular:
-     * y = x * m + b
-     */
-    var m = (count*sum_xy - sum_x*sum_y) / (count*sum_xx - sum_x*sum_x);
-    var b = (sum_y/count) - (m*sum_x)/count;
+	/*
+	 * Calculate m and b for the formular:
+	 * y = x * m + b
+	 */
+	var m = (count*sum_xy - sum_x*sum_y) / (count*sum_xx - sum_x*sum_x);
+	var b = (sum_y/count) - (m*sum_x)/count;
 
-    return {m:m,b:b}
-    // /*
-    //  * We will make the x and y result line now
-    //  */
-    // var result_values_x = [];
-    // var result_values_y = [];
+	return {m:m,b:b}
+	// /*
+	//  * We will make the x and y result line now
+	//  */
+	// var result_values_x = [];
+	// var result_values_y = [];
 
-    // for (var v = 0; v <; values_length; v++) {
-    //     x = values_x[v];
-    //     y = x * m + b;
-    //     result_values_x.push(x);
-    //     result_values_y.push(y);
-    // }
+	// for (var v = 0; v <; values_length; v++) {
+	//     x = values_x[v];
+	//     y = x * m + b;
+	//     result_values_x.push(x);
+	//     result_values_y.push(y);
+	// }
 
-    // return [result_values_x, result_values_y];
+	// return [result_values_x, result_values_y];
 }
 
 web.distance=function(p1,p2,x,y){
@@ -5533,20 +5547,20 @@ web.cursorPosition=function(ms,callback){
 
 		if(ms){
 			points.push(e)
-	    	if(points.length>=5){
-	    		points.unshift()
-	    	}else{
-	    		return
-	    	}
-	    	slope=web.slopeOf(points)
-	    	distance=web.distance(points[5],points[4],'pageX','pageY')
+			if(points.length>=5){
+				points.unshift()
+			}else{
+				return
+			}
+			slope=web.slopeOf(points)
+			distance=web.distance(points[5],points[4],'pageX','pageY')
 
-	    	speed = distance/(points[5].timestamp-points[4].timestamp)
+			speed = distance/(points[5].timestamp-points[4].timestamp)
 
-	    	y = x * slope.m + slope.b;
-	    }
+			y = x * slope.m + slope.b;
+		}
 
-    	image.css('left',e.pageX).css('top',e.pageY);
+		image.css('left',e.pageX).css('top',e.pageY);
 	});
 
 }
@@ -5610,28 +5624,28 @@ web.indexOfArgument=function(fn,arg){
 //Will work with block comments and block comments containing '(' or ')' YAY!
 //ex: web.functionArguments(function(/*it (confused)*/  a/*moor*/,b /*argumes*/  ){return (true)})
 web.functionArguments=function(src){
-    src = src.toString()
-    var cache=functionArgumentsCache[src]
-    if(cache){return cache;}
-    //console.warn(src)
-    var p1 =src.indexOf('(')
-    	,p2=src.indexOf(')',p1)
-    	,c1=src.lastIndexOf('/*',p2)
-    	,c2;
-    if(c1!=-1 && (c1 < p1 || c1 < p2)){//make sure they are not in comments
-    	c2=src.indexOf('*/',c1+2)
-    	//console.log('hit!',p1,p2,c1,c2,src)
-    	if(web.isBetween(p1,c1,c2) || web.isBetween(p2,c1,c2)){
-    		//console.log('hit2!','replacing comment')
-    		return functionArgumentsCache[src]=web.functionArguments(web.replaceRange(src,c1,c2+2))
-    	}
-    	return functionArgumentsCache[src]=web.functionArguments(web.replaceRange(src,c1,c2+2))
-    }//else fall through
-    return functionArgumentsCache[src]=src.slice(p1+1,p2).trim().split(web.RegExp.commaSeperatedTrimSplit)
-    // don't think this is needed? if(c1==-1){
-    // don't think this is needed? 	return names.trim().split(web.RegExp.commaSeperatedTrimSplit)
-    // don't think this is needed? }
-    // don't think this is needed? return web.functionArguments(web.replaceRange(names,c1,c2+2))
+	src = src.toString()
+	var cache=functionArgumentsCache[src]
+	if(cache){return cache;}
+	//console.warn(src)
+	var p1 =src.indexOf('(')
+		,p2=src.indexOf(')',p1)
+		,c1=src.lastIndexOf('/*',p2)
+		,c2;
+	if(c1!=-1 && (c1 < p1 || c1 < p2)){//make sure they are not in comments
+		c2=src.indexOf('*/',c1+2)
+		//console.log('hit!',p1,p2,c1,c2,src)
+		if(web.isBetween(p1,c1,c2) || web.isBetween(p2,c1,c2)){
+			//console.log('hit2!','replacing comment')
+			return functionArgumentsCache[src]=web.functionArguments(web.replaceRange(src,c1,c2+2))
+		}
+		return functionArgumentsCache[src]=web.functionArguments(web.replaceRange(src,c1,c2+2))
+	}//else fall through
+	return functionArgumentsCache[src]=src.slice(p1+1,p2).trim().split(web.RegExp.commaSeperatedTrimSplit)
+	// don't think this is needed? if(c1==-1){
+	// don't think this is needed? 	return names.trim().split(web.RegExp.commaSeperatedTrimSplit)
+	// don't think this is needed? }
+	// don't think this is needed? return web.functionArguments(web.replaceRange(names,c1,c2+2))
 
 }
 
@@ -5643,27 +5657,27 @@ web.isBetween=function(x,lower,upper){
 //http://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr
 web.indexOf = function(str,regex, startpos) {
 	if(regex instanceof RegExp){
-	    var indexOf = str.substring(startpos || 0).search(regex);
-	    return (indexOf >= 0) ? (indexOf + (startpos || 0)) : indexOf;
-    }
+		var indexOf = str.substring(startpos || 0).search(regex);
+		return (indexOf >= 0) ? (indexOf + (startpos || 0)) : indexOf;
+	}
 	return str.lastIndexOf(regex,startpos)
 }
 web.lastIndexOf = function(str,regex, startpos) {
 	if(regex instanceof RegExp){
-	    regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : ""));
-	    if(typeof (startpos) == "undefined") {
-	        startpos = str.length;
-	    } else if(startpos < 0) {
-	        startpos = 0;
-	    }
-	    var stringToWorkWith = str.substring(0, startpos + 1);
-	    var lastIndexOf = -1;
-	    var nextStop = 0;
-	    while((result = regex.exec(stringToWorkWith)) != null) {
-	        lastIndexOf = result.index;
-	        regex.lastIndex = ++nextStop;
-	    }
-	    return lastIndexOf;
+		regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : ""));
+		if(typeof (startpos) == "undefined") {
+			startpos = str.length;
+		} else if(startpos < 0) {
+			startpos = 0;
+		}
+		var stringToWorkWith = str.substring(0, startpos + 1);
+		var lastIndexOf = -1;
+		var nextStop = 0;
+		while((result = regex.exec(stringToWorkWith)) != null) {
+			lastIndexOf = result.index;
+			regex.lastIndex = ++nextStop;
+		}
+		return lastIndexOf;
 	}
 	return str.lastIndexOf(regex,startpos)
 }
@@ -5673,7 +5687,7 @@ web.replaceRange=function(s, start, end, substitute) {
 	if(substitute==null){
 		return s.substring(0, start) +  s.substring(end);
 	}
-    return s.substring(0, start) + substitute + s.substring(end);
+	return s.substring(0, start) + substitute + s.substring(end);
 }
 
 
@@ -5683,7 +5697,7 @@ web.replaceRange=function(s, start, end, substitute) {
 
 web.setInterval=function(func, wait, times,callback){ //TODO request animation frame //use a callback for when it finishes?
 	var self=(this!==web||this!=web.global)?this:web.global; //TODO handle this! keyword actually this might do it.
-    times=times||Number.POSITIVE_INFINITY;
+	times=times||Number.POSITIVE_INFINITY;
 
 	var type='linear'
 	if(web.isString(wait)){
@@ -5695,46 +5709,46 @@ web.setInterval=function(func, wait, times,callback){ //TODO request animation f
 	}
 	var wait0=wait,counter=0;
 
-   	var tOut=setTimeout(interv, wait);
-   	//console.log('init',tOut)
-   	var id=web.setInterval.instances.push(interv)-1;
+	var tOut=setTimeout(interv, wait);
+	//console.log('init',tOut)
+	var id=web.setInterval.instances.push(interv)-1;
    function interv(command) {
-   		if(tOut&&command===false){
-            //console.log('clearing',tOut)
-            clearTimeout(tOut)
-            return tOut=undefined
-   		}
-        if (counter++ <= times) {
-        		//handle callback and command from  callback
-               if(func.call(self)===web.clearInterval){
-	            	web.clearInterval(id)
-	            	clearTimeout(tOut)
-	            	return tOut=undefined
-	            }
-	            //set new wait time
-	            if(type!='linear'){
-	            	if(type=='poisson'){
+		if(tOut&&command===false){
+			//console.log('clearing',tOut)
+			clearTimeout(tOut)
+			return tOut=undefined
+		}
+		if (counter++ <= times) {
+				//handle callback and command from  callback
+			   if(func.call(self)===web.clearInterval){
+					web.clearInterval(id)
+					clearTimeout(tOut)
+					return tOut=undefined
+				}
+				//set new wait time
+				if(type!='linear'){
+					if(type=='poisson'){
 						wait=Math.pow(counter,wait0) //poisson is exponential (for now)
-	            	}else if(type=='exponential'){
-	            		wait=Math.pow(wait0,counter)//fix this and poisson :-/
-	            	}else { //assume callback (type=='callback'){
-	            		wait=type(wait,counter,times) //if the waitfunction returns -1 or web.clearInterval then cancel now
-	            		if(wait==web.clearInterval||wait>0){
-	            			interv(false)
-	            		}
-	            	}
-	            }
-	            tOut=tOut&&setTimeout(interv, wait);
-	            //console.log('tOut',tOut)
-	            //try {
-	            //}
-	            //catch(e) {
-	            //    times = 0;
-	            //    throw e.toString();
-	            //}
-	        }
-	    };
-    return id;
+					}else if(type=='exponential'){
+						wait=Math.pow(wait0,counter)//fix this and poisson :-/
+					}else { //assume callback (type=='callback'){
+						wait=type(wait,counter,times) //if the waitfunction returns -1 or web.clearInterval then cancel now
+						if(wait==web.clearInterval||wait>0){
+							interv(false)
+						}
+					}
+				}
+				tOut=tOut&&setTimeout(interv, wait);
+				//console.log('tOut',tOut)
+				//try {
+				//}
+				//catch(e) {
+				//    times = 0;
+				//    throw e.toString();
+				//}
+			}
+		};
+	return id;
 
 };
 web.setInterval.instances=[];
@@ -5753,11 +5767,11 @@ web.clearInterval=function(id){
 //Straight up only gets selected text. A convenience for browser compatibility
 var getSelectedText=function(withAnnotation){
 	var text = "";
-	    if (window.getSelection) {
-	        text = window.getSelection().toString();
-	    } else if (document.selection && document.selection.type != "Control") {
-	        text = document.selection.createRange().text;
-	    }
+		if (window.getSelection) {
+			text = window.getSelection().toString();
+		} else if (document.selection && document.selection.type != "Control") {
+			text = document.selection.createRange().text;
+		}
 	return text;
 }
 
@@ -5788,49 +5802,49 @@ web.textSelection=function(callback){
 //http://stackoverflow.com/questions/2075304/how-to-modify-the-document-selection-in-javascript
 web.select=function(){
 	$.fn.autoSelect = function(){
-    var selectTarget = this[0]; // Select first element from jQuery collection
-    if(selectTarget != null) {
-         if(selectTarget.tagName == 'TEXTAREA' || (selectTarget.tagName == "INPUT" && selectTarget.type == "text")) {
-             selectTarget.select();
-         } else if(window.getSelection) { // FF, Safari, Opera
-             var sel = window.getSelection();
-             var range = document.createRange();
-             range.selectNode(selectTarget);
-             sel.removeAllRanges();
-             sel.addRange(range);
-         } else { // IE
-             document.selection.empty();
-             var range = document.body.createTextRange();
-             range.moveToElementText(selectTarget);
-             range.select();
-         };
-    };
-    return this; // Don't break the chain
+	var selectTarget = this[0]; // Select first element from jQuery collection
+	if(selectTarget != null) {
+		 if(selectTarget.tagName == 'TEXTAREA' || (selectTarget.tagName == "INPUT" && selectTarget.type == "text")) {
+			 selectTarget.select();
+		 } else if(window.getSelection) { // FF, Safari, Opera
+			 var sel = window.getSelection();
+			 var range = document.createRange();
+			 range.selectNode(selectTarget);
+			 sel.removeAllRanges();
+			 sel.addRange(range);
+		 } else { // IE
+			 document.selection.empty();
+			 var range = document.body.createTextRange();
+			 range.moveToElementText(selectTarget);
+			 range.select();
+		 };
+	};
+	return this; // Don't break the chain
 };
 }
 
 //Original inspiration 
 //http://stackoverflow.com/questions/2026335/how-to-add-extra-info-to-copied-web-text
 web.editSelection=function(arg0,hidden){
-    if(hidden){
-    	//Get the selected text and append the extra info
-	    var selection = getSelection(),
-	        pagelink = arg0||'<br /><br /> Read more at: ' + document.location.href,
-	        copytext = selection + (pagelink.call)?pagelink():pagelink,
-	        newdiv = document.createElement('div');
+	if(hidden){
+		//Get the selected text and append the extra info
+		var selection = getSelection(),
+			pagelink = arg0||'<br /><br /> Read more at: ' + document.location.href,
+			copytext = selection + (pagelink.call)?pagelink():pagelink,
+			newdiv = document.createElement('div');
 
-	    //hide the newly created container
-	    newdiv.style.position = 'absolute';
-	    newdiv.style.left = '-99999px';
+		//hide the newly created container
+		newdiv.style.position = 'absolute';
+		newdiv.style.left = '-99999px';
 
-	    //insert the container, fill it with the extended text, and define the new selection
-	    document.body.appendChild(newdiv);
-	    newdiv.innerHTML = copytext;
-	    selection.selectAllChildren(newdiv);
+		//insert the container, fill it with the extended text, and define the new selection
+		document.body.appendChild(newdiv);
+		newdiv.innerHTML = copytext;
+		selection.selectAllChildren(newdiv);
 
-	    web.defer(function(){
-	        document.body.removeChild(newdiv);
-	    });
+		web.defer(function(){
+			document.body.removeChild(newdiv);
+		});
 	}
 }
 
@@ -5840,10 +5854,10 @@ web.isEventSupported=function isEventSupported(eventName) { //dont check unless 
 	if(web.isEventSupported.mutationEvents[eventName]){
 		console.warn('You really shouldn\'t use mutationEvents. Use MutationObservers instead https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver')
 		// check for Mutation Events, DOMAttrModified should be
-  		// enough to ensure DOMNodeInserted/DOMNodeRemoved exist
-  		if(!web.global.addEventListener){
-  			return false;
-  		}
+		// enough to ensure DOMNodeInserted/DOMNodeRemoved exist
+		if(!web.global.addEventListener){
+			return false;
+		}
 
 		var e = function() {
 				document.documentElement.removeEventListener(eventName||'DOMAttrModified', e, false);
@@ -5861,25 +5875,25 @@ web.isEventSupported=function isEventSupported(eventName) { //dont check unless 
 		web.global.mutationTest = cache;
 		return isSupported||f;
 }else{
-      var el = document.createElement(web.isEventSupported.TAGNAMES[eventName] || 'div');
-      eventName = 'on' + eventName;
-      var isSupported = (eventName in el);
-      if (!isSupported) {
-        el.setAttribute(eventName, 'return;');
-        isSupported = typeof el[eventName] == 'function';
-      }
-      el = null;
-      return isSupported;
-    };
+	  var el = document.createElement(web.isEventSupported.TAGNAMES[eventName] || 'div');
+	  eventName = 'on' + eventName;
+	  var isSupported = (eventName in el);
+	  if (!isSupported) {
+		el.setAttribute(eventName, 'return;');
+		isSupported = typeof el[eventName] == 'function';
+	  }
+	  el = null;
+	  return isSupported;
+	};
 }
 
-    web.isEventSupported.TAGNAMES = {
-      'select':'input','change':'input',
-      'submit':'form','reset':'form',
-      'error':'img','load':'img','abort':'img'
-    }
+	web.isEventSupported.TAGNAMES = {
+	  'select':'input','change':'input',
+	  'submit':'form','reset':'form',
+	  'error':'img','load':'img','abort':'img'
+	}
 
-    web.isEventSupported.mutationEvents={
+	web.isEventSupported.mutationEvents={
 		DOMAttrModified:true
 		,DOMAttributeNameChanged:true
 		,DOMCharacterDataModified:true
@@ -5956,13 +5970,13 @@ web.onEvent=/*web.on=*/function(eventName,element,callback,arg0){
 						text=ta.val()
 						ta.val('')
 						ta.remove();
-				    	callback(e,text)
-				    	text=''
+						callback(e,text)
+						text=''
 						web.clearInterval(id)
 					}
 				}, 'poisson',30);
 				//return false;
-  		},callback)
+		},callback)
 
 
 		if(web.isEventSupported('paste')){
@@ -6174,15 +6188,15 @@ var setImmediate =web.setImmediate=(function() {
 	if(web.isNodeJS()){ //if this is nodejs platform then return our fn
 		return setImmediate
 	}
-    var timeouts = [];
-    var messageName = "zero-timeout-message";//TODO generate random message id(reduce collisions)
-    web.on(window,'message',handleMessage,true)
+	var timeouts = [];
+	var messageName = "zero-timeout-message";//TODO generate random message id(reduce collisions)
+	web.on(window,'message',handleMessage,true)
    return setImmediate;
 
 
-    // Like setTimeout, but only takes a function argument.  There's
-    // no time argument (always zero) and no arguments (you have to
-    // use a closure).
+	// Like setTimeout, but only takes a function argument.  There's
+	// no time argument (always zero) and no arguments (you have to
+	// use a closure).
 	function setImmediate(func){
 		if(func==null){ //create defer object if called with no arguments!
 			var queue=[]
@@ -6216,18 +6230,18 @@ var setImmediate =web.setImmediate=(function() {
 
 		if(web.isNodeJS()){
 			return setTimeout(callback,0);
-	    }
-        return timeouts.push(callback),window.postMessage(messageName, "*");
-    }
+		}
+		return timeouts.push(callback),window.postMessage(messageName, "*");
+	}
 
-    function handleMessage(event) {
-        if (event.source == web.global && event.data == messageName) {
-            event.stopPropagation();
-            if (timeouts.length > 0) {
-                timeouts.shift()();
-            }
-        }
-    }
+	function handleMessage(event) {
+		if (event.source == web.global && event.data == messageName) {
+			event.stopPropagation();
+			if (timeouts.length > 0) {
+				timeouts.shift()();
+			}
+		}
+	}
 })();
 
 /******************************
@@ -6294,18 +6308,18 @@ web.css=function(input,elem){
 		}
 
 	   var styles=input.trim().split(';'),keyValue;
-    	for(var i=0,l=styles.length;i<l;i++){
+		for(var i=0,l=styles.length;i<l;i++){
 
-    		keyValue=styles[i]
-    		if(keyValue){
-    			keyValue=keyValue.split(':')
-    		}else{
-    			console.error('could not set',keyValue)
-    		}
-    		console.log(keyValue)
-    		elem.style[web.camelCase(keyValue[0].trim())]=keyValue[1].trim()
-        	}
-        }else if(web.isType(input,"Function")){
+			keyValue=styles[i]
+			if(keyValue){
+				keyValue=keyValue.split(':')
+			}else{
+				console.error('could not set',keyValue)
+			}
+			console.log(keyValue)
+			elem.style[web.camelCase(keyValue[0].trim())]=keyValue[1].trim()
+			}
+		}else if(web.isType(input,"Function")){
 
 	}else if(web.isType(input,'Object')){
 
@@ -6447,7 +6461,7 @@ if(web.isJSCommons()){
 /*(function(global,s,o,g,r,a,m){
 	global['GoogleAnalyticsObject']=r;
 	global[r]=global[r]||function(){
-  		(global[r].q=global[r].q||[]).push(arguments)
+		(global[r].q=global[r].q||[]).push(arguments)
 	}
 	,global[r].l=1*new Date();
 	a=s.createElement(o)
