@@ -19,3 +19,6 @@
 [submodule "dependencies/doT"]
 	path = dependencies/doT
 	url = https://github.com/olado/doT.git
+[submodule "dependencies/FileDrop"]
+	path = dependencies/FileDrop
+	url = https://github.com/ProgerXP/FileDrop.git
