@@ -22,3 +22,6 @@
 [submodule "dependencies/FileDrop"]
 	path = dependencies/FileDrop
 	url = https://github.com/ProgerXP/FileDrop.git
+[submodule "dependencies/PapaParse"]
+	path = dependencies/PapaParse
+	url = https://github.com/mholt/PapaParse.git
