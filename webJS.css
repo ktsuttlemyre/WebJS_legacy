@@ -10,22 +10,11 @@ textarea[disabled]{
 }
 
 
-html.single-page, html.single-page body{
+html.full-view, html.full-view body{
 	height: 100%;
 	width:100%;
 	margin:0;padding: 0;
 }
-
-
-
-
-/***********************/
-/* Main layout classes */
-/***********************/
-.body-row, .body-col { overflow: hidden; position: absolute; }
-.body-row { left: 0; right: 0; }
-.body-col { top: 0; bottom: 0; }
-
 
 
 /******************/

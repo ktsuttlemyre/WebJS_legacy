@@ -402,7 +402,8 @@ var web=(function(web,global,environmentFlags,undefined){
 //https://www.google.com/search?q=soh+character&oq=SOH+charac&aqs=chrome.1.69i57j0l5.4423j1j7&sourceid=chrome&es_sm=91&ie=UTF-8#safe=off&q=SOH+character+split
 //http://en.wikipedia.org/wiki/Control_character#Transmission_control
 web.SOH=web.delimiter=String.fromCharCode(0x01);
-
+web.slash='\\'
+web.newLine='\n'
 
 	web.isNodeJS=function(){
 		return environmentFlags.platform=='nodejs';
@@ -894,16 +895,20 @@ web.trimLeft=function(str,word,keep,deep){
 	if(!word){
 		return str.replace(web.RegExp.leadingWhitespace, '');
 	}
-	return str.slice( ((deep)?str.lastIndexOf(word):str.indexOf(word)) + ((keep)?0:word.length))
+	var i=((deep)?str.lastIndexOf(word):str.indexOf(word))
+	if(i<0){return str;}
+	return str.slice( i + ((keep)?0:word.length))
 }
 web.trimRight=function(str,word,keep,deep){
 	if(!word){
 		//todo faster implementation for long strings
 		return str.replace(web.RegExp.trailingWhitespace, '');
 	}
-	return str.slice( 0, ((deep)?str.indexOf(word):str.lastIndexOf(word)) + ((keep)?word.length:0))
+	var i = ((deep)?str.indexOf(word):str.lastIndexOf(word))
+	if(i<0){return str;}
+	return str.slice( 0, i + ((keep)?word.length:0))
 }
-web.deepTrimRight=function(str,word,keep){
+web.deepTrimRight=function(str,word,keep){ //todo possible rename to slash? maybe confusing though
 	return web.trimRight(str,word,keep,true)
 }
 web.deepTrimLeft=function(str,word,keep){
@@ -930,6 +935,7 @@ web.trimRight('#JustGirlThings','Girl',true)
 
 
 /*
+NOTE: if you want to process the querystring alone it should start with a '?'
 In browser:
 	() returns query object (a hashmap of values. if mutli values are found returns them as an array)
 	(url [String]) returns query object
@@ -951,8 +957,10 @@ web.queryString=function(url,variable,replace) {
 		url=web.global.location.href
 		query=web.global.location.search.substring(1);
 	}else{
-		query=web.trimLeft(url,'?')
+		query=web.trimLeft(url,'?') //don't keep ? this time
 	}
+
+	query = web.deepTrimRight(query,'#')
 
 	if(web.isValue(replace)){ //http://stackoverflow.com/questions/5413899/search-and-replace-specific-query-string-parameter-value-in-javascript
 		return url.replace(new RegExp('('+variable+'=)[^\&]+'), '$1' + encodeURIComponent(replace));
@@ -964,10 +972,9 @@ web.queryString=function(url,variable,replace) {
 				return decodeURIComponent(pair[1]);
 			}
 		}
-		console.warn('web.queryString did not find variable %s in %s', variable,url);
+		return ''
+		//console.warn('web.queryString did not find variable %s in %s', variable,url);
 	}else{ //inspiration http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
-		console.log('url',url)
-		var queryObject={
 					/*the browser does a simple trim left.
 						test http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
 						location.search
@@ -975,31 +982,72 @@ web.queryString=function(url,variable,replace) {
 						location.hash
 						"#dfs"#lkjsdf=9"
 						*/
-					'?': web.deepTrimRight(web.trimLeft(url,'?'),'#') //NOTE this is how the browser does it!	
-					,'#':'?'+web.trimLeft(url,'#') //NOTE this is how the browser does it!	//'?'+location.hash.slice(1) //added a ? just to make parsing easier
-				}
-		_.forEach(queryObject,function(value,key){
-			var q={}
-			value.replace(new RegExp("([^?=&]+)(=([^&]*))?", "g")
-				,function($0, $1, $2, $3) { 
-					if(q[$1]){
-						if(web.isArray(q[$1])){
-							q[$1].append(decodeURIComponent($3));
-						}else{
-							q[$1]=[q[$1],decodeURIComponent($3)]
-						}
-					}else{
-						q[$1]=decodeURIComponent($3); 
-					}
-				}
-				);
-			queryObject[key]=q;
-		})
-		return queryObject;		
+		return queryStringParser(query)
 	}
 }
 
 
+var queryStringParser=function(value /*,assignment,delimiter */){ //setting assigment and delimiter not really good
+	var q={}
+	value.replace(web.RegExp.queryStringParser
+		,function($0, $1, $2, $3) { 
+			if(q[$1]){
+				if(web.isArray(q[$1])){
+					q[$1].append(decodeURIComponent($3));
+				}else{
+					q[$1]=[q[$1],decodeURIComponent($3)]
+				}
+			}else{
+				q[$1]=decodeURIComponent($3); 
+			}
+			return ''
+		});
+	return q;
+}
+
+
+//TODO
+//http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
+/*
+{
+'protocol':						//not implemented
+'':								//not implemented
+
+'domain':						//not implemented
+'//':							//not implemented
+
+'port':							//not implemented
+':'								//not implemented
+
+'path':							//not implemented
+'/':							//not implemented
+
+'query':						//not implemented
+'?':{key:'value',pairs:true}
+
+'fragement':					//not implemented
+'#':'bare word'					//not implemented
+'fragmentPath':					//not implemented
+'#!':							//not implemented
+'fragmentQuery':				//not implemented
+'#?':{key:'value',pairs:true}
+}
+*/
+//currently only returns object with ? and # 
+web.url=function(url){
+	url=url||web.global.location.href
+	return {
+					/*the browser does a simple trim left.
+						test http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
+						location.search
+						"?ggks=6h=%22s"
+						location.hash
+						"#dfs"#lkjsdf=9"
+						*/
+			'?':queryStringParser(web.deepTrimRight(web.trimLeft(url,'?'),'#'))  //NOTE this is how the browser does it!	
+			,'#?':queryStringParser(web.trimLeft(url,'#')) //NOTE this is how the browser does it!	//'?'+location.hash.slice(1) //added a ? just to make parsing easier
+		}
+}
 
 
 
@@ -1067,6 +1115,135 @@ web.inIframe=function(){
 
 
 
+// web.abyss=function(elem,template,queryFn){
+// 	elem=$(elem)
+// 	if(web.isString(template)){
+// 		template=web.template(template)
+// 	}//else assume web template compiled?
+
+// 	elem.addClass('web-abyss')
+
+
+// 	var deferedActions=[]
+	
+// 	var loading=false;
+
+// 	var grid
+// 		,dataView = new Slick.Data.DataView()
+// 		,columns = [
+// 			{	
+// 				name: ""
+// 				//,id: "contact-card"
+// 				//, cssClass: "contact-card-cell"
+// 				,formatter:function renderCell(row, cell, value, columnDef, data) {
+// 					return template(data, 'data_'+data.uid).outerHTML()
+// 				}
+// 			}
+// 		]
+// 		,options = {
+// 			editable: false
+// 			,enableAddRow: false
+// 			,enableCellNavigation: false
+// 			,enableColumnReorder: false
+// 			,forceFitColumns: true
+// 			,headerHeight: 0
+// 			,leaveSpaceForNewRows:true
+// 			,resizable:false
+// 			//,autoHeight:true
+// 			,showHeaderRow:false
+// 		};
+
+
+// 		function init (datum){
+
+// 			options.rowHeight=web.height(template(datum))
+// 			//options.rowHeight=54
+// 			grid = new Slick.Grid(elem, dataView, columns, options);
+// 			elem.find(".slick-header").css("height","0px").css('display','none')
+// 			grid.resizeCanvas()
+
+// 			// wire up model events to drive the grid
+// 			dataView.onRowCountChanged.subscribe(function (e, args) {
+// 			  grid.updateRowCount();
+// 			  grid.render();
+// 			});
+
+// 			dataView.onRowsChanged.subscribe(function (e, args) {
+// 			  grid.invalidateRows(args.rows);
+// 			  grid.render();
+// 			});
+
+
+
+// 			//queryFn=_.debounce(queryFn,500)
+// 			grid.onScroll.subscribe(_.debounce(function(e,args){
+// 				//calculate in pixels how close we are to the bottom
+// 				//(this.getDataLength()*options.rowHeight)-args.scrollTop
+// 				//OR calculate in number of items
+// 				if(!loading && this.getViewport().bottom>=dataView.getLength()-5){
+// 					loading=true;
+// 					//console.log('polling...',dataView.getItem(dataView.getLength()-1))
+// 					queryFn(dataView.getItem(dataView.getLength()-1),appendData)
+// 				}
+
+// 			},50))
+
+// 			//do all defered actions now
+// 			_.forEach(deferedActions,function(fn){fn()})
+// 		}
+
+// 	// When user clicks button, fetch data via Ajax, and bind it to the dataview. 
+
+// 	var appendData=function(array){
+// 		if(!grid){
+// 			init(array[0])
+// 		}
+
+// 		_.forEach(array,function(item){dataView.addItem(item)})
+// 		//this will replace all data
+// 		//dataView.beginUpdate();
+// 		//dataView.setItems(array);
+// 		//dataView.endUpdate();
+// 		//grid.render();
+
+// 		//trying to update settings... does not work currently
+// 		//options.rowHeight= 140//template(grid.getData()).height()
+// 		//grid.setOptions(options);
+// 		//grid.invalidate();
+// 		loading=false
+// 	}
+
+// 	queryFn(undefined,appendData)
+	
+// 	var face= {
+// 		append:function(data){
+// 			if(!data){
+// 				queryFn(data)
+// 			}
+// 			dataView.addItem(data);
+// 			dataView.refresh();
+// 		},
+// 		clear:function(){
+// 			grid.invalidateAllRows();
+// 			dataView.setItems(undefined, "Id");
+// 			grid.render();
+// 		},
+// 		click:function(fn){
+// 			if(grid){
+// 				grid.onClick.subscribe(fn);
+// 			}else{
+// 				deferedActions.push(_.bind(face.click,face,fn))
+// 			}
+// 		},
+// 		setID:function(){ //TODO
+
+// 		}
+// 	}
+// 	return face
+// }
+
+
+
 web.abyss=function(elem,template,queryFn){
 	elem=$(elem)
 	if(web.isString(template)){
@@ -1082,36 +1259,40 @@ web.abyss=function(elem,template,queryFn){
 
 	var grid
 		,dataView = new Slick.Data.DataView()
-		,columns = [
-			{	
+		,column={
 				name: ""
 				//,id: "contact-card"
 				//, cssClass: "contact-card-cell"
 				,formatter:function renderCell(row, cell, value, columnDef, data) {
-					return template(data, 'data_'+data.uid).outerHTML()
+					//console.info(row,cell,value,columnDef,data)
+					return template(data[cell], 'data_'+data.uid).outerHTML()
 				}
+				,width:200
 			}
-		]
+		,columns = [column]
 		,options = {
 			editable: false
 			,enableAddRow: false
 			,enableCellNavigation: false
 			,enableColumnReorder: false
-			,forceFitColumns: true
-			,headerHeight: 0
-			,leaveSpaceForNewRows:true
-			,resizable:false
+			,forceFitColumns: false
+			//,headerHeight: 0
+			,leaveSpaceForNewRows:false
+			,resizable:true
 			//,autoHeight:true
-			,showHeaderRow:false
+			,showHeaderRow:true
 		};
 
+		var d=[]
+		d.id=0
+		dataView.addItem(d)
 
 		function init (datum){
 
-			console.log(options.rowHeight=web.height(template(datum)))
+			options.rowHeight=web.height(template(datum))
 			//options.rowHeight=54
 			grid = new Slick.Grid(elem, dataView, columns, options);
-			elem.find(".slick-header").css("height","0px").css('display','none')
+			//elem.find(".slick-header").css("height","0px").css('display','none')
 			grid.resizeCanvas()
 
 			// wire up model events to drive the grid
@@ -1126,18 +1307,36 @@ web.abyss=function(elem,template,queryFn){
 			});
 
 
-
+			//vertical
 			//queryFn=_.debounce(queryFn,500)
+			// grid.onScroll.subscribe(_.debounce(function(e,args){
+			// 	//calculate in pixels how close we are to the bottom
+			// 	//(this.getDataLength()*options.rowHeight)-args.scrollTop
+			// 	//OR calculate in number of items
+			// 	if(!loading && this.getViewport().bottom>=dataView.getLength()-5){
+			// 		loading=true;
+			// 		//console.log('polling...',dataView.getItem(dataView.getLength()-1))
+			// 		queryFn(dataView.getItem(dataView.getLength()-1),appendData)
+			// 	}
+			// },50))
+
+			//horizontal
+			queryFn=_.debounce(queryFn,500)
 			grid.onScroll.subscribe(_.debounce(function(e,args){
 				//calculate in pixels how close we are to the bottom
 				//(this.getDataLength()*options.rowHeight)-args.scrollTop
 				//OR calculate in number of items
-				if(!loading && this.getViewport().bottom>=dataView.getLength()-5){
+
+				//viewport is what the user can see
+				//rendered range is what is being virtually rendered (what is attached to the dom)
+				//canvasNode is the div element that IS the whole table (like document is in HTML)
+				//web.log(this.getViewport(),'@',this.getRenderedRange(),'@',this.getGridPosition(),'@',this.getCanvasNode())
+				if(!loading && this.getRenderedRange().rightPx>=grid.getCanvasNode().offsetWidth){
 					loading=true;
+					console.log('loading')
 					//console.log('polling...',dataView.getItem(dataView.getLength()-1))
 					queryFn(dataView.getItem(dataView.getLength()-1),appendData)
 				}
-
 			},50))
 
 			//do all defered actions now
@@ -1151,7 +1350,15 @@ web.abyss=function(elem,template,queryFn){
 			init(array[0])
 		}
 
-		_.forEach(array,function(item){dataView.addItem(item)})
+		_.forEach(array,function(item){
+			console.log(dataView)
+			var columns=grid.getColumns()
+			columns.push(column)
+			grid.setColumns(columns)
+			var i=dataView.getItem(0)
+			i.push(item)
+			dataView.updateItem(0,i)
+		})
 		//this will replace all data
 		//dataView.beginUpdate();
 		//dataView.setItems(array);
@@ -1182,7 +1389,13 @@ web.abyss=function(elem,template,queryFn){
 		},
 		click:function(fn){
 			if(grid){
-				grid.onClick.subscribe(fn);
+				grid.onClick.subscribe(function(e,args){
+					var data = this.getDataItem(args.row)
+					if(web.isArray(data)){
+						data=data[args.cell]
+					}
+					fn && fn.call(this,e,args,data)
+					});
 			}else{
 				deferedActions.push(_.bind(face.click,face,fn))
 			}
@@ -1192,10 +1405,7 @@ web.abyss=function(elem,template,queryFn){
 		}
 	}
 	return face
-
 }
-
-
 
 /*
 for undersanding of height types see
@@ -1369,6 +1579,8 @@ web.RegExp={alphabetical:/[a-zA-Z]/g
 			,getYoutubeHash:/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|watch\/)([^#\&\?]*).*/
 			,validateYoutubeHash:/^[a-zA-Z0-9_-]{11}$/
 			//				/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/
+			//Char syntax	(ignore) (assign(no &)) optional
+			,queryStringParser:/([^?=&]+)(=([^&]*))?/g
 		}
 
 
@@ -3782,6 +3994,9 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 	var compiled = doT.template(template)
 
 	return function $_webCompiledTemplate(data,id,map){
+		if(!web.isValue(data)){
+			data={}
+		}
 		if(web.isObject(id)){
 			map=varSwap(id,id=map);
 		}//let jquery handle ids that are undefined 0 or null
@@ -4301,12 +4516,12 @@ web.hashSwap=function(data,fn){//fn handles collisions
 //which is apparently from mustache 
 //https://github.com/janl/mustache.js/blob/master/mustache.js#L82
 var escapeHTMLMap = {
-	"&": "&amp;",
-	"<": "&lt;",
-	">": "&gt;",
-	'"': '&quot;',
-	"'": '&#39;',
-	"/": '&#x2F;'
+	"&":"&amp;",
+	"<":"&lt;",
+	">":"&gt;",
+	'"':'&quot;',
+	"'":'&#39;',
+	"/":'&#x2F;'
 };
 web.escapeHTML=function(str) {
 	//if(document){
@@ -4333,7 +4548,7 @@ web.unescapeHTML=function(str){
 		});
 	//}
 }
-web.escape
+
 
 
 
@@ -4421,7 +4636,7 @@ web.getYoutubeHash=function(url){
 		console.assert(hash==answer,"input: "+url+" web returned "+hash+" but it should have been "+answer)
 	})
 })
-/*({		//Tests																								Answers
+({		//Tests																								Answers
 //pCoWDoGG tests (mine!)
 "http://www.youtube.com/attribution_link?a=5X4P22YNTKU&amp;u=%2Fwatch%3Fv%3DT2NUk5AFImw%26feature%3Dshare"	:'T2NUk5AFImw',
 
@@ -4503,7 +4718,7 @@ web.getYoutubeHash=function(url){
 'http://youtu.be/t-ZRX8984sc'																				:'t-ZRX8984sc'
 }) 
 
-*/
+
 
 /**********************************************************************
 ***********************************************************************
