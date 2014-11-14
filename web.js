@@ -692,6 +692,9 @@ web.isObject=function(obj,level){
 		return obj === Object(obj);
 	}
 }
+web.isNumber=function(o){
+	return typeof o=='number'
+}
 web.isjQuery=function(o){
 	return (o instanceof jQuery)
 }
@@ -1254,8 +1257,6 @@ web.abyss=function(elem,template,queryFn){
 
 
 	var deferedActions=[]
-	
-	var loading=false;
 
 	var grid
 		,dataView = new Slick.Data.DataView()
@@ -1267,7 +1268,7 @@ web.abyss=function(elem,template,queryFn){
 					//console.info(row,cell,value,columnDef,data)
 					return template(data[cell], 'data_'+data.uid).outerHTML()
 				}
-				,width:200
+				,width:300
 			}
 		,columns = [column]
 		,options = {
@@ -1276,11 +1277,11 @@ web.abyss=function(elem,template,queryFn){
 			,enableCellNavigation: false
 			,enableColumnReorder: false
 			,forceFitColumns: false
-			//,headerHeight: 0
+			,headerHeight: 0
 			,leaveSpaceForNewRows:false
 			,resizable:true
-			//,autoHeight:true
-			,showHeaderRow:true
+			,autoHeight:true
+			//,showHeaderRow:true
 		};
 
 		var d=[]
@@ -1292,7 +1293,7 @@ web.abyss=function(elem,template,queryFn){
 			options.rowHeight=web.height(template(datum))
 			//options.rowHeight=54
 			grid = new Slick.Grid(elem, dataView, columns, options);
-			//elem.find(".slick-header").css("height","0px").css('display','none')
+			elem.find(".slick-header").css("height","0px").css('display','none')
 			grid.resizeCanvas()
 
 			// wire up model events to drive the grid
@@ -1321,7 +1322,7 @@ web.abyss=function(elem,template,queryFn){
 			// },50))
 
 			//horizontal
-			queryFn=_.debounce(queryFn,500)
+			queryFn=web.lockable(_.debounce(queryFn,500))
 			grid.onScroll.subscribe(_.debounce(function(e,args){
 				//calculate in pixels how close we are to the bottom
 				//(this.getDataLength()*options.rowHeight)-args.scrollTop
@@ -1331,11 +1332,11 @@ web.abyss=function(elem,template,queryFn){
 				//rendered range is what is being virtually rendered (what is attached to the dom)
 				//canvasNode is the div element that IS the whole table (like document is in HTML)
 				//web.log(this.getViewport(),'@',this.getRenderedRange(),'@',this.getGridPosition(),'@',this.getCanvasNode())
-				if(!loading && this.getRenderedRange().rightPx>=grid.getCanvasNode().offsetWidth){
-					loading=true;
+				if(this.getRenderedRange().rightPx>=grid.getCanvasNode().offsetWidth){
+					
 					console.log('loading')
 					//console.log('polling...',dataView.getItem(dataView.getLength()-1))
-					queryFn(dataView.getItem(dataView.getLength()-1),appendData)
+					queryFn(web.get.call(dataView.getItem(0),-1),appendData)
 				}
 			},50))
 
@@ -1351,7 +1352,7 @@ web.abyss=function(elem,template,queryFn){
 		}
 
 		_.forEach(array,function(item){
-			console.log(dataView)
+			//console.log(dataView)
 			var columns=grid.getColumns()
 			columns.push(column)
 			grid.setColumns(columns)
@@ -1369,7 +1370,7 @@ web.abyss=function(elem,template,queryFn){
 		//options.rowHeight= 140//template(grid.getData()).height()
 		//grid.setOptions(options);
 		//grid.invalidate();
-		loading=false
+		queryFn.allow()
 	}
 
 	queryFn(undefined,appendData)
@@ -1406,6 +1407,32 @@ web.abyss=function(elem,template,queryFn){
 	}
 	return face
 }
+
+web.lockable=function(fn){
+	var allow=true;
+	if(!web.isFunction(fn)){
+		throw 'only functions are lockable'
+	}
+	var web_lockable= function (/* arguments */){
+		if(allow){
+			allow=false
+			return fn.apply(fn,arguments)
+		}
+	}
+	web_lockable.allow=function(a){
+		if(a==undefined){
+			return allow=true
+		}else if(a == 'toggle'){
+			return allow=!allow
+		}else if(a == 'status'){
+			return allow
+		}else{
+			return allow = !!a
+		}
+	}
+	return web_lockable;
+}
+
 
 /*
 for undersanding of height types see
@@ -2475,8 +2502,14 @@ web.log=function(/*arguments*/){
 	return arguments
 }
 web.log.history=[]
-web.log.last=function(){
-	return web.log.history[web.log.history.length-1]
+web.log.last=function(i){
+	var item = web.log.history[web.log.history.length-1]
+	if(i<0){
+		return item[item.length+i]
+	}else if(web.isValue(i)){
+		return item[i]
+	}
+	return item
 }
 web.warn=_.bind(console.warn,console);
 
@@ -3442,6 +3475,13 @@ web.set=function(context,path,value){
 web.get=function(key){
 	var obj = setScope(this,undefined)
 	if(web.isValue(obj)){
+		if(web.isNumber(key)){
+			if(key>0){
+				return obj[key]
+			}else{
+				return obj[obj.length+key]
+			}
+		}
 		var parts = key.split('.'),
 			current = obj || window;
 		for (var i = 0; i < parts.length; i += 1) {
