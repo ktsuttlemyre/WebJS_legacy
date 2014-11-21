@@ -25,3 +25,12 @@
 [submodule "dependencies/PapaParse"]
 	path = dependencies/PapaParse
 	url = https://github.com/mholt/PapaParse.git
+[submodule "dependencies/doby-grid"]
+	path = dependencies/doby-grid
+	url = https://github.com/globexdesigns/doby-grid.git
+[submodule "dependencies/backbone"]
+	path = dependencies/backbone
+	url = https://github.com/jashkenas/backbone.git
+[submodule "plugins/video/dependencies/mediaelement"]
+	path = plugins/video/dependencies/mediaelement
+	url = https://github.com/johndyer/mediaelement.git

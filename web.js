@@ -1,6 +1,11 @@
 "use strict"
 var g=function(){return this}
 
+
+//NOTE jQuery has dropped support for IE 6,7 & 8 so we don't support that ish either!
+//http://blog.jquery.com/2013/04/18/jquery-2-0-released/
+
+
 //Optimization notes
 //http://jsperf.com/arguments/10
 //Calling arguments object within a funciton causes js to create that object
@@ -86,6 +91,11 @@ end pollyfills
 			$.fn.isAttached = function(){
 				return (jQuery.contains(document, this[0]));
 			}
+			$.fn.redraw = function(){
+				$(this).each(function(){
+					var redraw = this.offsetHeight;
+				});
+			};
 
 		})(jQuery);
 
@@ -396,6 +406,9 @@ var web=(function(web,global,environmentFlags,undefined){
 	};
 	web.id="$Id$"
 	
+//private things
+var head = document.head || document.getElementsByTagName('head')[0];
+
 
 
 //Used a lot in other languages for complex spliting
@@ -430,8 +443,26 @@ web.stack=function(index){
 	}
 	return (new Error).stack.split("\n")
 }
-web.lineNumber=function(){
-	return (new Error).stack.split("\n")[2]
+//Inspiration http://stackoverflow.com/questions/1340872/how-to-get-javascript-caller-function-line-number-how-to-get-javascript-caller
+//number will be associated with scopeIndex
+//boolean or string will be link
+
+//TODO improve with this http://www.stacktracejs.com/
+web.lineNumber=function(link,scopeIndex){
+	if(typeof link == 'number'){ //swap if needed
+		link=varSwap(scopeIndex,scopeIndex=link);
+	}
+	scopeIndex=(scopeIndex||0)+2
+	var lines=(new Error).stack.split("\n") //TODO don't use split use substring
+	var line = web.trimLeft(web.get.call(lines,scopeIndex),'at ')
+	if(link){
+		return parseFloat(line)
+	}else{
+		return parseFloat(web.get.call(line.split(':'),-2))
+	}
+}
+web.columnNumber=function(link,scopeIndex){
+	return web.deepTrimLeft(web.lineNumber(true,1),':')
 }
 
 
@@ -490,7 +521,14 @@ var errorSilently=web.errorSilently={
 
 
 
-	web.extend=function(a1,a2){
+	web.extend=function(a1,a2,numb){
+		//TODO possibly support this?
+		// if(numb){
+		// 	_.forEach(array,function(item){
+		// 		//console.log(dataView)
+		// 		columns.push(column)
+		// 	})
+		// }
 		a1.push.apply(a1,a2)
 		return a1;
 	}
@@ -891,12 +929,23 @@ var webWrapper=function(obj){
 var varSwap=web.varSwap=function(x){
 	return x;
 }
-
+web.isRegExp=function(o){
+	return o instanceof RegExp
+}
 
 //TODO add regular expression that trims characters that test positive for regexp
 web.trimLeft=function(str,word,keep,deep){
 	if(!word){
 		return str.replace(web.RegExp.leadingWhitespace, '');
+	}else if(web.isRegExp(str)){
+		throw 'Not implmented because idk how it should work'
+		// var index=0;
+		// return str.replace(str,function(match,offset,str){
+		// 	if(index==-1){return match}
+		// 	if(offset==index){
+		// 		//this will run as long as we find expected indexes
+		// 	}
+		// })
 	}
 	var i=((deep)?str.lastIndexOf(word):str.indexOf(word))
 	if(i<0){return str;}
@@ -906,6 +955,8 @@ web.trimRight=function(str,word,keep,deep){
 	if(!word){
 		//todo faster implementation for long strings
 		return str.replace(web.RegExp.trailingWhitespace, '');
+	}else if(web.isRegExp(str)){
+		throw 'Not implmented because idk how it should work'
 	}
 	var i = ((deep)?str.indexOf(word):str.lastIndexOf(word))
 	if(i<0){return str;}
@@ -1117,141 +1168,39 @@ web.inIframe=function(){
 }
 
 
-
-// web.abyss=function(elem,template,queryFn){
-// 	elem=$(elem)
-// 	if(web.isString(template)){
-// 		template=web.template(template)
-// 	}//else assume web template compiled?
-
-// 	elem.addClass('web-abyss')
-
-
-// 	var deferedActions=[]
-	
-// 	var loading=false;
-
-// 	var grid
-// 		,dataView = new Slick.Data.DataView()
-// 		,columns = [
-// 			{	
-// 				name: ""
-// 				//,id: "contact-card"
-// 				//, cssClass: "contact-card-cell"
-// 				,formatter:function renderCell(row, cell, value, columnDef, data) {
-// 					return template(data, 'data_'+data.uid).outerHTML()
-// 				}
-// 			}
-// 		]
-// 		,options = {
-// 			editable: false
-// 			,enableAddRow: false
-// 			,enableCellNavigation: false
-// 			,enableColumnReorder: false
-// 			,forceFitColumns: true
-// 			,headerHeight: 0
-// 			,leaveSpaceForNewRows:true
-// 			,resizable:false
-// 			//,autoHeight:true
-// 			,showHeaderRow:false
-// 		};
-
-
-// 		function init (datum){
-
-// 			options.rowHeight=web.height(template(datum))
-// 			//options.rowHeight=54
-// 			grid = new Slick.Grid(elem, dataView, columns, options);
-// 			elem.find(".slick-header").css("height","0px").css('display','none')
-// 			grid.resizeCanvas()
-
-// 			// wire up model events to drive the grid
-// 			dataView.onRowCountChanged.subscribe(function (e, args) {
-// 			  grid.updateRowCount();
-// 			  grid.render();
-// 			});
-
-// 			dataView.onRowsChanged.subscribe(function (e, args) {
-// 			  grid.invalidateRows(args.rows);
-// 			  grid.render();
-// 			});
-
-
-
-// 			//queryFn=_.debounce(queryFn,500)
-// 			grid.onScroll.subscribe(_.debounce(function(e,args){
-// 				//calculate in pixels how close we are to the bottom
-// 				//(this.getDataLength()*options.rowHeight)-args.scrollTop
-// 				//OR calculate in number of items
-// 				if(!loading && this.getViewport().bottom>=dataView.getLength()-5){
-// 					loading=true;
-// 					//console.log('polling...',dataView.getItem(dataView.getLength()-1))
-// 					queryFn(dataView.getItem(dataView.getLength()-1),appendData)
-// 				}
-
-// 			},50))
-
-// 			//do all defered actions now
-// 			_.forEach(deferedActions,function(fn){fn()})
-// 		}
-
-// 	// When user clicks button, fetch data via Ajax, and bind it to the dataview. 
-
-// 	var appendData=function(array){
-// 		if(!grid){
-// 			init(array[0])
-// 		}
-
-// 		_.forEach(array,function(item){dataView.addItem(item)})
-// 		//this will replace all data
-// 		//dataView.beginUpdate();
-// 		//dataView.setItems(array);
-// 		//dataView.endUpdate();
-// 		//grid.render();
-
-// 		//trying to update settings... does not work currently
-// 		//options.rowHeight= 140//template(grid.getData()).height()
-// 		//grid.setOptions(options);
-// 		//grid.invalidate();
-// 		loading=false
-// 	}
-
-// 	queryFn(undefined,appendData)
-	
-// 	var face= {
-// 		append:function(data){
-// 			if(!data){
-// 				queryFn(data)
-// 			}
-// 			dataView.addItem(data);
-// 			dataView.refresh();
-// 		},
-// 		clear:function(){
-// 			grid.invalidateAllRows();
-// 			dataView.setItems(undefined, "Id");
-// 			grid.render();
-// 		},
-// 		click:function(fn){
-// 			if(grid){
-// 				grid.onClick.subscribe(fn);
-// 			}else{
-// 				deferedActions.push(_.bind(face.click,face,fn))
-// 			}
-// 		},
-// 		setID:function(){ //TODO
-
-// 		}
-// 	}
-// 	return face
-// }
-
-
-
+//querystring expects to get (lastItem,callback) //callback is used after server hit
 web.abyss=function(elem,template,queryFn){
 	elem=$(elem)
-	if(web.isString(template)){
+
+	var orientation,idPrefix,options,idGetter,uid='webAbyss_'+web.UID()
+
+
+	var setOptions=function(o){
+		orientation=o.orientation
+		idPrefix=o.idPrefix;
+		idGetter=o.idGetter; //id getter
+		queryFn=o.query;
+
+		//set defaults
+		options.minHeight=o.minHeight||0
+	}
+	if(web.isObject(queryFn)){
+		options=queryFn;
+		setOptions(options)
+	}
+	if(!web.isValue(idPrefix)){
+		idPrefix=elem.attr('id')||web.UID()
+	}
+
+
+	// if(web.isArray(template)){
+
+	// }else
+	if (web.isString(template)){
 		template=web.template(template)
 	}//else assume web template compiled?
+
+	var vertical=(orientation!='horizontal');
 
 	elem.addClass('web-abyss')
 
@@ -1260,72 +1209,114 @@ web.abyss=function(elem,template,queryFn){
 
 	var grid
 		,dataView = new Slick.Data.DataView()
-		,column={
+		,column
+		,columns=[]
+		,settings;
+
+		if(vertical){
+			column={	
 				name: ""
 				//,id: "contact-card"
 				//, cssClass: "contact-card-cell"
 				,formatter:function renderCell(row, cell, value, columnDef, data) {
-					//console.info(row,cell,value,columnDef,data)
-					return template(data[cell], 'data_'+data.uid).outerHTML()
+					//console.info(idPrefix,idGetter,web.get.call(data,idGetter) ,data)
+					return template(data, idPrefix+'_'+web.get.call(data,idGetter) ).outerHTML()
 				}
-				,width:300
+				,selectable:true
+				,asyncPostRender:options.postRender
 			}
-		,columns = [column]
-		,options = {
+		,settings = {
 			editable: false
 			,enableAddRow: false
 			,enableCellNavigation: false
 			,enableColumnReorder: false
-			,forceFitColumns: false
+			,forceFitColumns: true
 			,headerHeight: 0
-			,leaveSpaceForNewRows:false
-			,resizable:true
-			,autoHeight:true
-			//,showHeaderRow:true
-		};
+			,leaveSpaceForNewRows:true
+			,resizable:false
+			//,autoHeight:true
+			,showHeaderRow:false
+			,enableAsyncPostRender: true
+			,asyncPostRenderDelay:0
 
-		var d=[]
-		d.id=0
-		dataView.addItem(d)
+		};
+		}else{
+			settings= {
+				editable: false
+				,enableAddRow: false
+				,enableCellNavigation: false
+				,enableColumnReorder: false
+				,forceFitColumns: false
+				,headerHeight: 0
+				,leaveSpaceForNewRows:false
+				,resizable:true
+				,autoHeight:true
+				//,showHeaderRow:true
+				,enableAsyncPostRender: true
+				,asyncPostRenderDelay:0
+			}
+			,column={	
+				name: ""
+				//,id: "contact-card"
+				//, cssClass: "contact-card-cell"
+				,formatter:function renderCell(row, cell, value, columnDef, data) {
+					//console.info(idPrefix,idGetter,web.get.call(data,idGetter) ,data)
+					return template(data[cell], idPrefix+'_'+web.get.call(data[cell],idGetter) ).outerHTML()
+				}
+				,selectable:true
+				,asyncPostRender:options.postRender
+				,width:300
+
+			}
+
+			var d=[]
+			d.id=0
+			dataView.addItem(d)
+		}
+		columns.push(column)
+
+
+
 
 		function init (datum){
+			var calculatedHeight=web.height(template(datum))
+			var height = (calculatedHeight<options.minHeight)?options.minHeight:calculatedHeight
 
-			options.rowHeight=web.height(template(datum))
-			//options.rowHeight=54
-			grid = new Slick.Grid(elem, dataView, columns, options);
+			settings.rowHeight=height||100
+			window.grid=grid = new Slick.Grid(elem, dataView, columns, settings);
+			grid.setSelectionModel(new Slick.RowSelectionModel());
+
 			elem.find(".slick-header").css("height","0px").css('display','none')
 			grid.resizeCanvas()
+			grid.autosizeColumns();
+			$(window).on("resize."+uid,function(){
+				grid.resizeCanvas();
+			})
 
 			// wire up model events to drive the grid
 			dataView.onRowCountChanged.subscribe(function (e, args) {
-			  grid.updateRowCount();
-			  grid.render();
+				grid.updateRowCount();
+				grid.render()
 			});
 
-			dataView.onRowsChanged.subscribe(function (e, args) {
-			  grid.invalidateRows(args.rows);
-			  grid.render();
-			});
+			// dataView.onRowsChanged.subscribe(function (e, args) {
+			// 	grid.invalidateRows(args.rows);
+			// 	grid.render();
+			// });
 
 
-			//vertical
-			//queryFn=_.debounce(queryFn,500)
-			// grid.onScroll.subscribe(_.debounce(function(e,args){
-			// 	//calculate in pixels how close we are to the bottom
-			// 	//(this.getDataLength()*options.rowHeight)-args.scrollTop
-			// 	//OR calculate in number of items
-			// 	if(!loading && this.getViewport().bottom>=dataView.getLength()-5){
-			// 		loading=true;
-			// 		//console.log('polling...',dataView.getItem(dataView.getLength()-1))
-			// 		queryFn(dataView.getItem(dataView.getLength()-1),appendData)
-			// 	}
-			// },50))
 
-			//horizontal
-			queryFn=web.lockable(_.debounce(queryFn,500))
-			grid.onScroll.subscribe(_.debounce(function(e,args){
+			var scrollfn=(vertical)?/*vertical*/(function(e,args){
+					//calculate in pixels how close we are to the bottom
+					//(this.getDataLength()*settings.rowHeight)-args.scrollTop
+					//OR calculate in number of items
+					if(this.getViewport().bottom>=dataView.getLength()-10){
+						//console.log('polling...',dataView.getItem(dataView.getLength()-1))
+						queryFn(dataView.getItem(dataView.getLength()-1),appendData)
+					}
+				}):(function(e,args){
 				//calculate in pixels how close we are to the bottom
-				//(this.getDataLength()*options.rowHeight)-args.scrollTop
+				//(this.getDataLength()*settings.rowHeight)-args.scrollTop
 				//OR calculate in number of items
 
 				//viewport is what the user can see
@@ -1333,12 +1324,13 @@ web.abyss=function(elem,template,queryFn){
 				//canvasNode is the div element that IS the whole table (like document is in HTML)
 				//web.log(this.getViewport(),'@',this.getRenderedRange(),'@',this.getGridPosition(),'@',this.getCanvasNode())
 				if(this.getRenderedRange().rightPx>=grid.getCanvasNode().offsetWidth){
-					
-					console.log('loading')
 					//console.log('polling...',dataView.getItem(dataView.getLength()-1))
 					queryFn(web.get.call(dataView.getItem(0),-1),appendData)
 				}
-			},50))
+			});
+
+			queryFn=web.lockable(_.debounce(queryFn,500))
+			grid.onScroll.subscribe(_.debounce(scrollfn,50))
 
 			//do all defered actions now
 			_.forEach(deferedActions,function(fn){fn()})
@@ -1351,15 +1343,21 @@ web.abyss=function(elem,template,queryFn){
 			init(array[0])
 		}
 
-		_.forEach(array,function(item){
-			//console.log(dataView)
+		if(vertical){
+			_.forEach(array,function(item){dataView.addItem(item)})
+		}else{
 			var columns=grid.getColumns()
-			columns.push(column)
-			grid.setColumns(columns)
 			var i=dataView.getItem(0)
-			i.push(item)
+
+			for(var x=0,l=array.length;x<l;x++){
+				columns.push(column)
+			}
+			
+			web.extend(columns,column,array.length)
+			i.push.apply(i,array)
+			grid.setColumns(columns)
 			dataView.updateItem(0,i)
-		})
+		}
 		//this will replace all data
 		//dataView.beginUpdate();
 		//dataView.setItems(array);
@@ -1367,8 +1365,8 @@ web.abyss=function(elem,template,queryFn){
 		//grid.render();
 
 		//trying to update settings... does not work currently
-		//options.rowHeight= 140//template(grid.getData()).height()
-		//grid.setOptions(options);
+		//settings.rowHeight= 140//template(grid.getData()).height()
+		//grid.setOptions(settings);
 		//grid.invalidate();
 		queryFn.allow()
 	}
@@ -1377,18 +1375,25 @@ web.abyss=function(elem,template,queryFn){
 	
 	var face= {
 		append:function(data){
-			if(!data){
-				queryFn(data)
+			if(web.isArray(data)){
+				appendData(data)
+			}else{
+				appendData([data])
 			}
-			dataView.addItem(data);
-			dataView.refresh();
-		},
-		clear:function(){
+			//if(!data){
+			//	queryFn(data)
+			//}
+			//dataView.addItem(data);
+			//dataView.refresh();
+			//return idPrefix+'_'+web.get.call(data,id)
+		}
+		,clear:function(){
 			grid.invalidateAllRows();
 			dataView.setItems(undefined, "Id");
 			grid.render();
-		},
-		click:function(fn){
+			$(window).off('.'+uid)
+		}
+		,click:function(fn){
 			if(grid){
 				grid.onClick.subscribe(function(e,args){
 					var data = this.getDataItem(args.row)
@@ -1400,10 +1405,28 @@ web.abyss=function(elem,template,queryFn){
 			}else{
 				deferedActions.push(_.bind(face.click,face,fn))
 			}
-		},
-		setID:function(){ //TODO
+			return face
+		}
+		,setID:function(){ //TODO
 
 		}
+		,getElement:function(){
+			return elem;
+		}
+		,reset:function(options){
+			if(options){
+				if(web.isFunction(options)){
+					queryFn=options
+				}else if(web.isObject(options)){
+					setOptions(options)
+				}
+			}
+			grid=undefined;
+
+
+
+		}
+		,setOptions:setOptions
 	}
 	return face
 }
@@ -1471,6 +1494,70 @@ web.height=function(elem,type){
 	}else{
 		throw 'need to implment height for other elements'
 	}
+}
+
+web.getClassList=function(elem){
+	var classes;
+	if(web.isjQuery(elem)){
+		classes=elem.attr('class')
+	}else{
+		classes = elem.className
+	}
+	var classList = classes.split(/\s+/);
+		for (var i = 0; i < classList.length; i++) {
+			if (classList[i] === 'someClass') {
+			//do something
+		}
+	}
+}
+
+
+web.snapTo=function(elem1,edge,elem2,edge2){
+	elem1=$(elem1)
+	elem2=$(elem2)
+	var fn = function(){
+		elem1.offset()
+		elem2.offset()
+
+		'static'
+		'relative'
+		'absolute'
+		'fixed'
+		'sticky'
+	}
+
+	fn()
+	return fn
+}
+
+web.position=function(elem,relativeTo){
+	elem=$(elem)
+	var position=elem.css('position')
+		,x,y,offset=elem.offset()
+	if(position=='fixed'){
+		if(elem.parent()[0]==web.body){
+			offset.y-=parseFloat($.css('top'))
+		}else{
+			var offset=elem.offset()
+			offset.y-=$(document).scrollTop()
+		}
+	}
+	if(relativeTo==web.document){
+		return offset
+	}else if(relativeTo==web.viewPort){
+		var offset=elem.offset()
+		offset.y=offset.y-$(document).scrollTop()
+		return offset
+	}else if(relativeTo==web.screen){
+
+	}
+}
+
+web.convertPosition=function(id,type,hoistToBody){//id can be selector, dom element or jquery (dependency = jquery)
+	var change=$(id)
+		,pos=change.position();
+	hoistToBody&&change.appendTo('body');
+	return change.css({top: pos.top, left: pos.left, position: (type||'absolute')});
 }
 
 //original Inspiration http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
@@ -2680,7 +2767,7 @@ web.ascii=function(key){
 
 
 if(web.global.doT){
-	doT.templateSettings.varname='data'
+	doT.templateSettings.varname='data' //TODO should this be datum? IDK
 	/*
 	templateSettings = {
   evaluate:    /\{\{([\s\S]+?)\}\}/g,
@@ -3473,6 +3560,9 @@ web.set=function(context,path,value){
 //todo support bracket notation
 //inspiration http://stackoverflow.com/questions/14375753/parse-object-dot-notation-to-retrieve-a-value-of-an-object
 web.get=function(key){
+	if(key==null){
+		return undefined
+	}
 	var obj = setScope(this,undefined)
 	if(web.isValue(obj)){
 		if(web.isNumber(key)){
@@ -3522,6 +3612,35 @@ web.appendToHashArray = function(obj,key,value){
 		array.push(value)
 		return array
 	}
+
+var toPositiveIndex=function(i,l){
+	return (i<0)?l-i:i
+}
+
+web.append=function(elem,elem2){
+	if(web.isNode(elem)){
+		elem.appendChild(elem2);
+	}
+}
+web.insert=function(array,index,value){
+	if(web.isArray(array)){
+		array.splice(index, 0, value);
+		return array
+	}else if(web.isNode(elem)){
+		if(web.isNumber(index)){
+			elem.insertBefore(value,(index<0)?elem.childNodes.length-index:index)
+		}else if(web.isNode(index)){
+			elem.insertBefore(value,index)
+		}
+	}
+}
+
+web.prepend=function(elem,elem2){
+	if(web.isNode(elem)){
+		elem.insertBefore(elem2,elem.firstChild);
+	}
+}
+
 
 web.supportsWorkers=function(){
 	return !!web.global.Worker;
@@ -4049,8 +4168,9 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 		var instance=$(compiled(data))
 
 		//this will either set the id or return (if the id var was null undefined etc)
-		instance.attr("id",id); //make sure not to chain on returns in case id==undefined cause it will return an empty stirng 
-		
+		if(web.isValue(id)){
+			instance.attr("id",id); //make sure not to chain on returns in case id==undefined cause it will return an empty stirng 
+		}
 		/*
 		//inspiration
 		//http://stackoverflow.com/questions/19160474/how-to-prevent-an-img-tag-from-loading-its-image
@@ -4549,6 +4669,81 @@ web.hashSwap=function(data,fn){//fn handles collisions
 	},{});
 }
 
+//copied from https://github.com/garycourt/murmurhash-js
+web.hashID=function(string,algorithm){//TODO replace with xxHash https://code.google.com/p/xxhash/
+	if(web.isArray(algorithm)){
+		//concat those fools!
+		var hash=''
+		_.forEach(function(algo){
+			hash+=web.hashID(string,algo)
+		})
+		return hash
+	}
+	var key=string,seed='L87jqBV2Xoo0YidZp3j3ZEIxc3bhOr4H2FNJRky632qNDEABVuGLMlME7zoo8JZU' //some random bit I got from running
+	//echo `cat /dev/urandom | base64 | tr -dc "[:alnum:]" | head -c64`
+/**
+ * JS Implementation of MurmurHash3 (r136) (as of May 20, 2011)
+ * 
+ * @author <a href="mailto:gary.court@gmail.com">Gary Court</a>
+ * @see http://github.com/garycourt/murmurhash-js
+ * @author <a href="mailto:aappleby@gmail.com">Austin Appleby</a>
+ * @see http://sites.google.com/site/murmurhash/
+ * 
+ * @param {string} key ASCII only
+ * @param {number} seed Positive integer only
+ * @return {number} 32-bit positive integer hash 
+ */
+	var remainder, bytes, h1, h1b, c1, c1b, c2, c2b, k1, i;
+	
+	remainder = key.length & 3; // key.length % 4
+	bytes = key.length - remainder;
+	h1 = seed;
+	c1 = 0xcc9e2d51;
+	c2 = 0x1b873593;
+	i = 0;
+	
+	while (i < bytes) {
+	  	k1 = 
+	  	  ((key.charCodeAt(i) & 0xff)) |
+	  	  ((key.charCodeAt(++i) & 0xff) << 8) |
+	  	  ((key.charCodeAt(++i) & 0xff) << 16) |
+	  	  ((key.charCodeAt(++i) & 0xff) << 24);
+		++i;
+		
+		k1 = ((((k1 & 0xffff) * c1) + ((((k1 >>> 16) * c1) & 0xffff) << 16))) & 0xffffffff;
+		k1 = (k1 << 15) | (k1 >>> 17);
+		k1 = ((((k1 & 0xffff) * c2) + ((((k1 >>> 16) * c2) & 0xffff) << 16))) & 0xffffffff;
+
+		h1 ^= k1;
+        h1 = (h1 << 13) | (h1 >>> 19);
+		h1b = ((((h1 & 0xffff) * 5) + ((((h1 >>> 16) * 5) & 0xffff) << 16))) & 0xffffffff;
+		h1 = (((h1b & 0xffff) + 0x6b64) + ((((h1b >>> 16) + 0xe654) & 0xffff) << 16));
+	}
+	
+	k1 = 0;
+	
+	switch (remainder) {
+		case 3: k1 ^= (key.charCodeAt(i + 2) & 0xff) << 16;
+		case 2: k1 ^= (key.charCodeAt(i + 1) & 0xff) << 8;
+		case 1: k1 ^= (key.charCodeAt(i) & 0xff);
+		
+		k1 = (((k1 & 0xffff) * c1) + ((((k1 >>> 16) * c1) & 0xffff) << 16)) & 0xffffffff;
+		k1 = (k1 << 15) | (k1 >>> 17);
+		k1 = (((k1 & 0xffff) * c2) + ((((k1 >>> 16) * c2) & 0xffff) << 16)) & 0xffffffff;
+		h1 ^= k1;
+	}
+	
+	h1 ^= key.length;
+
+	h1 ^= h1 >>> 16;
+	h1 = (((h1 & 0xffff) * 0x85ebca6b) + ((((h1 >>> 16) * 0x85ebca6b) & 0xffff) << 16)) & 0xffffffff;
+	h1 ^= h1 >>> 13;
+	h1 = ((((h1 & 0xffff) * 0xc2b2ae35) + ((((h1 >>> 16) * 0xc2b2ae35) & 0xffff) << 16))) & 0xffffffff;
+	h1 ^= h1 >>> 16;
+
+	return h1 >>> 0;
+}
+
 
 //inspiration http://shebang.brandonmintern.com/foolproof-html-escaping-in-javascript/
 //inspiration for "secure" way
@@ -4615,10 +4810,7 @@ web.removeWhitespace=function(str,trim){
 	return ((trim)?str.trim():str).split(web.RegExp.concurrentWhitespace)
 }
 
-web.insert=function(array,index,value){
-	array.splice(index, 0, value);
-	return array
-}
+
 
 
 web.screenshot=function(targetElement,type,callback){
@@ -4655,7 +4847,7 @@ web.getYoutubeHash=function(url){
 		return hash.slice(0,-1)
 	}else{ //now we will either just get the u= variable or the v= variablel //in that order yeah it isn't right but I do it
 		//http://www.youtube.com/attribution_link?a=5X4P22YNTKU&amp;u=%2Fwatch%3Fv%3DT2NUk5AFImw%26feature%3Dshare
-		var v = web.queryString(web.queryString(web.unescapeHTML(url),'u')||url,'v') 
+		var v = web.queryString(web.queryString(web.unescapeHTML(url),'u')||web.unescapeHTML(url),'v') 
 		if(v&&web.RegExp.validateYoutubeHash.test(v)){
 			return v
 		}else{ //just trim off the url and see if the value is at the end of the url
@@ -4679,7 +4871,7 @@ web.getYoutubeHash=function(url){
 ({		//Tests																								Answers
 //pCoWDoGG tests (mine!)
 "http://www.youtube.com/attribution_link?a=5X4P22YNTKU&amp;u=%2Fwatch%3Fv%3DT2NUk5AFImw%26feature%3Dshare"	:'T2NUk5AFImw',
-
+"https://www.youtube.com/watch?feature=player_embedded&amp;v=E-byfKGQkbA"									:'E-byfKGQkbA',
 
 
 //Lasnv http://stackoverflow.com/questions/3452546/javascript-regex-how-to-get-youtube-video-id-from-url
@@ -4905,13 +5097,7 @@ alert('Welcome!') //displays first
 //
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
-web.DOM=web.DOM||{}
-web.DOM.lockPosition=function(id,type,hoistToBody){//id can be selector, dom element or jquery (dependency = jquery)
-	var change=$(id)
-		,pos=change.position();
-	hoistToBody&&change.appendTo('body');
-	return change.css({top: pos.top, left: pos.left, position: (type||'absolute')});
-}
+
 
 
 
@@ -5295,6 +5481,141 @@ web.cookie=function(req){
 
 
 
+
+//can be
+//elem,type
+//or
+//width,height,type
+web.ratioTo=function(width,height,output) {
+	if(!web.isNumber(height)){
+		var tmp=height
+		height=output
+		output=tmp
+	}
+	if(!web.isNumber(width)){
+		width=$(width)
+		height=width.height()
+		width=width.width()
+	}
+	
+
+	if(output=='percent' || output==undefined){
+		return ((parseInt(height, 10) / parseInt(width, 10)) * 100) + '%';
+	}else if(output=='number'){
+
+	}else{
+		throw 'not implmented'
+	}
+}
+
+/*NOTE! this will take the width and height attributes and apply 100% style width and height
+ratio can be in 
+"attribute" =takes from html width n height attributes default
+"style" = takes from style
+"calcuated" =takes from calculated (offset i think?)
+"560,315"=direct stirng input width,height
+"56.25%" || 56.25=direct margin%
+"6:9" =aspect ratio
+
+
+youtube suggests 
+4:3, 480px X 385px (+25px to height for controls).
+or 
+16:9, 560x315.
+http://stackoverflow.com/questions/13880745/embedding-youtube-videos-aspect-ratio
+
+*/
+web.responsiveRatio=function(elem,ratio){
+	var css = ''
+		+'.web-responsiveRatio {'
+		+'width: 100%; max-width: 100%; position: relative;'
+		+'}'
+		+'.web-responsiveRatio-contents {'
+		+'position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;'
+		+'}';
+	if(!web.responsiveRatio.ranOnce){
+		web.responsiveRatio.ranOnce=true
+		//web.css(css) //TODO fix this
+		var div = document.createElement('div');
+		div.innerHTML = '<p>x</p><style>' + css + '</style>';
+		head.appendChild(div.childNodes[1]);
+		web
+	}
+
+	if(web.isjQuery(elem)){
+		var out=[]
+		elem.each(function(){
+			out.push(web.responsiveRatio(this,ratio))
+		})
+		return $(out)
+	}
+
+	//TODO this could be optimized to go higher but for right now "attribute" "style" and "computed" need to be done per item
+	if(ratio==null||'attribute'){
+		ratio=web.ratioTo(elem.width,elem.height,'percent')
+	}else if(!web.endsWith(ratio,'%') || !web.isNumber(ratio)){
+		if(ratio=='style'){
+			ratio=web.ratioTo(elem.style.width,elem.style.height,'percent')
+		}else if(ratio=='calculated'){
+			var e = $(elem)
+			ratio=web.ratioTo(e.width(),e.height(),'percent')
+		}else if(web.contains(',')){
+			var e=ratio.split(',')
+			ratio=web.ratioTo(e[0],e[1],'percent')
+		}else if(web.contains(':')){
+			var e=ratio.split(':')
+			ratio=web.ratioTo(e[0],e[1],'percent')
+		}
+	}
+
+	var positionWrapper;
+	if(elem.style.position=='absolute'||elem.style.position=='fixed',elem.style.position=='relative'){
+		console.warn('using position wrapper for responsiveRatio NOT TESTED!!!!!')
+		positionWrapper=document.createElement('div') 
+		elem.parentNode.insertBefore(positionWrapper, elem); //insert before
+		positionWrapper.style.position	=elem.style.position;
+		positionWrapper.style.top		=elem.style.top;
+		positionWrapper.style.bottom	=elem.style.bottom;
+		positionWrapper.style.left		=elem.style.left;
+		positionWrapper.style.right		=elem.style.right;
+		//positionWrapper.style.width		=elem.style.width;
+		//positionWrapper.style.height	=elem.style.height;
+		//positionWrapper.style.margin	=elem.style.margin;
+		//positionWrapper.style.padding	=elem.style.padding;
+	}
+
+	var wrapMed = document.createElement('div'),wrapSmall=document.createElement('div')//create frame
+
+	elem.parentNode.insertBefore(wrapMed, elem); //insert before
+	wrapMed.style.paddingTop = ratio;
+	//add classes
+	wrapMed.className += 'web-responsiveRatio';
+	wrapSmall.className += /*(elem.className ? ' ' : '') + */'web-responsiveRatio-contents';
+	//set ratio
+	//elem.removeAttribute('width')
+	//elem.removeAttribute('height')
+	//elem.style.removeProperty('width')
+	//elem.style.removeProperty('height')
+	elem.style.width='100%'
+	elem.style.height='100%'
+
+	//move elem into new container
+	wrapMed.appendChild(wrapSmall);
+	wrapSmall.appendChild(elem);
+
+
+	// if(addClasses){
+	// 	positionWrapper=positionWrapper||document.createElement('div')
+	// 	positionWrapper.className +=  addClasses//(elem.className ? ' ' : '') + elem.className;
+	// }
+	if(positionWrapper){
+		wrapMed.parentNode.insertBefore(positionWrapper, wrapMed); //insert before
+		positionWrapper.appendChild(wrapMed);
+		return positionWrapper
+	}
+	return wrapMed
+}
+web.responsiveRatio.ranOnce=false;
 
 
 web.ms={}
@@ -5690,7 +6011,7 @@ normalizes the fullscreen function between browsers.
 Optomized. Does not set property until you call it once :-D
 **************************/
 web.fullScreen=function(elem){
-	elem=elem||document.document.Element;
+	elem=elem||document.documentElement;
 	return elem[web.fullScreen.property||web.fullScreen.setProperty()]();
 }
 web.fullScreen.setProperty=function(){
@@ -6519,6 +6840,26 @@ defer(function(){web.proxy('get','google.com',defer())}
 */
 
 
+
+
+
+//Could use something like this maybe?
+//http://stackoverflow.com/questions/2087778/javascript-copy-style
+
+//http://stackoverflow.com/questions/2715447/how-can-i-programmatically-copy-all-of-the-style-attributes-from-one-dom-element
+web.copyStyle=function(elem1,elem2){
+	var completeStyle = "";
+	if ("getComputedStyle" in window)
+		completeStyle = window.getComputedStyle(elem1, null).cssText;
+	else
+	{
+		var elStyle = elem1.currentStyle;
+		for (var k in elStyle) { completeStyle += k + ":" + elStyle[k] + ";"; }
+	}
+
+	elem2.style.cssText = completeStyle;
+}
+//http://davidwalsh.name/add-rules-stylesheets
 web.css=function(input,elem){
 	var raw = input
 	if(web.isType(input,'String')){
@@ -6529,40 +6870,49 @@ web.css=function(input,elem){
 			// Write style rule in stylesheet
 			// @param {string} rule a series of selectors and rules separated by the newline character '\n'
 			// @returns {string} empty string
-				rule=input;
-				var lastStyleSheetIndex = document.styleSheets.length - 1;
-				var styleInputTag=document.getElementById("webInjectedCSS")
-				if(styleInputTag == null) {
-					styleInputTag = document.createElement("style");
-					styleInputTag.id = "webInjectedCSS";
-					styleInputTag.type = "text/css";
-					document.body.appendChild(styleInputTag);
+			var rule=input;
+			var lastStyleSheetIndex = document.styleSheets.length - 1;
+			var styleInputTag=document.getElementById("webInjectedCSS")
+				/*
+				fluidvids does it like this idk why they make the <p>x</p> tag? nor create style directly
+				https://github.com/toddmotto/fluidvids/blob/master/dist/fluidvids.js
+
+				function addStyles () {
+					var div = document.createElement('div');
+					div.innerHTML = '<p>x</p><style>' + css + '</style>';
+					head.appendChild(div.childNodes[1]);
 				}
-				if(web.isFireFox() || web.isOpera()){
-					// wow, I can't believe this works in FF and Opera. It shouldn't 
-					styleInputTag.innerHTML += "\n" + rule + "\n";
-				} else if (web.isIE() || web.isSafari()) {
-					// in IE, stylesheets are added to the top of the stack 
-					if(web.isIE()) {
-						var i = 0;
-					} else if (web.isSafari()) {
-						var i = document.styleSheets.length - 1;
-					}
-					// create array of rules 
-					var rulesArray = rule.split("}");
-					for(var t = 0; t < rulesArray.length; t++) {
-						var ruleSplit = rulesArray[t].split("{");
-						// IE wont take multiple selectors in one rule in addRule 
-						var selectors = ruleSplit[0].split(",");
-							for(var k = 0; k < selectors.length; k++) {
-								document.styleSheets[i].addRule(selectors[k],ruleSplit[1]);
-							}
+				*/
+			if(styleInputTag == null) {
+				styleInputTag = document.createElement("style");
+				styleInputTag.id = "webInjectedCSS_"+web.hashID(rule);
+				styleInputTag.type = "text/css";
+				head.appendChild(styleInputTag);
+			}
+			if(web.isFireFox() || web.isOpera()){
+				// wow, I can't believe this works in FF and Opera. It shouldn't 
+				styleInputTag.innerHTML += "\n" + rule + "\n";
+			}else if (web.isIE() || web.isSafari()) {
+				// in IE, stylesheets are added to the top of the stack 
+				if(web.isIE()) {
+					var i = 0;
+				} else if (web.isSafari()) {
+					var i = document.styleSheets.length - 1;
+				}
+				// create array of rules 
+				var rulesArray = rule.split("}");
+				for(var t = 0; t < rulesArray.length; t++) {
+					var ruleSplit = rulesArray[t].split("{");
+					// IE wont take multiple selectors in one rule in addRule 
+					var selectors = ruleSplit[0].split(",");
+						for(var k = 0; k < selectors.length; k++) {
+							document.styleSheets[i].addRule(selectors[k],ruleSplit[1]);
 						}
-				}
+					}
+			}
 			return
 		}
-
-	   var styles=input.trim().split(';'),keyValue;
+		var styles=input.trim().split(';'),keyValue;
 		for(var i=0,l=styles.length;i<l;i++){
 
 			keyValue=styles[i]
@@ -6728,9 +7078,6 @@ if(web.isJSCommons()){
 
 ga('create', web.google.analytics.trackingID||'', 'auto');
 ga('send', 'pageview');*/
-
-
-
 
 
 
