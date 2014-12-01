@@ -17,6 +17,20 @@ html.full-view, html.full-view body{
 }
 
 
+*:fullscreen {
+  position:fixed;
+  top:0; 
+  right:0; 
+  bottom:0; 
+  left:0;
+  margin:0;
+  box-sizing:border-box;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+
 /******************/
 /*  WebJS classes */
 /******************/
@@ -26,6 +40,9 @@ html.full-view, html.full-view body{
 .scroll-both{overflow:scroll;}
 
 	/*helper classes*/
+	.display-none{
+		display:none;
+	}
 	.click-through{
 		pointer-events: none;
 	}
@@ -131,6 +148,18 @@ html.full-view, html.full-view body{
 		width:100%;
 		height:100%;
 	}
+	.flood-outer{
+		position: relative;
+	}
+	.flood-inner{
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		width:100%;
+		height:100%;
+	}
 	.inline-block{
 		display:inline-block ;
 	}
@@ -141,7 +170,7 @@ html.full-view, html.full-view body{
 		margin-right: 1em
 	}
 	.no-padding{
-		padding:0;
+		padding:0 !important;
 	}
 	.no-margin{
 		margin: 0;
@@ -382,11 +411,17 @@ html.full-view, html.full-view body{
 	.popover{ /*override default max width this allows developer to control it via the text*/
 		max-width: none
 	}
-	</style>
 
-
-
-
+	/*Fix the stupid hover and active colors that make toggle buttons difficult to understand*/
+	.btn:focus, .btn.focus {
+		background-color: #fff;
+	}
+	.btn.active {
+		background-color: rgb(230, 230, 230)
+	}
+	.btn.focus:hover {
+		background-color: rgb(230, 230, 230)
+	}
 
 
 

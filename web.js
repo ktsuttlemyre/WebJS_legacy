@@ -91,16 +91,121 @@ end pollyfills
 			$.fn.isAttached = function(){
 				return (jQuery.contains(document, this[0]));
 			}
-			$.fn.redraw = function(){
+			$.fn.reflow = function(){
 				$(this).each(function(){
 					var redraw = this.offsetHeight;
 				});
 			};
+			//order does not matter, we will take 
+			$.fn.switchClass=function(from,to,duration,callback){
+				var q=$(this)
+				//if(q.hasClass(from)){ //NOTE order matters. if you want order to not matter use toggle
+					q.removeClass(from).addClass(to)
+				//}else{
+				//	q.removeClass(to).addClass(from)
+				//}
+				callback&&callback()
+			},
+			$.fn.exists=function(){
+				return this.length>0;
+			}
+			$.fn.getLastClass=function(){
+				return $(this).attr('class').split(' ').pop().trim()
+			}
 
 		})(jQuery);
 
+//I DONT REMEMBER WHAT THIS IS
+		// !(function($){
+		// /*$.*/ var castTo=function(obj,cons){ //TODO look into creating a castTo for jquery
+		// 	if(!(obj instanceof cons)){
+		// 		return cons(append);
+		// 	}
+		// }
+		// // ...before overwriting the jQuery extension point
+		// $.fn.merge = function(jQueryOBJ){
+		// 	if(!jQueryOBJ){
+		// 		return this;
+		// 	}
+		// 	jQueryOBJ=castTo(jQueryOBJ,jQuery);
+		// 		return (this.length>jQueryOBJ.length)?this.add(jQueryOBJ.not(this)):jQueryOBJ.add(this.not(jQueryOBJ)); //possibly a performance gain?;
+		// 	};
+		// })(jQuery);
 
 
+
+
+// 	var C=window.C||function(one,two,three,four){
+// 		if(typeof two == "string"){
+// 			return c[two](one,three,four);
+// 		}
+// 		if(typeof one == "string"){
+// 			return c[str];
+// 		}
+// 		return c};
+
+
+
+		// !(function(Stallion){
+
+		// 	var queue = [];
+		// 	var loaded=false;
+
+		// 	var ready = function(fn){
+		// 		if(typeof fn =="string"){
+		// 			if(fn=="ready"){
+		// 				loaded=true;
+		// 				for (var o=queue, i=0, l=o.length,x=o[0]; i < l; x=o[++i]) {
+		// 					x();
+		// 				}
+		// 			}
+		// 		}else{
+		// 			if(loaded){
+		// 				fn()
+		// 			}else{
+		// 				queue.push();
+		// 			}
+
+		// 		}
+
+
+		// 	};
+		// 	Stallion.YouTube= Stallion.Youtube || ready
+
+		// 	Stallion.YouTube.ready=ready
+		// })(window.Stallion);
+
+
+		// function onYouTubeIframeAPIReady() {
+		// 	Stallion.YouTube.ready('ready')
+		// }
+
+
+// 									/*proposed C syntax */
+
+// C(obj,"castTo",Constructor,fn) OR C(obj,'castTo C.Queue',fn) fn is called if object is not instance of
+// C(obj,'insanceof',constructor) OR C(obj,'instanceof C.Queue',fnTrue,fnFalse) also '!instanceof' should be allowed
+// C('new C.Queue') OR C('new',C.Queue) OR C(new C.Queue()) ????
+// C() returns little c
+// C('unpack') attaches all static methods to C object
+// C('noConflict')
+// C('pack')
+
+
+// var c={}
+// c.castTo=function(obj,cons,fn){ //TODO extend this to use commented funciton
+// 	if(!(obj instanceof cons)){
+// 		return (fn)?fn(obj,cons):cons(obj);
+// 	}
+
+// 	/*
+// 	if(!(C.instanceof(obj,cons)){
+// 		if(C.cons)
+// 		return (fn)?fn(obj,cons):cons(append);
+// 	}
+
+// 	*/
+// }
 
 
 var uaparser = new UAParser();
@@ -408,8 +513,27 @@ var web=(function(web,global,environmentFlags,undefined){
 	
 //private things
 var head = document.head || document.getElementsByTagName('head')[0];
+	
 
 
+
+
+
+
+var production=false;
+web.setProduction=function(isProduction){
+	if(isProduction.toUpperCase&&isProduction.toUpperCase()=='PRODUCTION'){
+		production=true
+		return
+	}
+	production=isProduction
+}
+web.isDevelopment=web.isDev=function(){
+	return !production
+}
+web.isProduction=function(){
+	return production
+}
 
 //Used a lot in other languages for complex spliting
 //https://www.google.com/search?q=soh+character&oq=SOH+charac&aqs=chrome.1.69i57j0l5.4423j1j7&sourceid=chrome&es_sm=91&ie=UTF-8#safe=off&q=SOH+character+split
@@ -937,7 +1061,17 @@ web.isRegExp=function(o){
 web.trimLeft=function(str,word,keep,deep){
 	if(!word){
 		return str.replace(web.RegExp.leadingWhitespace, '');
-	}else if(web.isRegExp(str)){
+	}
+	var type = typeof word;
+	if(type=='string'){
+		var i=((deep)?str.lastIndexOf(word):str.indexOf(word))
+		if(i<0){return str;}
+		return str.slice( i + ((keep)?0:word.length))
+	}
+	if(type=='number'){
+		return str.slice(Math.abs(word))
+	}
+	if(web.isRegExp(str)){
 		throw 'Not implmented because idk how it should work'
 		// var index=0;
 		// return str.replace(str,function(match,offset,str){
@@ -947,20 +1081,25 @@ web.trimLeft=function(str,word,keep,deep){
 		// 	}
 		// })
 	}
-	var i=((deep)?str.lastIndexOf(word):str.indexOf(word))
-	if(i<0){return str;}
-	return str.slice( i + ((keep)?0:word.length))
 }
 web.trimRight=function(str,word,keep,deep){
 	if(!word){
 		//todo faster implementation for long strings
 		return str.replace(web.RegExp.trailingWhitespace, '');
-	}else if(web.isRegExp(str)){
+	}
+	var type = typeof word;
+	if(type=='string'){
+		var i = ((deep)?str.indexOf(word):str.lastIndexOf(word))
+		if(i<0){return str;}
+		return str.slice( 0, i + ((keep)?word.length:0))
+	}
+	if(type=='number'){
+		return str.slice(0,-Math.abs(word))
+	}
+	if(web.isRegExp(str)){
 		throw 'Not implmented because idk how it should work'
 	}
-	var i = ((deep)?str.indexOf(word):str.lastIndexOf(word))
-	if(i<0){return str;}
-	return str.slice( 0, i + ((keep)?word.length:0))
+
 }
 web.deepTrimRight=function(str,word,keep){ //todo possible rename to slash? maybe confusing though
 	return web.trimRight(str,word,keep,true)
@@ -1208,11 +1347,18 @@ web.abyss=function(elem,template,queryFn){
 	var deferedActions=[]
 
 	var grid
-		,dataView = new Slick.Data.DataView()
+		,dataView
 		,column
-		,columns=[]
+		,columns
 		,settings;
 
+
+
+
+
+		function init (datum){
+		columns=[]
+		dataView=new Slick.Data.DataView({ inlineFilters: true })
 		if(vertical){
 			column={	
 				name: ""
@@ -1228,7 +1374,7 @@ web.abyss=function(elem,template,queryFn){
 		,settings = {
 			editable: false
 			,enableAddRow: false
-			,enableCellNavigation: false
+			,enableCellNavigation: true
 			,enableColumnReorder: false
 			,forceFitColumns: true
 			,headerHeight: 0
@@ -1244,7 +1390,7 @@ web.abyss=function(elem,template,queryFn){
 			settings= {
 				editable: false
 				,enableAddRow: false
-				,enableCellNavigation: false
+				,enableCellNavigation: true
 				,enableColumnReorder: false
 				,forceFitColumns: false
 				,headerHeight: 0
@@ -1275,12 +1421,14 @@ web.abyss=function(elem,template,queryFn){
 		}
 		columns.push(column)
 
-
-
-
-		function init (datum){
-			var calculatedHeight=web.height(template(datum))
-			var height = (calculatedHeight<options.minHeight)?options.minHeight:calculatedHeight
+			var height = options.rowHeight;
+			if(!height){ //TODO because we load a dummy image this can thow off the row height if the dummy image does not have the same aspect ratio as the data image
+				var dom=template(datum)
+				//alert($(dom).clone().appendTo('body').innerHeight())
+				height=web.height(dom)
+			}
+			//enforce minHeight
+			height = (height<options.minHeight)?options.minHeight:height
 
 			settings.rowHeight=height||100
 			window.grid=grid = new Slick.Grid(elem, dataView, columns, settings);
@@ -1289,9 +1437,9 @@ web.abyss=function(elem,template,queryFn){
 			elem.find(".slick-header").css("height","0px").css('display','none')
 			grid.resizeCanvas()
 			grid.autosizeColumns();
-			$(window).on("resize."+uid,function(){
+			$(window).on("resize."+uid,_.debounce(function(){
 				grid.resizeCanvas();
-			})
+			},100))
 
 			// wire up model events to drive the grid
 			dataView.onRowCountChanged.subscribe(function (e, args) {
@@ -1299,12 +1447,60 @@ web.abyss=function(elem,template,queryFn){
 				grid.render()
 			});
 
-			// dataView.onRowsChanged.subscribe(function (e, args) {
-			// 	grid.invalidateRows(args.rows);
-			// 	grid.render();
-			// });
+			dataView.onRowsChanged.subscribe(function (e, args) {
+				grid.invalidateRows(args.rows);
+				grid.render();
+			});
+
+///////////////////////////////////////
+//////////////////////////////////////
+  // grid.onCellChange.subscribe(function (e, args) {
+  //   dataView.updateItem(args.item.id, args.item);
+  // });
+  // grid.onAddNewRow.subscribe(function (e, args) {
+  //   var item = {"num": data.length, "id": "new_" + (Math.round(Math.random() * 10000)), "title": "New task", "duration": "1 day", "percentComplete": 0, "start": "01/01/2009", "finish": "01/01/2009", "effortDriven": false};
+  //   $.extend(item, args.item);
+  //   dataView.addItem(item);
+  // });
+	grid.onKeyDown.subscribe(function (e) {
+		// select all rows on ctrl-a
+		if (e.which == 65 && e.ctrlKey) {
+			var rows = web.forRange(dataView.getLength())
+			grid.setSelectedRows(rows);
+			e.preventDefault();
+		}
+		return false;
+	});
+  // grid.onSort.subscribe(function (e, args) {
+  //   sortdir = args.sortAsc ? 1 : -1;
+  //   sortcol = args.sortCol.field;
+  //   if ($.browser.msie && $.browser.version <= 8) {
+  //     // using temporary Object.prototype.toString override
+  //     // more limited and does lexicographic sort only by default, but can be much faster
+  //     var percentCompleteValueFn = function () {
+  //       var val = this["percentComplete"];
+  //       if (val < 10) {
+  //         return "00" + val;
+  //       } else if (val < 100) {
+  //         return "0" + val;
+  //       } else {
+  //         return val;
+  //       }
+  //     };
+  //     // use numeric sort of % and lexicographic for everything else
+  //     dataView.fastSort((sortcol == "percentComplete") ? percentCompleteValueFn : sortcol, args.sortAsc);
+  //   } else {
+  //     // using native sort with comparer
+  //     // preferred method but can be very slow in IE with huge datasets
+  //     dataView.sort(comparer, args.sortAsc);
+  //   }
+  // });
+  // wire up model events to drive the grid
 
 
+
+///////////////////////////////////////
+//////////////////////////////////////
 
 			var scrollfn=(vertical)?/*vertical*/(function(e,args){
 					//calculate in pixels how close we are to the bottom
@@ -1334,6 +1530,19 @@ web.abyss=function(elem,template,queryFn){
 
 			//do all defered actions now
 			_.forEach(deferedActions,function(fn){fn()})
+			 // function updateFilter() {
+			  //   dataView.setFilterArgs({
+			  //     percentCompleteThreshold: percentCompleteThreshold,
+			  //     searchString: searchString
+			  //   });
+			  //   dataView.refresh();
+			  // }
+
+			  options.filter&&dataView.setFilter(options.filter);
+			  
+			  // if you don't want the items that are not visible (due to being filtered out
+			  // or being on a different page) to stay selected, pass 'false' to the second arg
+			  dataView.syncGridSelection(grid, true);
 		}
 
 	// When user clicks button, fetch data via Ajax, and bind it to the dataview. 
@@ -1344,7 +1553,9 @@ web.abyss=function(elem,template,queryFn){
 		}
 
 		if(vertical){
+			dataView.beginUpdate()
 			_.forEach(array,function(item){dataView.addItem(item)})
+			dataView.endUpdate()
 		}else{
 			var columns=grid.getColumns()
 			var i=dataView.getItem(0)
@@ -1396,7 +1607,9 @@ web.abyss=function(elem,template,queryFn){
 		,click:function(fn){
 			if(grid){
 				grid.onClick.subscribe(function(e,args){
+					console.log(this,e,args)
 					var data = this.getDataItem(args.row)
+					//grid.setSelectedRows([args.row]);
 					if(web.isArray(data)){
 						data=data[args.cell]
 					}
@@ -1422,13 +1635,72 @@ web.abyss=function(elem,template,queryFn){
 				}
 			}
 			grid=undefined;
-
-
-
+			queryFn(undefined,appendData)
+		}
+		,getSelection:function(){
+			var indices=grid.getSelectedRows()
+			for(var i=0,l=indices.length;i<l;i++){
+				indicies = dataView.getItem(indices[i])
+			}
+			return indices
+		}
+		,next:function(){
+			if(vertical){
+				var i = web.get.call(grid.getSelectedRows(),-1)
+				grid.scrollRowToTop(i++)
+				grid.setActiveCell(i,0)
+				return dataView.getItem(i)
+			}else{
+				throw 'NEED TO implment!'
+			}
+		}
+		,previous:function(){
+			if(vertical){
+				var i = grid.getSelectedRows()[0]
+				grid.scrollRowToTop(i--)
+				grid.setActiveCell(i,0)
+				return dataView.getItem(i)
+			}else{
+				throw 'NEED TO implment!'
+			}
+		}
+		,select:function(index){
+			if(vertical){
+				grid.scrollRowToTop(index-1)
+				grid.setActiveCell(index,0)
+				return dataView.getItem(index)
+			}else{
+				throw 'NEED TO implment!'
+			}
+		}
+		,getLength:function(){
+			return dataView.getLength()
+		}
+		,loadMore:function(){
+			if(vertical){
+				queryFn(dataView.getItem(dataView.getLength()-1),appendData)
+			}else{
+				queryFn(web.get.call(dataView.getItem(0),-1),appendData)
+			}
 		}
 		,setOptions:setOptions
 	}
 	return face
+}
+
+web.probable=function(fn,chance){
+	chance=chance||fn
+
+	if(web.isArray(fn)){
+		_.forEach(function(){
+			//Implement this
+		})
+	}else{
+		if(Math.random()<chance){
+			return fn.call()||true
+		}
+	}
+	return null //maybe return null? this would show more intent that it came from web.probable
 }
 
 web.lockable=function(fn){
@@ -1600,6 +1872,22 @@ web.width=function(text,css){
 	}
 }
 
+var qWindow=$(window)
+web.reflow=function(elem){
+	if(elem){
+		$(elem).resize()
+		return
+	}
+	qWindow.resize() //forces reflow of page
+}
+
+web.lorem=function(min,max){
+	var paragraph=''
+	for(var min=0,l=max;i<l;i++){
+		paragraph+=' '+(Math.random()+1).toString(36).replace(/[\d.]/g,'')+(web.probable(.3)?'.':'')
+	}
+	return paragraph+'.'
+}
 
 var tmpArray=[];
 web.pub=function(context,message,targetOrigin,transfer){
@@ -1683,18 +1971,31 @@ web.Event.removeSelf=function(e){
 	document.body.removeChild(e.target);
 }
 
+web.maxZIndex=2147483647
+web.maxNumber= Number.MAX_VALUE
+
+
+//http://stackoverflow.com/questions/9742110/splitting-numbers-and-letters-in-string-which-contains-both
+web.splitAlphaNum=function(str){
+	return str.match(partitionNumberCharacters)||[]
+}
+
 web.RegExp={alphabetical:/[a-zA-Z]/g
 			,majorAtoms:/[a-gi-zA-GI-Z]/g
-			,validJSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
 			,commaSeperatedTrimSplit:/\W*,\W*/
 			,blockQuotes:/\*.*\*/
 			,leadingWhitespace:/^\s+/
 			,trailingWhitespace:/\s+$/
 			,getYoutubeHash:/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|watch\/)([^#\&\?]*).*/
-			,validateYoutubeHash:/^[a-zA-Z0-9_-]{11}$/
 			//				/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/
 			//Char syntax	(ignore) (assign(no &)) optional
 			,queryStringParser:/([^?=&]+)(=([^&]*))?/g
+			,partitionNumberCharacters:/[a-zA-Z]+|[0-9]+/g
+			,validate:{
+				zipCode:/(^\d{5}$)|(^\d{5}-\d{4}$)/
+				,JSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
+				,YoutubeHash:/^[a-zA-Z0-9_-]{11}$/
+			}
 		}
 
 
@@ -1916,12 +2217,12 @@ web.forRange=function(input,fn,bind,arg){
 	if(web.isArray(input)){
 		i=input[0],max=input[1],step=input[2];
 	}
-	if(fn==null){
-		return _.range(i,max,step);
-	}
 	if(typeof fn=='number'){ //max index (if given)
 		//shift all inputs
 		i=input,max=fn,fn=bind,bind=arg
+	}
+	if(fn==null){
+		return _.range(i,max,step);
 	}
 
 	max-- //noone in programming includes the max param when doing a range (everyone is always max-1) ex: length-1
@@ -2016,7 +2317,7 @@ web.isValidJSIdentifier=function(string,strict){
 	if(strict){
 		throw "really? do you really want to do this?"
 	}
-	return web.RegExp.validJSASCIIIdentifier.test(string)
+	return web.RegExp.valid.JSASCIIIdentifier.test(string)
 }
 web.toPropertyNotation=function(array,favorBracket){
 	var a='';
@@ -2570,7 +2871,6 @@ web.images={
 	,font:{}
 	,html:{}
 }
-web.images.spotify="data:image/png;base64,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"
 web.images.bug="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAxklEQVR4nI3RoWvCQRjG8c9PTDKYYZhsW9k/YRbTQAw2wbawsCK2VasLK1aj0QXDwsL+ABEMumAUMcxg1eD9QA5/uKfcvTz3fd/n7pJ2uSxSDRV84zM2c1HdwBidsDZiII8ChnjGDt0zf4cSPvCKVR57vGOKv7gjbtHCKp0AX0hwH+pHzMN+G+JdvMNV5dDHEsWMM8Xgj1LgBQ/4zQAWwa/HkWYZwE8cCZq4QQ8bHLDGm9NDVFMgCT89CdD2woQ7DPB0DvxbR6+YIyyigNVdAAAAAElFTkSuQmCC"
 //http://stackoverflow.com/questions/6018611/smallest-data-uri-image-possible-for-a-transparent-image
 web.images.ghostPixel='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
@@ -2670,14 +2970,14 @@ web.consoleIcon=function(){
 //http://stackoverflow.com/questions/7505623/colors-in-javascript-console
 //http://jmperezperez.com/console-log-favicon/
 var logWithIcon=function(text,icon,type) {
-  var faviconUrl = icon||web.images.spotify,
+  var faviconUrl = icon||web.images.bug,
 	  css = "background-image: url('" + faviconUrl + "');" +
 			"background-repeat: no-repeat;" +
 			"display: block;" +
 			"background-size: 13px 13px;" +
 			"padding-left: 13px;" +
 			"margin-left: 5px;",
-	  text = text||"Do you like coding? Visit www.spotify.com/jobs";
+	  text = text||"Do you like coding? Visit www.tildestar.com/jobs";
   if (navigator.userAgent.match(/chrome/i)) {
 	console[type||'log'](text + '%c', css);
   } else {
@@ -2732,6 +3032,9 @@ web.startsWith=function(str,prefix,caseInsensitive){
 		return str.slice(0, prefix.length) == prefix;
 	}
 };
+web.caseInsensitive=function(w,w2){
+	return w.toUpperCase()==w2.toUpperCase()
+}
 
 //DO NOT USE yet
 web.ascii=function(key){
@@ -2873,13 +3176,57 @@ web.notify=function(title,message,options,callback){
 	return notice
 }
 
+web.flicker = function(elem,callback){
+	console.warn('UNTESTED')
+	var reset= function(){
+		elem.scrollTop(videoVFlickerOffset/2)
+	}
+	var videoVFlickerRequests=0;
+	//TODO determine if bottom or top is set
+	var videoVFlickerOffset=Math.abs(parseFloat(elem.children(':first').css('bottom')));
+	
+	var videoVFlickerRequestsNormalizer = _.debounce(function(){videoVFlickerRequests=0},200)
 
+	elem.scroll(function(){
+		var pos = elem.scrollTop();
+		var max=2;
+		if(pos==null){ //null or undefined
+			return;
+		}
+		if(pos<=0){//top
+			videoVFlickerRequests++
+		}else if(pos>=2){ //bottom
+			videoVFlickerRequests--
+		}
 
+		if(videoVFlickerRequests>max){
+			callback('down')
+		}else if(videoVFlickerRequests<-max){
+			callback('up')
+		}
+		videoVFlickerRequestsNormalizer();
+		elem.scrollTop(videoVFlickerOffset/2)
+
+	}).scrollTop(videoVFlickerOffset/2)
+
+	return {
+		reset:reset
+	}
+}
+web.confirm=function(title,message,options,callback){
+	//TODO fix this
+	if(web.isFunction(options)){
+		callback=options
+		options=undefined
+	}
+	return web.prompt(title,message,$.extend(true,{prompt:false},options),callback)
+}
 //callback(e,notify,value)
 web.prompt=function(title,message,options,callback){
 	if(web.isString(options)){
 		//'class:warning;showing:fadeIn swing 300;hiding:fadeOut linear 1000;time:-1'
-		options=web.declorationParser(input,map,note)
+		//options=web.declorationParser(input,map,note) //WUT
+
 	}else if(web.isFunction(options)){
 		callback =options
 		options=undefined
@@ -2893,19 +3240,24 @@ web.prompt=function(title,message,options,callback){
 		message=message[0]
 	}
 
+	options=options||{}
+	options.prompt=(options.prompt===undefined)?true:options.prompt
+	var isConfirm = !options.prompt
+
 	var notify=new PNotify({
 		title: title,
 		text: message,
 		//icon: 'glyphicon glyphicon-question-sign',
 		hide: false,
 		confirm: {
-			prompt: true,
-			//prompt_multi_line: true,
-			prompt_default: defaultValue
+			confirm:isConfirm
+			,prompt:options.prompt
+			//,prompt_multi_line: true
+			,prompt_default: defaultValue
 		},
 		buttons: {
-			closer: false,
-			sticker: false
+			closer: false
+			,sticker: false
 		},
 		history: {
 			history: false
@@ -2914,10 +3266,28 @@ web.prompt=function(title,message,options,callback){
 	web.callback(notify,callback)
 	return notify
 }
+web.shadowBox=function(elem,html,callback){
+	var options={}
+	var modal = $(''
+		+'<div class="modal fade bs-example-modal-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true">'
+		+'  <div class="modal-dialog modal-lg">'
+		+'    <div class="modal-content">'
+		+'      '+html
+		+'    </div>'
+		+'  </div>'
+		+'</div>')
+
+	$(elem).append(modal)
+	modal.modal(options).on('hidden.bs.modal', function (e) {
+		modal.remove()
+	})
+	return
+}
+
 
 web.callback=function(element,callback){
 	if(web.isType(element,PNotify)){
-		element.get().on('pnotify.confirm', callback||dummyFunction).on('pnotify.cancel', callback||dummyFunction);
+		element.get().on('pnotify.confirm', _.bind(callback,element,true)||dummyFunction).on('pnotify.cancel', _.bind(callback,element,false)||dummyFunction);
 	}else{
 		throw 'I don\'t know how to add a callback to '+element
 	}
@@ -3565,11 +3935,11 @@ web.get=function(key){
 	}
 	var obj = setScope(this,undefined)
 	if(web.isValue(obj)){
-		if(web.isNumber(key)){
-			if(key>0){
-				return obj[key]
-			}else{
+		if(web.isNumber(key)){//Handle array indexes and even negitive ones
+			if(key<0){
 				return obj[obj.length+key]
+			}else{
+				return obj[key]
 			}
 		}
 		var parts = key.split('.'),
@@ -4166,6 +4536,9 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 		}
 		//SUPER FAST doT precomiled template then convert to jquery for adding id and returning
 		var instance=$(compiled(data))
+		if(options.consumeClick){
+			instance.find('.consume-click').on('click',function(e){alert('stopProp');e.stopPropagation();return false})
+		}
 
 		//this will either set the id or return (if the id var was null undefined etc)
 		if(web.isValue(id)){
@@ -4413,7 +4786,7 @@ web.swapState=function(elem,states){
  * Using Math.round() will give you a non-uniform distribution!
  * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random
  */
-web.getRandomInt=function (min, max) {
+web.randomInt=function (min, max) {
 	return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 		//Original inspiration
@@ -4839,7 +5212,7 @@ web.getYoutubeHash=function(url){
 	if(!url){return ''}
 	var match = url.match(web.RegExp.getYoutubeHash);
 	var hash=(match)?match[2].trim():'';
-	if(web.RegExp.validateYoutubeHash.test(hash)){
+	if(web.RegExp.validate.YoutubeHash.test(hash)){
 		return hash;
 	}else if(web.startsWith(hash,'v=')){
 		return hash.slice(2)
@@ -4848,11 +5221,11 @@ web.getYoutubeHash=function(url){
 	}else{ //now we will either just get the u= variable or the v= variablel //in that order yeah it isn't right but I do it
 		//http://www.youtube.com/attribution_link?a=5X4P22YNTKU&amp;u=%2Fwatch%3Fv%3DT2NUk5AFImw%26feature%3Dshare
 		var v = web.queryString(web.queryString(web.unescapeHTML(url),'u')||web.unescapeHTML(url),'v') 
-		if(v&&web.RegExp.validateYoutubeHash.test(v)){
+		if(v&&web.RegExp.validate.YoutubeHash.test(v)){
 			return v
 		}else{ //just trim off the url and see if the value is at the end of the url
 			v = web.deepTrimLeft(url,'/')
-			if(v&&web.RegExp.validateYoutubeHash.test(v)){
+			if(v&&web.RegExp.validate.YoutubeHash.test(v)){
 				return v
 			}
 		}
@@ -4872,7 +5245,7 @@ web.getYoutubeHash=function(url){
 //pCoWDoGG tests (mine!)
 "http://www.youtube.com/attribution_link?a=5X4P22YNTKU&amp;u=%2Fwatch%3Fv%3DT2NUk5AFImw%26feature%3Dshare"	:'T2NUk5AFImw',
 "https://www.youtube.com/watch?feature=player_embedded&amp;v=E-byfKGQkbA"									:'E-byfKGQkbA',
-
+"http://www.youtube.com/attribution_link?a=5Q59r0-mo4w&u=%2Fwatch%3Fv%3D4AbuSKtrDzU%26feature%3Dshare"		:'4AbuSKtrDzU',
 
 //Lasnv http://stackoverflow.com/questions/3452546/javascript-regex-how-to-get-youtube-video-id-from-url
 'http://www.youtube.com/watch?v=0zM3nApSvMg&feature=feedrec_grec_index'										:'0zM3nApSvMg',
@@ -5542,6 +5915,9 @@ web.responsiveRatio=function(elem,ratio){
 		web
 	}
 
+	if(web.isString(elem)){
+		elem=$(elem)
+	}
 	if(web.isjQuery(elem)){
 		var out=[]
 		elem.each(function(){
@@ -5550,21 +5926,21 @@ web.responsiveRatio=function(elem,ratio){
 		return $(out)
 	}
 
-	//TODO this could be optimized to go higher but for right now "attribute" "style" and "computed" need to be done per item
+	//TODO this could be optimized to go higher in code but for right now "attribute" "style" and "computed" need to be done per item
 	if(ratio==null||'attribute'){
-		ratio=web.ratioTo(elem.width,elem.height,'percent')
+		ratio=web.ratioTo(parseFloat(elem.width),parseFloat(elem.height),'percent')
 	}else if(!web.endsWith(ratio,'%') || !web.isNumber(ratio)){
 		if(ratio=='style'){
-			ratio=web.ratioTo(elem.style.width,elem.style.height,'percent')
+			ratio=web.ratioTo(parseFloat(elem.style.width),parseFloat(elem.style.height),'percent')
 		}else if(ratio=='calculated'){
 			var e = $(elem)
 			ratio=web.ratioTo(e.width(),e.height(),'percent')
-		}else if(web.contains(',')){
-			var e=ratio.split(',')
-			ratio=web.ratioTo(e[0],e[1],'percent')
-		}else if(web.contains(':')){
-			var e=ratio.split(':')
-			ratio=web.ratioTo(e[0],e[1],'percent')
+		}else{
+			var e=web.splitAlphaNum(ratio)
+			if(e.length!=3){
+				throw 'error input for responsiveRatio'
+			}
+			ratio=web.ratioTo(parseFloat(e[0]),parseFloat(e[2]),'percent')
 		}
 	}
 
@@ -5588,6 +5964,7 @@ web.responsiveRatio=function(elem,ratio){
 
 	elem.parentNode.insertBefore(wrapMed, elem); //insert before
 	wrapMed.style.paddingTop = ratio;
+	wrapMed.setAttribute("data-responsiveRatio",ratio);
 	//add classes
 	wrapMed.className += 'web-responsiveRatio';
 	wrapSmall.className += /*(elem.className ? ' ' : '') + */'web-responsiveRatio-contents';
@@ -5745,9 +6122,135 @@ web.comparator.numerical = function(a,b) {
 	return a - b;
 }
 
+/*use to turn swipe history on or off for different browers n environments.
+currently it is only used to turn off the swipe history in Mac via a call to
+web.swipeHistoyrNavitagion(document.documentElement,false)
+*/
+// web.swipeHistoryNavigation=function(element,on){
+// 	if(!element){
+// 		element=document.documentElement
+// 	}
+// 	if(!on){
+// 		element.addEventListener('mousewheel', function(event) {
+// 			var target=/*event.target*/this
+// 			var maxX = $(document).width();
+// 			var maxY = $(document).height();
+// 			console.info(new Date().getTime(),target.scrollLeft,$(window).width(),event.deltaX,maxX)
+// 			console.log(target.scrollLeft + event.deltaX < 0,target.scrollLeft+$(window).width() + event.deltaX>maxX)
 
 
+// 			if(	  target.scrollLeft + event.deltaX < 0 || //GOOD
+// 				  target.scrollLeft+$(window).width() + event.deltaX >maxX ||
+// 				  target.scrollTop  + event.deltaY < 0 || //GOOD
+// 				  target.scrollTop+$(window).height()  + event.deltaY >maxY) {
+// 				//event.preventDefault(); //prevent the event from propigating to the browser
+// 				console.warn('preventing default',maxX,maxY,event)
+// 				return
+// 				// manually take care of the scroll
+// 				//var x=Math.max(0, Math.min(maxX, target.scrollLeft + event.deltaX))
+// 				//	,y=Math.max(0, Math.min(maxY, target.scrollTop + event.deltaY));
+// 				//target.scrollLeft = x
+// 				//target.scrollTop =y
+// 				//console.log(maxX,maxY,x,y,target.scrollTop,target.scrollLeft)
+// 			}
+// 			console.log('good scrolls')
+// 		}, false);
+// 	}else{
+// 		throw 'todo'
+// 	}
+// }
 
+//   document.addEventListener("touchstart", function(){console.warn('touchstart')});
+//   document.addEventListener("touchend",  function(){console.warn('touchend')});
+//   document.addEventListener("touchcancel",  function(){console.warn('touchcancel')});
+// window.onbeforeunload = function (e) {
+//   var message = "Your confirmation message goes here.",
+//   e = e || window.event;
+//   // For IE and Firefox
+//   if (e) {
+//     e.returnValue = message;
+//   }
+
+//   // For Safari
+//   return message;
+// };
+web.swipeHistoryNavigation=function(element,on){
+	if(!element){
+		element=document.documentElement
+	}
+	if(!on){
+		element.addEventListener('mousewheel', function(event) {
+			//var target=/*event.target*/this
+			//var maxX = $(this).width(); //TODO change to this?
+			//var maxY = $(this).height(); //TODO chane to this?
+
+			var rad = Math.atan(event.deltaY,event.deltaX); // In radians
+			var degree =rad*(180/Math.PI)
+			var dist=Math.sqrt(Math.pow(event.deltaX,2)+Math.pow(event.deltaY,2))
+			console.log(degree,dist,event.deltaX,event.deltaY)
+			var degreeExtremes=46
+
+			if( (-degreeExtremes>degree||degree>degreeExtremes) && Math.abs(event.deltaY)>Math.abs(event.deltaX)
+							//||(Math.abs(degree)==45 && dist<2)
+				){
+				return
+			}
+
+			var deltaX = (event.deltaX==0)?0:(event.deltaX>0)?1:-1
+			var deltaY = (event.deltaY==0)?0:(event.deltaY>0)?1:-1
+			var target=event.target
+			var c=false
+			do{
+				if(canConsume(target,target.parentNode,deltaX,deltaY)==true){
+					//console.warn('can consume',target,parent,this,target!==this)
+					c=true;
+					break
+				}
+				target=target.parentNode
+			}while(target!==this /*&& target!=null*/)
+
+			//if(this==document){
+			//	c=c||canConsume(this,window,delta)
+			//}
+
+
+			if(c==false){
+				event.preventDefault()
+			}
+
+
+			//console.info(new Date().getTime(),target.scrollLeft,$(window).width(),event.deltaX) //,maxX)
+			//console.log(target.scrollLeft + event.deltaX < 0,target.scrollLeft+$(window).width() + event.deltaX>maxX)
+
+
+			function canConsume(target,parent,deltaX,deltaY){
+				//console.log('target',target,target.scrollLeft,$(target).width(),deltaX)
+				//console.log('parent',parent,parent.scrollLeft,$(parent).width(),deltaX)
+				//console.log('<<<', target.scrollLeft + deltaX < 0,'>>>', target.scrollLeft+$(parent).width() + deltaX >$(target).width())
+				//console.log('###########################')
+
+				if(	  target.scrollLeft + deltaX < 0 
+					  || (parent.scrollLeft||0)+$(parent).width() + deltaX >$(target).width()
+					//  ||target.scrollTop  + deltaY < 0 
+					//  ||(parent.scrollTop||0)+$(parent).height()  + deltaY >$(target).height()
+					){
+					//event.preventDefault(); //prevent the event from propigating to the browser
+					//console.warn('preventing default',maxX,maxY,event)
+					return false //can't consume
+					// manually take care of the scroll
+					//var x=Math.max(0, Math.min(maxX, target.scrollLeft + event.deltaX))
+					//	,y=Math.max(0, Math.min(maxY, target.scrollTop + event.deltaY));
+					//target.scrollLeft = x
+					//target.scrollTop =y
+					//console.log(maxX,maxY,x,y,target.scrollTop,target.scrollLeft)
+				}
+				return true //can consume
+			}
+		}, false);
+	}else{
+		throw 'todo'
+	}
+}
 //http://stackoverflow.com/questions/929103/convert-a-number-range-to-another-range-maintaining-ratio
 //User: http://stackoverflow.com/users/111781/jerryjvl
 web.convertScales=function(value,minMax1,minMax2,invert){
@@ -5863,13 +6366,7 @@ web.convert.rgbToHex=function rgbToHex(r, g, b) {
 }
 
 
-web.max=web.max||{}
-web.max.zIndex=2147483647
-web.max.Number= Number.MAX_VALUE
 
-
-
-web.regEx={"zipCode":/(^\d{5}$)|(^\d{5}-\d{4}$)/}
 
 //Dev NOTE: alpha will change throughout the day NOT TEMP!!!
 //For this programming pattern read
@@ -5898,7 +6395,7 @@ web.ember.update=function(intensity,colorTemp,brightness){
 						 ,'background-color': "transparent"
 						 ,'width': '100%'
 						 ,'height': '100%'
-						 ,'z-index': web.max.zIndex
+						 ,'z-index': web.maxZIndex
 						})
 				this.divTemp=$('<div/>',{id:'ember-overlay-temperature'})
 					.css({
@@ -5910,7 +6407,7 @@ web.ember.update=function(intensity,colorTemp,brightness){
 						 ,'bottom': 0
 						 ,'left': 0
 						 ,'background-color': colorTemp
-						 ,'z-index': web.max.zIndex
+						 ,'z-index': web.maxZIndex
 					  });
 				this.divBright=$('<div/>',{id:'ember-overlay-brightness'})
 					.css({
@@ -5922,7 +6419,7 @@ web.ember.update=function(intensity,colorTemp,brightness){
 						 ,'bottom': 0
 						 ,'left': 0
 						 ,'background-color': 'black'
-						 ,'z-index': web.max.zIndex
+						 ,'z-index': web.maxZIndex
 					  });
 
 				//add them all to the dom
@@ -6010,19 +6507,95 @@ web.fullscren
 normalizes the fullscreen function between browsers.
 Optomized. Does not set property until you call it once :-D
 **************************/
-web.fullScreen=function(elem){
-	elem=elem||document.documentElement;
-	return elem[web.fullScreen.property||web.fullScreen.setProperty()]();
-}
-web.fullScreen.setProperty=function(){
-	var elemProto=(window.HTMLElement || window.Element)["prototype"],
-		props = ['requestFullscreen','webkitRequestFullscreen','mozRequestFullScreen','msRequestFullscreen']
-	for (var i = 0,l=props.length; i < l; i++) {
-		if(elemProto[props[i]]){
-			return web.fullScreen.property=props[i];
+//SEE https://developer.mozilla.org/en-US/docs/Web/Guide/API/DOM/Using_full_screen_mode
+web.fullScreen=function(onOff,callback){ //TODO callback should be called after recieving mozfullscreenerror etc
+	var elem = setScope(this,document.documentElement)
+	if(web.isjQuery(elem)){
+		elem=elem[0]
+	}
+	if(web.isFunction(onOff)){
+		var tmp=onOff;
+		onOff=callback
+		callback=onoff
+	}
+
+	if(!web.isValue(onOff)){ //toggle
+		onOff=!web.isFullScreen()
+	}
+	debugger
+
+	if(onOff){
+		if (elem.requestFullscreen) {
+			elem.requestFullscreen();
+		} else if (elem.webkitRequestFullscreen) {
+			elem.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+		} else if (elem.mozRequestFullScreen) {
+			elem.mozRequestFullScreen();
+		} else if (elem.msRequestFullscreen) {
+			elem.msRequestFullscreen();
+		}
+	}else{
+		if (document.exitFullscreen) {
+			document.exitFullscreen();
+		} else if (document.webkitExitFullscreen) {
+			document.webkitExitFullscreen();
+		} else if (document.mozCancelFullScreen) {
+			document.mozCancelFullScreen();
+		} else if (document.msExitFullscreen) {
+			document.msExitFullscreen();
 		}
 	}
-};
+	return web.defer(function(){callback.call(elem,web.isFullScreen())})
+}
+
+
+
+// web.fullScreen=function(elem,toggle){
+// 	if(web.isBoolean(elem)){
+// 		var tmp=toggle
+// 		toggle=elem
+// 		elem=toggle
+// 	}
+// 	elem=elem||document.documentElement;
+// 	return elem[web.fullScreen.property||web.fullScreen.setProperty()]();
+// }
+//web.fullScreen.setProperty=function(){
+//	var elemProto=(window.HTMLElement || window.Element)["prototype"],
+//		props = ['requestFullscreen','webkitRequestFullscreen','mozRequestFullScreen','msRequestFullscreen']
+//	for (var i = 0,l=props.length; i < l; i++) {
+//		if(elemProto[props[i]]){
+//			return web.fullScreen.property=props[i];
+//		}
+//	}
+//};
+
+
+web.isFullScreen=function(){
+	if (document.fullscreenElement ||    // alternative standard method
+		document.webkitFullscreenElement ||
+		document.mozFullScreenElement ||
+		document.msFullscreenElement ) {  // current working methods
+		return true
+	}
+	return false
+}
+
+web.isMaximized=function(tolerance){
+	tolerance=(tolerance==0)?0:(tolerance||7)
+	return (	web.isAproximately(web.global.screen.width,web.global.document.documentElement.clientWidth,tolerance)
+			&&	web.isAproximately(web.global.screen.height,web.global.document.documentElement.clientHeight,tolerance)
+			)
+}
+
+
+web.withinRange=function(value,min,max){
+
+
+}
+
+web.isAproximately=function(value,value2,tolerance){
+	return (value2-tolerance<value && value<value2+tolerance);
+}
 
 //http://dracoblue.net/dev/linear-least-squares-in-javascript/
 web.slopeOf=function(values_x, values_y) {
@@ -6114,7 +6687,7 @@ web.cursorPosition=function(ms,callback){
 		ms=undefined
 	}
 
-	var image = $('<img src="'+web.images.spotify+'" style="position:absolute;width:13px;height:13px"/>'),p0={left:0,top:0};
+	var image = $('<img src="'+web.images.bug+'" style="position:absolute;width:13px;height:13px"/>'),p0={left:0,top:0};
 	var points=(ms)?[]:undefined
 	var slope;
 
@@ -6622,10 +7195,7 @@ web.translateAngleUnit=function(num,from,to){//TODO support turns
 		return web.translateAngle(web.translateAngleUnit(num,'grad','deg'),'deg','rad') //todo simplify
 	}
 }
-//http://stackoverflow.com/questions/9742110/splitting-numbers-and-letters-in-string-which-contains-both
-web.splitAlphaNum=function(str){
-	return str.match(/[a-zA-Z]+|[0-9]+/g)
-}
+
 
 
 web.getColumn=web.onColumn=function(matrix,header,callback){
@@ -6729,6 +7299,52 @@ web.free=function(obj,instance,obj2){
 		web.free.apply(web.free,web.toArray(arguments).slice(2))
 	}
 }
+
+
+
+
+var body=$('body');
+	web.orientationchange=function(handler){
+		handler= handler || (function(isPortrait,m) {
+			console.log('isPortrait=',isPortrait,'isMediaMatch',!!m)
+			body.toggleClass('orientation-landscape',!isPortrait);
+			body.toggleClass('orientation-portrait',isPortrait);
+		})
+
+	if(window.matchMedia){ //most reliable?
+			// Find matches
+			var mql = window.matchMedia("(orientation: portrait)");
+
+
+
+			handler(!!mql.matches,mql);
+		// Add a media query change listener
+		mql.addListener(function(m){return handler(!!m.matches,m)});
+	}else{
+
+		var fn = function() {
+				//THIS VAR IS NOT CONSISTANT ACROSS DEVICES!!
+		//Reason: http://www.matthewgifford.com/blog/2011/12/22/a-misconception-about-window-orientation/
+		 //alert(window.orientation); //0 = portrate -90 landscape right 90 landscape left
+		 var isPortrait=(win.width()<win.height());
+		 return handler(isPortrait);
+		}
+		fn();
+
+
+
+		//Listen for orientation changes
+		win.on("orientationchange", fn);
+	}
+
+}
+web.orientationchange();
+//web.orientationchange(function(isPortrait){
+ // if(body.hasClass('video-fill')&&!isPortrait){
+ //   
+ // }
+//});
+
 
 //self is expected to be 'this' in parent function
 var setScope=web.setScope=function(self,arg){
@@ -6932,6 +7548,52 @@ web.css=function(input,elem){
 
 }
 
+web.ratio=function(name,callback){
+	var elem;
+	if(web.isjQuery(name)){
+		elem=name
+	}else{
+		elem=$('input[type=radio][name='+name+']')
+	}
+	return elem.on('change',callback)
+}
+
+//http://stackoverflow.com/questions/9730612/get-element-css-property-width-height-value-as-it-was-set-in-percent-em-px-et
+web.getCSSProperty=function(elem, property){
+	if(web.isjQuery(elem)){
+		return web.getCSSProperty(elem[0],property)
+		//var a=[];
+		//elem.each(function(){
+		//	web.getCSSProperty(this,property)
+		//})
+	}
+	// element property has highest priority
+	var val = elem.style.getPropertyValue(property);
+
+	// if it's important, we are done
+	if(elem.style.getPropertyPriority(property))
+		return val;
+
+	// get matched rules
+	var rules = getMatchedCSSRules(elem);
+
+	// iterate the rules backwards
+	// rules are ordered by priority, highest last
+	for(var i = rules.length; i --> 0;){
+		var r = rules[i];
+		var important = r.style.getPropertyPriority(property);
+
+		// if set, only reset if important
+		if(val == null || important){
+			val = r.style.getPropertyValue(property);
+			// done if important
+			if(important)
+				break;
+		}
+	}
+
+	return val;
+}
 
 
 web.isIE=function(){
