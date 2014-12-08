@@ -123,6 +123,20 @@ html.full-view, html.full-view body{
 	}
 
 
+
+	.faded-black{
+		background: -webkit-linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)); /* For Safari 5.1 to 6.0 */
+		background: -o-linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)); /* For Opera 11.1 to 12.0 */
+		background: -moz-linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)); /* For Firefox 3.6 to 15 */
+		background: linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)); /* Standard syntax */
+	}
+	.faded-white{
+		background: -webkit-linear-gradient(rgba(255,255,255,0.5),rgba(255,255,255,0.5)); /* For Safari 5.1 to 6.0 */
+		background: -o-linear-gradient(rgba(255,255,255,0.5),rgba(255,255,255,0.5)); /* For Opera 11.1 to 12.0 */
+		background: -moz-linear-gradient(rgba(255,255,255,0.5),rgba(255,255,255,0.5)); /* For Firefox 3.6 to 15 */
+		background: linear-gradient(rgba(255,255,255,0.5),rgba(255,255,255,0.5)); /* Standard syntax */
+	}
+
 	.affix-top{
 		position:absolute;
 		top:0;
@@ -157,8 +171,10 @@ html.full-view, html.full-view body{
 		bottom: 0;
 		left: 0;
 		right: 0;
-		width:100%;
-		height:100%;
+		padding:0;
+		margin:0;
+		/*width:100%;
+		height:100%;*/
 	}
 	.inline-block{
 		display:inline-block ;
@@ -425,8 +441,36 @@ html.full-view, html.full-view body{
 
 
 
+/*slick grid helper classes*/
+/*add this to table in order to affect whole look*/
+.slickgrid-yGrid-off .slick-cell{
+	border-bottom-width:0; 
+}
+
+.slickgrid-solid-background .slick-row{
+	background-image:none;
+	background-color:transparent;
+}
 
 
 
+/*styles for web.abyss*/
+/*TODO maybe put this in web.js .css for abyss*/
+.selected{
+		background-color:rgb(96, 169, 232); /*rgb(66, 139, 202);*/
+		color:white;
+		-webkit-border-radius: 4px !important;
+		-moz-border-radius: 4px !important;
+		border-radius: 4px !important;
+		-webkit-border-radius: 4px !important;
+		-moz-border-radius: 4px !important;
+		border-radius: 4px !important;
+}
+
+.selected>div{
+	background-color: transparent !important;
+	filter: none !important;
+	background-image: none;
+}
 
 

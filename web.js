@@ -767,6 +767,9 @@ web.camelCaseToReadable=function(str,strict){
 web.isWindow=function( obj ) {
 	return obj != null && obj == obj.window;
 }
+web.isBoolean=function(obj){
+	return typeof obj == 'boolean';
+}
 web.isString=function(obj){
 	return typeof obj == 'string';
 }
@@ -1311,24 +1314,28 @@ web.inIframe=function(){
 web.abyss=function(elem,template,queryFn){
 	elem=$(elem)
 
-	var orientation,idPrefix,options,idGetter,uid='webAbyss_'+web.UID()
+	var orientation,name,options,idGetter,uid='webAbyss_'+web.UID()
 
 
 	var setOptions=function(o){
+		if(o===undefined){
+			return options
+		}
 		orientation=o.orientation
-		idPrefix=o.idPrefix;
+		name=o.name;
 		idGetter=o.idGetter; //id getter
 		queryFn=o.query;
 
 		//set defaults
 		options.minHeight=o.minHeight||0
+		return options
 	}
 	if(web.isObject(queryFn)){
 		options=queryFn;
 		setOptions(options)
 	}
-	if(!web.isValue(idPrefix)){
-		idPrefix=elem.attr('id')||web.UID()
+	if(!web.isValue(name)){
+		name=elem.attr('id')||web.UID()
 	}
 
 
@@ -1358,15 +1365,15 @@ web.abyss=function(elem,template,queryFn){
 
 		function init (datum){
 		columns=[]
-		dataView=new Slick.Data.DataView({ inlineFilters: true })
+		//http://stackoverflow.com/questions/11001356/slickgrid-breakpoint-on-filter
+		dataView=new Slick.Data.DataView({ inlineFilters: false }) //SET THIS AS FALSE otherwise slickgrid will attempt to "re-compile" the filter 
 		if(vertical){
 			column={	
 				name: ""
 				//,id: "contact-card"
 				//, cssClass: "contact-card-cell"
 				,formatter:function renderCell(row, cell, value, columnDef, data) {
-					//console.info(idPrefix,idGetter,web.get.call(data,idGetter) ,data)
-					return template(data, idPrefix+'_'+web.get.call(data,idGetter) ).outerHTML()
+					return template(data, name+'_'+web.get.call(data,idGetter) ).outerHTML()
 				}
 				,selectable:true
 				,asyncPostRender:options.postRender
@@ -1406,8 +1413,8 @@ web.abyss=function(elem,template,queryFn){
 				//,id: "contact-card"
 				//, cssClass: "contact-card-cell"
 				,formatter:function renderCell(row, cell, value, columnDef, data) {
-					//console.info(idPrefix,idGetter,web.get.call(data,idGetter) ,data)
-					return template(data[cell], idPrefix+'_'+web.get.call(data[cell],idGetter) ).outerHTML()
+					//console.info(name,idGetter,web.get.call(data,idGetter) ,data)
+					return template(data[cell], name+'_'+web.get.call(data[cell],idGetter) ).outerHTML()
 				}
 				,selectable:true
 				,asyncPostRender:options.postRender
@@ -1425,7 +1432,7 @@ web.abyss=function(elem,template,queryFn){
 			if(!height){ //TODO because we load a dummy image this can thow off the row height if the dummy image does not have the same aspect ratio as the data image
 				var dom=template(datum)
 				//alert($(dom).clone().appendTo('body').innerHeight())
-				height=web.height(dom)
+				height=web.height(dom,'border')
 			}
 			//enforce minHeight
 			height = (height<options.minHeight)?options.minHeight:height
@@ -1443,7 +1450,12 @@ web.abyss=function(elem,template,queryFn){
 
 			// wire up model events to drive the grid
 			dataView.onRowCountChanged.subscribe(function (e, args) {
+				//var length = grid.getDataLength()
 				grid.updateRowCount();
+				//debugger
+				//var rows = web.forRange([length,grid.getDataLength()])
+				//alert(rows)
+				//grid.invalidateRows(rows);
 				grid.render()
 			});
 
@@ -1501,14 +1513,17 @@ web.abyss=function(elem,template,queryFn){
 
 ///////////////////////////////////////
 //////////////////////////////////////
-
+			var endless=true
 			var scrollfn=(vertical)?/*vertical*/(function(e,args){
 					//calculate in pixels how close we are to the bottom
 					//(this.getDataLength()*settings.rowHeight)-args.scrollTop
 					//OR calculate in number of items
 					if(this.getViewport().bottom>=dataView.getLength()-10){
 						//console.log('polling...',dataView.getItem(dataView.getLength()-1))
-						queryFn(dataView.getItem(dataView.getLength()-1),appendData)
+						if(false===queryFn(dataView.getItem(dataView.getLength()-1),appendData)){
+							endless=false
+							grid.onScroll.unsubscribe(debounceQueryFn)
+						}
 					}
 				}):(function(e,args){
 				//calculate in pixels how close we are to the bottom
@@ -1521,12 +1536,16 @@ web.abyss=function(elem,template,queryFn){
 				//web.log(this.getViewport(),'@',this.getRenderedRange(),'@',this.getGridPosition(),'@',this.getCanvasNode())
 				if(this.getRenderedRange().rightPx>=grid.getCanvasNode().offsetWidth){
 					//console.log('polling...',dataView.getItem(dataView.getLength()-1))
-					queryFn(web.get.call(dataView.getItem(0),-1),appendData)
+					if(false===queryFn(web.get.call(dataView.getItem(0),-1),appendData)){
+						endless=false
+						grid.onScroll.unsubscribe(debounceQueryFn)
+					}
 				}
 			});
 
 			queryFn=web.lockable(_.debounce(queryFn,500))
-			grid.onScroll.subscribe(_.debounce(scrollfn,50))
+			var debounceQueryFn=_.debounce(scrollfn,50)
+			grid.onScroll.subscribe(debounceQueryFn)
 
 			//do all defered actions now
 			_.forEach(deferedActions,function(fn){fn()})
@@ -1538,11 +1557,15 @@ web.abyss=function(elem,template,queryFn){
 			  //   dataView.refresh();
 			  // }
 
-			  options.filter&&dataView.setFilter(options.filter);
-			  
+			  if(options.filter){
+			  	//dataView.setFilterArgs(options.filter)
+			  	//dataView.setFilter(function(item,args){return options.filter.call(this,item,args)});
+			  	dataView.setFilter(options.filter)
+			  }
 			  // if you don't want the items that are not visible (due to being filtered out
 			  // or being on a different page) to stay selected, pass 'false' to the second arg
 			  dataView.syncGridSelection(grid, true);
+			  window.dataView=dataView
 		}
 
 	// When user clicks button, fetch data via Ajax, and bind it to the dataview. 
@@ -1579,7 +1602,7 @@ web.abyss=function(elem,template,queryFn){
 		//settings.rowHeight= 140//template(grid.getData()).height()
 		//grid.setOptions(settings);
 		//grid.invalidate();
-		queryFn.allow()
+		queryFn.allow() //unlock the query function (it is a web.lockable fn)
 	}
 
 	queryFn(undefined,appendData)
@@ -1596,7 +1619,7 @@ web.abyss=function(elem,template,queryFn){
 			//}
 			//dataView.addItem(data);
 			//dataView.refresh();
-			//return idPrefix+'_'+web.get.call(data,id)
+			//return name+'_'+web.get.call(data,idGetter)
 		}
 		,clear:function(){
 			grid.invalidateAllRows();
@@ -1607,13 +1630,13 @@ web.abyss=function(elem,template,queryFn){
 		,click:function(fn){
 			if(grid){
 				grid.onClick.subscribe(function(e,args){
-					console.log(this,e,args)
+					var elem=$(e.target).closest('a, .slick-cell')//traverse up the dom until you find an anchor,consume-click,or end at div.slick-cell
 					var data = this.getDataItem(args.row)
 					//grid.setSelectedRows([args.row]);
 					if(web.isArray(data)){
 						data=data[args.cell]
 					}
-					fn && fn.call(this,e,args,data)
+					fn && fn.call(elem,e,args,data)
 					});
 			}else{
 				deferedActions.push(_.bind(face.click,face,fn))
@@ -1647,7 +1670,9 @@ web.abyss=function(elem,template,queryFn){
 		,next:function(){
 			if(vertical){
 				var i = web.get.call(grid.getSelectedRows(),-1)
-				grid.scrollRowToTop(i++)
+				//grid.scrollRowIntoView(i++)
+				//grid.scrollRowToTop(i++)
+				face.scrollTo(++i)
 				grid.setActiveCell(i,0)
 				return dataView.getItem(i)
 			}else{
@@ -1665,12 +1690,61 @@ web.abyss=function(elem,template,queryFn){
 			}
 		}
 		,select:function(index){
+			var range;
+			if(web.isArray(index)){
+				range=index
+				index=web.sort(index)[0]
+			}else{
+				range=[index]
+			}
+			
+			if(index>0){
+				return grid.setSelectedRows([]);
+			}
+
 			if(vertical){
-				grid.scrollRowToTop(index-1)
+				face.scrollTo(index)
+				//todo handle range?
 				grid.setActiveCell(index,0)
-				return dataView.getItem(index)
+				grid.setSelectedRows(range);
+				return dataView.getItems(range)
 			}else{
 				throw 'NEED TO implment!'
+			}
+		}
+		,scrollTo:function(arg){
+			if(web.isString(arg)){
+				if(arg=='selection'){
+					var list = grid.getSelectedRows()
+					if(list){
+						grid.scrollRowToTop(list[0])
+						return
+					}
+				}
+			}
+			grid.scrollRowToTop(arg)
+
+		}
+		,render:function(item){
+			var id;
+			if(web.isObject(item)){
+				id=web.get.call(item,idGetter)
+			}
+			var row;
+			//dataView.beginUpdate()
+			if(web.isValue(id)){
+				var viewPort=grid.getRenderedRange() //getViewport();
+				for(var i=viewPort.top, l=viewPort.bottom;i<=l;i++){
+					if(web.get.call(grid.getDataItem(i),idGetter)===id){ //match
+						row=i
+						break;
+					}
+				}
+			}
+			if(web.isValue(row)){ //Could use previously created onrowschange handler
+				grid.invalidateRow(row);
+				//dataView.endUpdate()
+				grid.render();
 			}
 		}
 		,getLength:function(){
@@ -1683,10 +1757,63 @@ web.abyss=function(elem,template,queryFn){
 				queryFn(web.get.call(dataView.getItem(0),-1),appendData)
 			}
 		}
-		,setOptions:setOptions
+		,refresh:function(){
+			return dataView&&dataView.refresh();
+		}
+		,getSetOptions:setOptions
 	}
 	return face
 }
+
+
+
+
+
+//inspiration: http://stackoverflow.com/questions/12487352/how-do-i-pause-and-resume-a-timer
+web.stopWatch=function(fn,timeout){
+	if(!(this instanceof web.stopWatch)){return new web.stopWatch()}
+	this.stop(fn,timeout)
+	this.record()
+}
+web.stopWatch.prototype.record=function(){
+		var self = this;
+
+		if(this.fn){
+			if(!this.interval){
+				this.interval= setInterval(function(){ //TODO change this to web.setInterval
+					self.seconds += (new Date().getTime()-this.timePoint)/1000
+					fn &&fn.call && fn.call(self,self.seconds)
+				}, this.timeout);
+			}
+		}else{
+			var newTimePoint=new Date().getTime();
+			if(this.timePoint){
+				this.seconds+=newTimePoint-this.timePoint/1000
+			}
+			this.timePoint=newTimePoint;
+		}
+	}
+web.stopWatch.prototype.pause=function(){
+		clearInterval(this.interval);
+		this.interval=null
+		return this.seconds
+	}
+
+web.stopWatch.prototype.stop=function(fn,timeout){
+		this.pause()
+		this.fn=fn
+		this.timeout=timeout||1000
+		this.seconds=0
+		this.timePoint=null;
+		return this
+}
+
+// web.stopWatch(function(totalSeconds){
+// 	$("#hour").text(Math.floor(self.totalSeconds / 3600));
+// 	$("#min").text(Math.floor(self.totalSeconds / 60 % 60));
+// 	$("#sec").text(parseInt(self.totalSeconds % 60));
+// })
+
 
 web.probable=function(fn,chance){
 	chance=chance||fn
@@ -1976,8 +2103,8 @@ web.maxNumber= Number.MAX_VALUE
 
 
 //http://stackoverflow.com/questions/9742110/splitting-numbers-and-letters-in-string-which-contains-both
-web.splitAlphaNum=function(str){
-	return str.match(partitionNumberCharacters)||[]
+web.splitAlphaNum=function(str,negitives){
+	return str.match(web.RegExp[(negitives)?'partitonAlphaNumericalNegitives':'partitonAlphaNumerical'])||[]
 }
 
 web.RegExp={alphabetical:/[a-zA-Z]/g
@@ -1990,7 +2117,8 @@ web.RegExp={alphabetical:/[a-zA-Z]/g
 			//				/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/
 			//Char syntax	(ignore) (assign(no &)) optional
 			,queryStringParser:/([^?=&]+)(=([^&]*))?/g
-			,partitionNumberCharacters:/[a-zA-Z]+|[0-9]+/g
+			,partitonAlphaNumericalNegitives:/[-\d.]+|(([^\s\d])((?!\d)))+|([^\s\d])+/g
+			,partitonAlphaNumerical:/[-\d.]+|([^\s\d])+/g
 			,validate:{
 				zipCode:/(^\d{5}$)|(^\d{5}-\d{4}$)/
 				,JSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
@@ -3163,7 +3291,7 @@ web.notify=function(title,message,options,callback){
 			text: 'Successfully logged in as ' + username,
 			icon: true,
 			width: PNotify.prototype.options.width,
-			hide: true,
+			hide: false,
 			buttons: {
 				closer: true,
 				sticker: true
@@ -3396,7 +3524,7 @@ web.declorationParser=function(input,map){
 }
 
 web.shadow=function(obj,face){
-		if(!(peanuts instanceof web.shadow)){return new web.shadow(obj,face)};
+		if(!(this instanceof web.shadow)){return new web.shadow(obj,face)};
 
 		_.forEach(face,function(value,key){
 			if(web.isString(value)){
@@ -3925,39 +4053,46 @@ web.set=function(context,path,value){
   return o;
 };
 
-
+//becomes async when you give a callback
 //only supports dot notation for now. no brackets
 //todo support bracket notation
 //inspiration http://stackoverflow.com/questions/14375753/parse-object-dot-notation-to-retrieve-a-value-of-an-object
-web.get=function(key){
+web.get=function(key,callback){
 	if(key==null){
 		return undefined
 	}
-	var obj = setScope(this,undefined)
+	var obj=setScope(this,undefined)
 	if(web.isValue(obj)){
+		var resp
 		if(web.isNumber(key)){//Handle array indexes and even negitive ones
 			if(key<0){
-				return obj[obj.length+key]
+				resp=obj[obj.length+key]
 			}else{
-				return obj[key]
+				resp=obj[key]
+			}
+		}else{
+			var parts = key.split('.')
+			resp = obj || window;
+			for (var i = 0; i < parts.length; i += 1) {
+				if (resp[parts[i]]) {
+					resp = resp[parts[i]];
+				} else {
+				if (i >= parts.length - 1)
+					return undefined;
+				}
 			}
 		}
-		var parts = key.split('.'),
-			current = obj || window;
-		for (var i = 0; i < parts.length; i += 1) {
-			if (current[parts[i]]) {
-				current = current[parts[i]];
-			} else {
-			  if (i >= parts.length - 1)
-				return undefined;
-			}
-		}
-		return current;
+		callback && callback.call && web.defer(callback,callback,resp)
+		return resp;
 	}
 
 	//inspiration http://stackoverflow.com/questions/2010892/storing-objects-in-html5-localstorage
-	var value = localStorage.getItem(key);
-	return value && JSON.parse(value);
+	if(callback && callback.call){
+		web.defer(function(){callback(web.get(key))})
+	}else{
+		var value = localStorage.getItem(key);
+		return value && JSON.parse(value);
+	}
 }
 
 web.take=function(array,n,n1){
@@ -4240,6 +4375,95 @@ web.toObject=function(input,type,callback){
 	}
 }
 web.toJSON=function(obj){
+	if(web.isjQuery(obj)){
+		if(obj.length==0){
+			return {}
+		}else if(obj.length==1){
+			return web.toJSON(obj)
+		}else{
+			var array=[]
+			obj.each(function(){
+				array.push(web.toJSON(this))
+			})
+			return array;
+		}
+	}
+	if(web.isNode(obj)){
+		if(obj.nodeName =='FORM'){ //}  obj.is('form')){
+			//inspiration http://stackoverflow.com/questions/1184624/convert-form-data-to-js-object-with-jquery
+			var o = {};
+			$(obj).find('input,textarea').each(function(i){
+				var elem,key,value;
+				var type = this.getAttribute('type')
+				if(type){
+					//use this.id then look for this.name since it is depricated
+					//http://stackoverflow.com/questions/484719/html-anchors-with-name-or-id
+					key=this.id||this.name||this.type+'['+i+']'
+					switch(type){
+						case 'checkbox':
+							value=(this.checked&&this.value)?this.value:this.checked;
+							break
+						case 'radio':
+							if(!this.checked){return}//if it isn't checked then ignore it
+							value=this.value
+							break
+						case 'image':
+							value=this.src
+							break
+						
+						//idk how to code for these
+						case 'date':
+						case 'month':
+						case 'week':
+						case 'time':
+						case 'datetime':
+						case 'datetime-local':
+							console.error('unhandled type!')
+							return
+						
+						//ignore these
+						case 'reset':
+						case 'submit':
+						case 'button':
+							return
+						// case 'email':
+						// case 'file':
+						// case 'search':
+						// case 'text':
+						// case 'password':
+						// case 'hidden':
+						// case 'number':
+						// case 'range':
+						// case 'tel':
+						// case 'url':
+						// case 'color':
+						// case 'textarea':
+						default:
+							value=this.value
+							break
+					}
+				}else{
+					if(elem.nodeName=='TEXTAREA'){
+						key=this.id||this.name||this.type+'['+i+']'
+						value=this.value
+					}
+				}
+
+				if (o[key] !== undefined) {
+					if (!o[key].push) {
+						o[key] = [o[key]];
+					}
+					o[key].push(value || '');
+				} else {
+					o[key] = value || '';
+				}
+			});
+			return o;
+
+		}//end is form
+	} //end is element
+
+
 	return JSON.stringify(obj)
 }
 web.prettyPrint=function(obj,indention){
@@ -4438,6 +4662,8 @@ web.toDOM=function(obj){
 //oh you can also associate a ID with the parent element
 //using jquery compile to doT template return as jquery obj
 web.template=function $_webTemplate(template,removeDataAttr,options){
+	//TODO TODO TODO TODO!!!!
+	//SOMEWHERE IS A REFERENCE THAT IS Causing new templates to contain references to old data that was given to compiled web.templates
 	var partial = false; //if partal equals true then return a string that is a partial template
 	//Argument manipulation
 	if(removeDataAttr!=undefined){
@@ -4674,16 +4900,25 @@ web.outsideClickDismissPopover=function(){
 
 
 //DO NOT USE yet
-web.keyboard=function(element, keyCombo,callback){
-	if(elem==null){
-		elem=$(document)
+web.keyboard=function(elem, keyCombo,callback){
+	elem=$(elem||window)
+
+	if(keyCombo=='search'){
+		elem.keydown(function(e){
+			if ( ((e.ctrlKey||e.metaKey) && e.keyCode===70) || e.keyCode===114){
+				callback(e)
+			}
+		});
+		return
 	}
 	var i=-1;
 	while(++i<keyCombo.length){
 		web.ascii(keyCombo[i])
 	}
 	
-	if(web.keyboard.shiftCharacters[key])
+	if(web.keyboard.shiftCharacters[key]){
+
+	}
 
 	var fn = function(){}
 	elem.keydown().keyup()
@@ -5043,16 +5278,16 @@ web.hashSwap=function(data,fn){//fn handles collisions
 }
 
 //copied from https://github.com/garycourt/murmurhash-js
-web.hashID=function(string,algorithm){//TODO replace with xxHash https://code.google.com/p/xxhash/
+web.hashID=function(string,asNumber,algorithm){//TODO replace with xxHash https://code.google.com/p/xxhash/
 	if(web.isArray(algorithm)){
 		//concat those fools!
 		var hash=''
-		_.forEach(function(algo){
-			hash+=web.hashID(string,algo)
+		_.forEach(algorithm,function(algo){
+			hash+=web.hashID(string,asNumber,algo)
 		})
 		return hash
 	}
-	var key=string,seed='L87jqBV2Xoo0YidZp3j3ZEIxc3bhOr4H2FNJRky632qNDEABVuGLMlME7zoo8JZU' //some random bit I got from running
+	var key=string,seed='280423850456' //some random bit I got from running
 	//echo `cat /dev/urandom | base64 | tr -dc "[:alnum:]" | head -c64`
 /**
  * JS Implementation of MurmurHash3 (r136) (as of May 20, 2011)
@@ -5076,11 +5311,11 @@ web.hashID=function(string,algorithm){//TODO replace with xxHash https://code.go
 	i = 0;
 	
 	while (i < bytes) {
-	  	k1 = 
-	  	  ((key.charCodeAt(i) & 0xff)) |
-	  	  ((key.charCodeAt(++i) & 0xff) << 8) |
-	  	  ((key.charCodeAt(++i) & 0xff) << 16) |
-	  	  ((key.charCodeAt(++i) & 0xff) << 24);
+		k1 = 
+			((key.charCodeAt(i) & 0xff)) |
+			((key.charCodeAt(++i) & 0xff) << 8) |
+			((key.charCodeAt(++i) & 0xff) << 16) |
+			((key.charCodeAt(++i) & 0xff) << 24);
 		++i;
 		
 		k1 = ((((k1 & 0xffff) * c1) + ((((k1 >>> 16) * c1) & 0xffff) << 16))) & 0xffffffff;
@@ -5088,7 +5323,7 @@ web.hashID=function(string,algorithm){//TODO replace with xxHash https://code.go
 		k1 = ((((k1 & 0xffff) * c2) + ((((k1 >>> 16) * c2) & 0xffff) << 16))) & 0xffffffff;
 
 		h1 ^= k1;
-        h1 = (h1 << 13) | (h1 >>> 19);
+		h1 = (h1 << 13) | (h1 >>> 19);
 		h1b = ((((h1 & 0xffff) * 5) + ((((h1 >>> 16) * 5) & 0xffff) << 16))) & 0xffffffff;
 		h1 = (((h1b & 0xffff) + 0x6b64) + ((((h1b >>> 16) + 0xe654) & 0xffff) << 16));
 	}
@@ -5114,7 +5349,62 @@ web.hashID=function(string,algorithm){//TODO replace with xxHash https://code.go
 	h1 = ((((h1 & 0xffff) * 0xc2b2ae35) + ((((h1 >>> 16) * 0xc2b2ae35) & 0xffff) << 16))) & 0xffffffff;
 	h1 ^= h1 >>> 16;
 
-	return h1 >>> 0;
+	var ans=(h1 >>> 0)
+	if(asNumber){
+		return ans
+	}else{
+		return web.padding(ans.toString(16),8,'0')
+	}
+}
+
+
+
+web.keyboard(null,'search',function(e){e.preventDefault();web.find(null)})
+
+
+//http://www.javascripter.net/faq/searchin.htm
+var TRange=null;
+web.find=function(str,promptCallback,searchCallback){
+	if(!web.isValue(str)){
+		if(!promptCallback){
+			promptCallback=function(){web.prompt("Search","What are you looking for?",searchCallback)}
+		}
+		if(!searchCallback){
+			searchCallback=function(bool,obj,obj21,value){web.find(value)}
+		}
+		promptCallback();
+		return
+	}
+
+
+	if(parseInt(navigator.appVersion)<4){return;}
+	var strFound;
+	if(window.find){// CODE FOR BROWSERS THAT SUPPORT window.find
+		strFound=self.find(str);
+		if (!strFound) {
+			strFound=self.find(str,0,1);
+			while (self.find(str,0,1)){continue;}
+			}
+	}
+	else if(navigator.appName.indexOf("Microsoft")!=-1){// EXPLORER-SPECIFIC CODE
+		if (TRange!=null) {
+			TRange.collapse(false);
+			strFound=TRange.findText(str);
+			if (strFound) TRange.select();
+		}
+			if (TRange==null || strFound==0) {
+			TRange=self.document.body.createTextRange();
+			strFound=TRange.findText(str);
+			if (strFound) TRange.select();
+		}
+	}else if(navigator.appName=="Opera"){
+		web.prompt("Opera browsers not supported, sorry...")
+		return;
+	}
+	if (!strFound){
+		web.prompt("String '"+str+"' not found!")
+	}
+return;
 }
 
 
@@ -5473,6 +5763,85 @@ alert('Welcome!') //displays first
 
 
 
+// //find highest value character we can use
+// var firstChar = String.fromCharCode(0)
+// var i=1
+// while(firstChar!=String.fromCharCode(i)){
+// 	console.log(i)
+// 	i++
+// }
+// //Once we count so high the characters repeat
+// String.fromCharCode(0)==String.fromCharCode(65536)
+
+
+//number system can be a fn,array, or string
+//		if array||string it is expected to be in assending order
+
+//inspiration http://www.javascripter.net/faq/convert3.htm
+web.toRadix=function(N,radix,numberSystem,zeroShift) {
+	//handle special radix first
+	//if(radix=='compress'){
+	
+	if(radix==null){ //compression command
+		radix=65535
+	}
+
+	if(radix<=36 && !numberSystem){
+		return Number.prototype.toString.call(N,radix)
+	}
+
+	if(!web.isNumber(radix)){
+		//now since we filtered out special commands 
+		if(web.isString(radix)||web.isArray(radix)){
+			numberSystem = radix
+			radix=numberSystem.length
+		}else{
+			throw 'error toRadix'
+		}
+	}
+
+	var fn;
+	if(!numberSystem){
+		numberSystem="0123456789abcdefghijklmnopqrstuvwxyz"
+		fn=(radix<=36)?function(R){return numberSystem.charAt(R)}:function(R){return String.fromCharCode(R)}
+	}else{
+		if(web.isFunction(numberSystem)){
+			fn=numberSystem
+			numberSystem="0123456789abcdefghijklmnopqrstuvwxyz"
+		}else if(web.isArray(numberSystem)){
+			numberSystem=numberSystem.join('')
+		}//else if string then we are already set!
+		fn=fn||function(R){return numberSystem.charAt(R)}
+	}
+
+	var HexN="",Q=Math.floor(Math.abs(N)),R,i=0;
+	while(true){
+		R=Q%radix;
+		HexN = fn(R,i++,N)+ HexN;
+		Q=(Q-R)/radix;
+		if (Q==0) break;
+	}
+	return ((N<0) ? "-"+HexN : HexN);
+}
+web.fromRadix=function(str,radix,numberSystem){
+	if(radix==null){ //compression command
+		radix=65535
+	}
+
+	var sign=1
+	if(str.charAt(0)=='-'){
+		sign=-1,
+		str=str.slice(1);
+	}
+
+	var value=0,l=str.length-1;
+	for (var i=l; i>=0; i--) {
+		var code=str.charCodeAt(i)
+		value+=code*Math.pow(radix,l-i)
+	}
+	return sign*value
+
+}
 
 
 //Source: http://stackoverflow.com/questions/11089399/count-with-a-b-c-d-instead-of-0-1-2-3-with-javascript
@@ -5509,6 +5878,19 @@ web.fromBaseAlpha=function(str) {
 		out += (str.charCodeAt(pos) - 64) * Math.pow(26, len - 1 - pos);
 	}
 	return sign*out;
+}
+web.baseAlphaTest=function(num){
+	if(!num){
+		return '@'
+	}
+	return web.toRadix(num,27,function(R,i,num){
+		if(i!=0){
+			return '@ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(R)
+		}else{
+			return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(R)
+		}
+	})
+
 }
 
 
@@ -5799,10 +6181,80 @@ web.GUID=function(format,source,callback){
 		return v.toString(16);
 	});
 }
-var uid=0
-web.UID=function(){
-	return uid++;
+var uids={
+
 }
+web.UID=function(from){
+	if(!from){
+		from=''
+	}
+	if(!uids[from]){
+		uids[from]=0;
+	}
+	return from+'['+ (uids[from]++) +']'
+
+}
+
+
+web.stringToColor=function(str,includeAlpha){
+	var hash=web.hashID(str)
+	if(includeAlpha){
+		throw 'Implement this'
+	}
+	return '#'+hash.slice(2)
+}
+
+web.complement=function(hex){
+	var pound=(web.startsWith(hex,'#'))?'#':''
+	if(pound){
+		hex='0x'+hex.slice(1)
+	}
+	return pound+ web.padding((0xffffff ^ parseInt(hex,16)).toString(16),6,'0')
+}
+web.colorLuma=function(hex){
+	var pound=(web.startsWith(hex,'#'))?'#':''
+	if(pound){
+		hex='0x'+hex.slice(1)
+	}
+	var rgb = parseInt(hex, 16);   // convert rrggbb to decimal
+	var r = (rgb >> 16) & 0xff;  // extract red
+	var g = (rgb >>  8) & 0xff;  // extract green
+	var b = (rgb >>  0) & 0xff;  // extract blue
+
+	return 0.2126 * r + 0.7152 * g + 0.0722 * b; // per ITU-R BT.709
+}
+web.colorForBackground=function(hex){
+	var pound=(web.startsWith(hex,'#'))?'#':''
+	if(pound){
+		hex='0x'+hex.slice(1)
+	}
+	var luma = web.colorLuma(hex)
+	if (luma < 40) {
+		return pound+'FFFFFF'
+	}else{
+		return pound+'000000'
+	}
+}
+//http://www.sitepoint.com/javascript-generate-lighter-darker-color/
+web.colorLuminance=function(hex, lum) {
+	// validate hex string
+	hex = String(hex).replace(/[^0-9a-f]/gi, '');
+	if (hex.length < 6) {
+		hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+	}
+	lum = lum || 0;
+
+	// convert to decimal and change luminosity
+	var rgb = "#", c, i;
+	for (i = 0; i < 3; i++) {
+		c = parseInt(hex.substr(i*2,2), 16);
+		c = Math.round(Math.min(Math.max(0, c + (c * lum)), 255)).toString(16);
+		rgb += ("00"+c).substr(c.length);
+	}
+
+	return rgb;
+}
+
 
 //Source http://www.paulirish.com/2009/random-hex-color-code-snippets/
 web.randomColor=function(type,a0,a1,a2){
@@ -5865,10 +6317,18 @@ web.ratioTo=function(width,height,output) {
 		height=output
 		output=tmp
 	}
+
+	//if width is an element
 	if(!web.isNumber(width)){
-		width=$(width)
-		height=width.height()
-		width=width.width()
+		var elem = $(width)
+		if(elem.hasClass('web-responsiveRatio')){
+			if(output=='percent'){
+				return parseFloat(elem.attr('data-responsiveRatio')) || parseFloat(web.getCSSProperty(elem,'padding-top'));
+			}
+		}else{
+			height=elem.height()
+			width=elem.width()
+		}
 	}
 	
 
@@ -5898,7 +6358,7 @@ or
 http://stackoverflow.com/questions/13880745/embedding-youtube-videos-aspect-ratio
 
 */
-web.responsiveRatio=function(elem,ratio){
+web.responsiveRatio=function(elem,ratio,arg2){
 	var css = ''
 		+'.web-responsiveRatio {'
 		+'width: 100%; max-width: 100%; position: relative;'
@@ -5927,7 +6387,9 @@ web.responsiveRatio=function(elem,ratio){
 	}
 
 	//TODO this could be optimized to go higher in code but for right now "attribute" "style" and "computed" need to be done per item
-	if(ratio==null||'attribute'){
+	if(ratio=='complement'){
+		ratio=web.ratioTo(arg2)
+	}else if(ratio==null||'attribute'){
 		ratio=web.ratioTo(parseFloat(elem.width),parseFloat(elem.height),'percent')
 	}else if(!web.endsWith(ratio,'%') || !web.isNumber(ratio)){
 		if(ratio=='style'){
@@ -6102,7 +6564,24 @@ web.$.gemake = function(selector,ifNotFound){
 	return elem.appendTo(ifNotFound);
 }
 
+web.preload=function(list){
+	if(!web.isArray(list)){
+		list=[list]
+	}
+	var returnList=[];
 
+	for (i=0, l=list.length; i<l; i++){
+		var item = list[i]
+		if(web.isObject(item)){
+			item.type
+			item.src
+		}
+		var img = new Image()
+		img.src=item
+		returnList.push(img)
+	}
+	return returnList
+}
 
 web.on=function(elem,event,handler,bool){
 	if (elem.addEventListener) { // Modern
@@ -6121,6 +6600,59 @@ web.comparator = web.comparator || {}
 web.comparator.numerical = function(a,b) {
 	return a - b;
 }
+
+//Inspiration http://web.archive.org/web/20130826203933/http://my.opera.com/GreyWyvern/blog/show.dml/1671288
+web.naturalSort=function(array,caseInsensitive,negitives){
+	for(var i=0,l=array.length;i<l;i++){
+		array[i]=web.splitAlphaNum(array[i],negitives)
+	}
+	// for (var z = 0, t; t = array[z]; z++) {
+	// 	array[z] = [];
+	// 	var x = 0, y = -1, n = 0, i, j;
+
+	// 	while (i = (j = t.charAt(x++)).charCodeAt(0)) {//TODO I think this can be replaced with web.RegExp.partitionAlphaNum
+	// 		var m = (i == 46 || (i >=48 && i <= 57));
+	// 		if (m !== n) {
+	// 			array[z][++y] = "";
+	// 			n = m;
+	// 		}
+	// 		array[z][y] += j;
+	// 	}
+	// }
+
+	array.sort(function(a, b) {
+		for (var x = 0, aa, bb; (aa = a[x]) && (bb = b[x]); x++) {
+			if (caseInsensitive) {
+				aa = aa.toLowerCase();
+				bb = bb.toLowerCase();
+			}
+			if (aa !== bb) {
+				var c = Number(aa), d = Number(bb);
+				if (c == aa && d == bb) {
+					return c - d;
+				} else return (aa > bb) ? 1 : -1;
+			}
+		}
+		return a.length - b.length;
+	});
+
+	for(var i=0,l=array.length;i<l;i++){
+		array[i] = array[i].join("");
+	}
+	return array
+}
+
+web.sort=function(array,comparator,arg1){
+	if(!comparator){
+		comparator=web.comparator.numerical
+	}else if(web.isString(comparator)){
+		if(comparator=='natural'){
+			return web.naturalSort(array,arg1)
+		}
+	}
+	return array.sort(comparator)
+}
+
 
 /*use to turn swipe history on or off for different browers n environments.
 currently it is only used to turn off the swipe history in Mac via a call to
@@ -6187,7 +6719,7 @@ web.swipeHistoryNavigation=function(element,on){
 			var rad = Math.atan(event.deltaY,event.deltaX); // In radians
 			var degree =rad*(180/Math.PI)
 			var dist=Math.sqrt(Math.pow(event.deltaX,2)+Math.pow(event.deltaY,2))
-			console.log(degree,dist,event.deltaX,event.deltaY)
+			//console.log(degree,dist,event.deltaX,event.deltaY)
 			var degreeExtremes=46
 
 			if( (-degreeExtremes>degree||degree>degreeExtremes) && Math.abs(event.deltaY)>Math.abs(event.deltaX)
@@ -6861,7 +7393,7 @@ web.setInterval=function(func, wait, times,callback){ //TODO request animation f
 	var tOut=setTimeout(interv, wait);
 	//console.log('init',tOut)
 	var id=web.setInterval.instances.push(interv)-1;
-   function interv(command) {
+	function interv(command) {
 		if(tOut&&command===false){
 			//console.log('clearing',tOut)
 			clearTimeout(tOut)
@@ -6869,7 +7401,7 @@ web.setInterval=function(func, wait, times,callback){ //TODO request animation f
 		}
 		if (counter++ <= times) {
 				//handle callback and command from  callback
-			   if(func.call(self)===web.clearInterval){
+				if(func.call(self)===web.clearInterval){
 					web.clearInterval(id)
 					clearTimeout(tOut)
 					return tOut=undefined
