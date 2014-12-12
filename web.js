@@ -243,8 +243,8 @@ Stallion.is=Stallion.is||{}
 Stallion.is.PositiveInteger=function isPositiveInteger(x) {
 		// http://stackoverflow.com/a/1019526/11236
 		return /^\d+$/.test(x);
-	}
-!(function(){    // First, validate both numbers are true version numbers
+	};
+(function(){    // First, validate both numbers are true version numbers
 	function validateParts(parts) {
 		for (var i = 0; i < parts.length; ++i) {
 			if (!Stallion.is.PositiveInteger(parts[i])) {
@@ -417,32 +417,6 @@ Stallion.userAgent=function(o){
 
 
 
-
-Stallion.Array = Stallion.Array || {};
-/**
-Takes 2 arrays and zippers them together, alternating values from one array and the other into a new array
-ex: a1=[1,2,3] a2=['a','b,'c','d','e'] returns [1,'a',2,'b',3,'c','d','e']
-*/
-Stallion.Array.zipper=function(a1,a2){
-
-	if(a2==null){
-		return a1;
-	}else if( Object.prototype.toString.call( a2 ) != '[object Array]'){
-		a1.push(a2);
-		return a1
-	}else if(a2.length==0){
-		return a1;
-	}
-			a2 = a2.slice(0); //shallow clone
-
-			var ans = $.map(a1,function(x){
-				return (a2.length>0)?[x,a2.shift()]/*consume array2*/:x;
-			})
-			if(a2.length){ //finish your leftovers
-				ans.push.apply(ans,a2);
-			}
-			return ans
-		}
 
 
 
@@ -1444,9 +1418,9 @@ web.abyss=function(elem,template,queryFn){
 			elem.find(".slick-header").css("height","0px").css('display','none')
 			grid.resizeCanvas()
 			grid.autosizeColumns();
-			$(window).on("resize."+uid,_.debounce(function(){
+			qWindow.on("resize."+uid,_.throttle(function(){
 				grid.resizeCanvas();
-			},100))
+			},350))
 
 			// wire up model events to drive the grid
 			dataView.onRowCountChanged.subscribe(function (e, args) {
@@ -1714,12 +1688,24 @@ web.abyss=function(elem,template,queryFn){
 		}
 		,scrollTo:function(arg){
 			if(web.isString(arg)){
-				if(arg=='selection'){
+				if(web.startsWith(arg,'selection',true)){
 					var list = grid.getSelectedRows()
-					if(list){
+
+					if(list.length){
 						grid.scrollRowToTop(list[0])
-						return
+					}else if(web.endsWith(arg,'bottom',true)){
+						grid.scrollRowToTop(undefined)
+					}else{
+						grid.scrollRowToTop(0)
 					}
+					return 
+				}else if(arg='bottom'){
+					if(options.leaveSpaceForNewRows==true){
+						grid.scrollRowToTop(undefined) //hax!
+					}else{
+						console.warn('UNTESTED behavior for web.abyss().scrollTo("bottom") just a guess ')
+							grid.scrollRowIntoView(undefined)
+						}
 				}
 			}
 			grid.scrollRowToTop(arg)
@@ -1760,6 +1746,11 @@ web.abyss=function(elem,template,queryFn){
 		,refresh:function(){
 			return dataView&&dataView.refresh();
 		}
+		,setBackdrop:function(backdrop){
+			return elem.append(backdrop)
+		}
+		//,"0":elem
+		//,length:1
 		,getSetOptions:setOptions
 	}
 	return face
@@ -1866,7 +1857,7 @@ web.screenSaver=function(elem,fn,options){
 
 //inspiration: http://stackoverflow.com/questions/12487352/how-do-i-pause-and-resume-a-timer
 web.stopWatch=function(fn,timeout){
-	if(!(this instanceof web.stopWatch)){return new web.stopWatch()}
+	if(!(this instanceof web.stopWatch)){return new web.stopWatch(fn,timeout)}
 	this.stop(fn,timeout)
 	this.record()
 }
@@ -3245,14 +3236,25 @@ web.onlyOne=function(target,silentForce){
 web.top=function(){
 	
 }
+var containsBank={} //TODO ensure this does not get too big!
 web.contains=function(str,word,caseInsensitive){
 	if(caseInsensitive){
 		if(web.isString(word)){
-			word = new RegExp(word,'i')
+			var bank = containsBank[word]
+			if(!bank){
+				word = containsBank[word]=new RegExp(word,'i')
+			}else{
+				word=bank
+			}
 		}
 		return str.search(word)>=0
 	}
 	return (String(str).indexOf(word)>=0)
+}
+web.equalsWord=function(str,word,caseInsensitive){
+	if(str.length==word.length){
+		return web.contains(str,word,caseInsensitive)
+	}
 }
 
 web.startsWith=function(str,prefix,caseInsensitive){
@@ -3797,6 +3799,63 @@ web.button=function(text,action,parent){
 
 }
 
+
+web.extern=function(o){
+		var _escapeable = /["\\\x00-\x1f\x7f-\x9f]/g;
+		var quoteString = function (string) {
+			if (string.match(_escapeable)) {
+				return '"' + string.replace(_escapeable, function(a) {
+					var c = _meta[a];
+					if (typeof c === 'string') return c;
+					c = a.charCodeAt();
+					return '\\u00' + Math.floor(c / 16).toString(16) + (c % 16).toString(16);
+				}) + '"';
+			}
+			return '"' + string + '"';
+		};
+		var extern =function (obj) {
+			var msg = "";
+			var appendBrace = typeof obj == "object" || web.isFunction(obj);
+			if (appendBrace)
+				msg += "{";
+			for (var p in obj) {
+				if(!obj.hasOwnProperty(p)){continue} // this rule is only for externing web.js object?
+				if(obj===obj[p]||obj===window||obj===document||obj===document.documentElement){continue} //if recursive then break
+				if (msg.length > 1)
+					msg += ",";
+				//else {
+				//if (Object.prototype.toString.call(obj) !== "[object Array]") {
+					console.log(p)
+				msg += quoteString(p) + " : ";
+				if (typeof obj[p] == "object"){
+					var r = extern(obj[p]);
+					if (r == "{}"){ //treat empty objects as if they are functions
+						msg += "function(){}";
+					}else{
+						msg += r;
+					}
+				}else {
+					if(isFunction(obj[p])){
+						msg += 'function('+web.functionArguments(obj[p]).toString()+'){}';
+					}else{
+						msg += "{}";
+					}
+				}
+				//}
+				//				}
+			}
+			if (appendBrace)
+				msg += "}";
+			return msg;
+		}
+		
+		
+		//$('#result').html(js_beautify(result, { indent_size: 4, indent_char: ' ', preserve_newlines: true, space_after_anon_function: true }));
+		return extern(o)
+}
+
+
+
 web.capitalize = function(string){
 		return string.charAt(0).toUpperCase() + string.slice(1);
 	}
@@ -4202,11 +4261,15 @@ web.get=function(key,callback){
 	}
 }
 
-web.take=function(array,n,n1){
-	if(n1){
-		return array.slice(n,n1)
+web.take=function(array,from,to){
+
+	if(to!=null){
+		//var max=Math.max(from,to)
+		//var min=(from==max)?to:from;
+		var n=(to<0)?(array.length-1-from+to):to-from;
+		return array.splice(from,n+1)
 	}
-	array.slice(0,n)
+	return array.splice(from,1)[0]
 }
 
 
@@ -4762,68 +4825,84 @@ web.toDOM=function(obj){
 	return JsonHuman.format(obj) //but JsonHuman is MIT license and simplistic. //TODO I will update this to support above features
 }
 
+
+//web.template('data.isAdvert','<div class="advert"></div>','data.isTitle','<div class="advert"></div>','<div class="content"></div>',{/*optional options*/})
 //This template allows the developer to use data-attributes to crate templates then compile them using doT
 //The precomile will be longer but the actual data interpolation will be super fast!
 //the developer can still use doT type syntax within their template or they dont have to use it at all!
 //Win-win winning!~
 //oh you can also associate a ID with the parent element
 //using jquery compile to doT template return as jquery obj
-web.template=function $_webTemplate(template,removeDataAttr,options){
+
+
+
+
+//web.template('data.isAdvert','<div class="advert"></div>','data.isTitle','<div class="advert"></div>','<div class="content"></div>',{/*optional options*/})
+//This template allows the developer to use data-attributes to crate templates then compile them using doT
+//The precomile will be longer but the actual data interpolation will be super fast!
+//the developer can still use doT type syntax within their template or they dont have to use it at all!
+//Win-win winning!~
+//oh you can also associate a ID with the parent element
+//using jquery compile to doT template return as jquery obj
+web.template=function $_webTemplate(template,options){
 	//TODO TODO TODO TODO!!!!
-	//SOMEWHERE IS A REFERENCE THAT IS Causing new templates to contain references to old data that was given to compiled web.templates
-	var partial = false; //if partal equals true then return a string that is a partial template
-	//Argument manipulation
-	if(removeDataAttr!=undefined){
-		if(web.isObject(removeDataAttr)){
-			map=varSwap(removeDataAttr,removeDataAttr=map)
-		}
+	//SOMEWHERE IS A REFERENCE THAT IS Causing the compiled templates to contain references to old data that was given to compiled web.templates
+	var conditions=web.toArray(arguments)
+	
+	//get options(if exists)
+	options=conditions.pop() //just take it, cause you are the programmer and you don't need no reason
+	if(!web.isObject(options)){ //got a little hasty?
+		conditions.push(options) // then put it back
+		options={} //make your own, pretend it didn't happen
 	}
-	if(typeof template=='string'){
-		if(typeof removeDataAttr=='string'){
-			partial=true;
-			template='{{? '+template.replace('-','.')+' }}'+removeDataAttr+'{{?}}'
-		}
-		template=$(web.parseHTML(template,{deferLoads:true}))
-	}
-	if(removeDataAttr===undefined){
-		removeDataAttr=true
-	}
-
-
-
-
 	options=options||{}
 	var map = options.map
 	//todo options.defaults
 	//todo options.functions (like escape and other doT functions)
 
+	if(options.removeDataAttr===undefined){
+		options.removeDataAttr=true
+	}
 
-	//find all data-attributes and convert them to doT data variables
-	template.find('*').each(function(){
-		var elem = $(this);
-		var data =elem.data()
-		var results=[]
-		_.forEach(data,function(val,key,array){
-			if(val===''){ //only take keys that have values equal to empty string
-				results.push(key)
+
+	var rawTemplates,compiled=[],templates=[];
+	if((conditions.length==1)){
+		rawTemplates=conditions
+		conditions=undefined;
+	}else{
+		rawTemplates=web.unzipArray(conditions,true);
+	}
+
+	var conditional = !!conditions; //if partal equals true then return a string that is a partial template
+	for(var index=0,l=rawTemplates.length;index<l;index++){
+		var template=$(web.parseHTML(rawTemplates[index],{deferLoads:true})) //turn into a jquery Parseable object (DOM object)
+		
+		//find all data-attributes and convert them to doT data variables
+		template.find('*').each(function(){
+			var elem = $(this);
+			var data =elem.data()
+			var results=[]
+			_.forEach(data,function(val,key,array){
+				if(val===''){ //only take keys that have values equal to empty string
+					results.push(key)
+				}
+			})
+			var l = results.length,value,key;
+			if(!l){return}
+			for(var i=0;i<l;i++){
+				if(map){
+					key=map[results[i]]
+				}else{
+					key=results[i]
+				}
+				elem.prepend(document.createTextNode('{{=data.'+key+'||""}}'))
+				if(options.removeDataAttr){
+					//elem.removeData()
+					elem.removeAttr('data-'+results[i])
+				}
+
 			}
 		})
-		var l = results.length,value,key;
-		if(!l){return}
-		for(var i=0;i<l;i++){
-			if(map){
-				key=map[results[i]]
-			}else{
-				key=results[i]
-			}
-			elem.prepend(document.createTextNode('{{=data.'+key+'||""}}'))
-			if(removeDataAttr){
-				//elem.removeData()
-				elem.removeAttr('data-'+results[i])
-			}
-
-		}
-	})
 
 		// template.find('img[data-src]').each(function(){
 		// 	var elem=$(this);
@@ -4834,28 +4913,29 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 		// });
 
 
-	//get manipulated html and compile using doT
-	template = template.outerHTML();
+		//get manipulated html and compile using doT
+		template = template.outerHTML();
+		templates.push(template);
 
-	// template=web.xmlToEvents(template,function(e){
-	// 		var str=''
-	// 		//todo support all tags and their url loading counterparts 
-	// 		//http://stackoverflow.com/questions/2725156/complete-list-of-html-tag-attributes-which-have-a-url-value
-	// 		if(e.tag=='IMG'){
-	// 			str=e.raw.replace(/data-src\s*=\s*["'].+?["']/gi,function(rawMatch,offset,string){
-	// 				return rawMatch.slice(5) //remove 'data-'
-	// 			})
-	// 		}
-	// 		return str ||e.raw
-	// })
+		// template=web.xmlToEvents(template,function(e){
+		// 		var str=''
+		// 		//todo support all tags and their url loading counterparts 
+		// 		//http://stackoverflow.com/questions/2725156/complete-list-of-html-tag-attributes-which-have-a-url-value
+		// 		if(e.tag=='IMG'){
+		// 			str=e.raw.replace(/data-src\s*=\s*["'].+?["']/gi,function(rawMatch,offset,string){
+		// 				return rawMatch.slice(5) //remove 'data-'
+		// 			})
+		// 		}
+		// 		return str ||e.raw
+		// })
 
-	if(partial){
-		return template //this is a partial template because first 2 params are strings
+		//template.replace
+		compiled.push(doT.template(template))
 	}
-	//template.replace
-	var compiled = doT.template(template)
 
-	return function $_webCompiledTemplate(data,id,map){
+
+
+	var face=function $_webCompiledTemplate(data,id,map){
 		if(!web.isValue(data)){
 			data={}
 		}
@@ -4867,8 +4947,34 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 		if(map){
 
 		}
+
+		var fn;
+		if(conditions){
+			for(var i=0,l=conditions.length;i<l;i++){
+				var condition=conditions[i],invert=false;
+
+				if(web.startsWith(condition,'!')){
+					invert=true
+					condition=condition.slice(1)
+				}
+
+				if(web.get.call(data,condition)){
+
+					fn=compiled[i]
+					break
+				}else if(invert){
+
+					fn=compiled[i]
+					break	
+				}
+
+			}
+		}else{
+			fn=compiled[0]
+		}
+
 		//SUPER FAST doT precomiled template then convert to jquery for adding id and returning
-		var instance=$(compiled(data))
+		var instance=$(fn(data))
 		if(options.consumeClick){
 			instance.find('.consume-click').on('click',function(e){alert('stopProp');e.stopPropagation();return false})
 		}
@@ -4890,7 +4996,145 @@ web.template=function $_webTemplate(template,removeDataAttr,options){
 
 		return instance; //congrats! super awesome syntax and optimized template compile times with just enough sugar to keep your dev from dieing sad unfufilled
 	}
+	face.toString=function(){
+		if(conditions.length>1){
+			throw 'Error, toString can not be called on a compiled web.template with more than 1 condition'
+		}
+		if(templates.length==1){
+			return '{{? '+conditions[0].replace('-','.')+' }}'+templates[0]+'{{?}}';
+		}else{
+			alert()
+			return '{{? '+conditions[0].replace('-','.')+' }}'+templates[0]+'{{??}}'+templates[1]+'{{?}}';
+		}
+		alert()
+	}
+	return face
 }
+
+
+// web.template=function $_webTemplate(template,options){
+
+// 	//TODO TODO TODO TODO!!!!
+// 	//SOMEWHERE IS A REFERENCE THAT IS Causing new templates to contain references to old data that was given to compiled web.templates
+// 	var conditional = false; //if partal equals true then return a string that is a partial template
+	
+// 	if(typeof template=='string'){
+// 		if(typeof options=='string'){
+// 			conditional=options
+// 			options={}
+// 			template='{{? '+template.replace('-','.')+' }}'+conditional+'{{?}}';
+// 		}
+// 		template=$(web.parseHTML(template,{deferLoads:true}))
+// 	}
+
+
+// 	options=options||{}
+// 	var map = options.map
+// 	//todo options.defaults
+// 	//todo options.functions (like escape and other doT functions)
+
+// 	if(options.removeDataAttr===undefined){
+// 		options.removeDataAttr=true
+// 	}
+
+// 	//find all data-attributes and convert them to doT data variables
+// 	template.find('*').each(function(){
+// 		var elem = $(this);
+// 		var data =elem.data()
+// 		var results=[]
+// 		_.forEach(data,function(val,key,array){
+// 			if(val===''){ //only take keys that have values equal to empty string
+// 				results.push(key)
+// 			}
+// 		})
+// 		var l = results.length,value,key;
+// 		if(!l){return}
+// 		for(var i=0;i<l;i++){
+// 			if(map){
+// 				key=map[results[i]]
+// 			}else{
+// 				key=results[i]
+// 			}
+// 			elem.prepend(document.createTextNode('{{=data.'+key+'||""}}'))
+// 			if(options.removeDataAttr){
+// 				//elem.removeData()
+// 				elem.removeAttr('data-'+results[i])
+// 			}
+
+// 		}
+// 	})
+
+// 		// template.find('img[data-src]').each(function(){
+// 		// 	var elem=$(this);
+// 		// 	// modify src however you need to, maybe make
+// 		// 	// a function called 'getAbsoluteUrl'
+// 		// 	elem.attr('onload','this.src=(this.src==web.images.bug)?web.images.ghostPixel:this.getAttribute("data-src")') //.prop('src', elem.data('src'));
+// 		// 	elem.attr('src',web.images.bug)
+// 		// });
+
+
+// 	//get manipulated html and compile using doT
+// 	template = template.outerHTML();
+
+// 	// template=web.xmlToEvents(template,function(e){
+// 	// 		var str=''
+// 	// 		//todo support all tags and their url loading counterparts 
+// 	// 		//http://stackoverflow.com/questions/2725156/complete-list-of-html-tag-attributes-which-have-a-url-value
+// 	// 		if(e.tag=='IMG'){
+// 	// 			str=e.raw.replace(/data-src\s*=\s*["'].+?["']/gi,function(rawMatch,offset,string){
+// 	// 				return rawMatch.slice(5) //remove 'data-'
+// 	// 			})
+// 	// 		}
+// 	// 		return str ||e.raw
+// 	// })
+
+
+// 	//template.replace
+// 	var compiled = doT.template(template)
+
+
+// 	var face=function $_webCompiledTemplate(data,id,map){
+// 		if(!web.isValue(data)){
+// 			data={}
+// 		}
+// 		if(web.isObject(id)){
+// 			map=varSwap(id,id=map);
+// 		}//let jquery handle ids that are undefined 0 or null
+
+// 		//mapping for super easy data element casting
+// 		if(map){
+
+// 		}
+// 		//SUPER FAST doT precomiled template then convert to jquery for adding id and returning
+// 		var instance=$(compiled(data))
+// 		if(options.consumeClick){
+// 			instance.find('.consume-click').on('click',function(e){alert('stopProp');e.stopPropagation();return false})
+// 		}
+
+// 		//this will either set the id or return (if the id var was null undefined etc)
+// 		if(web.isValue(id)){
+// 			instance.attr("id",id); //make sure not to chain on returns in case id==undefined cause it will return an empty stirng 
+// 		}
+// 		/*
+// 		//inspiration
+// 		//http://stackoverflow.com/questions/19160474/how-to-prevent-an-img-tag-from-loading-its-image
+// 		// Only modify the images that have 'data-src' attribute
+// 		instance.find('img[data-src]').each(function(){
+// 			var elem=$(this);
+// 			// modify src however you need to, maybe make
+// 			// a function called 'getAbsoluteUrl'
+// 			elem.prop('src', elem.data('src'));
+// 		});*/
+
+// 		return instance; //congrats! super awesome syntax and optimized template compile times with just enough sugar to keep your dev from dieing sad unfufilled
+// 	}
+// 	face.toString=function(){
+// 			//if(conditional){
+// 				return template //this is a partial template because first 2 params are strings
+// 			//}
+// 	}
+// 	return face
+// }
 
 
 
@@ -5210,12 +5454,12 @@ web.concat=function(in1,in2){
 	}
 }
 
-web.padding=function(str,padding,char,additional){
-	char=char||' '
+web.padding=function(str,padding,letter,additional){
+	letter=letter||' '
 	if(web.isArray(str)){
 		var a=[]
 		for(var i=0,l=str.length;i<l;i++){
-			a.push(web.padding(str[i],padding,char))
+			a.push(web.padding(str[i],padding,letter))
 		}
 		return a;
 	}
@@ -5225,7 +5469,7 @@ web.padding=function(str,padding,char,additional){
 		output=str
 	}else if(padding>0){
 		//TODO optimize this
-		output=((Array(padding).join(char)) + str).slice(-padding);
+		output=((Array(padding).join(letter)) + str).slice(-padding);
 	}else{
 		throw 'not implemented yet'
 	}
@@ -5868,7 +6112,10 @@ alert('Welcome!') //displays first
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
 
-
+//http://stackoverflow.com/questions/2304052/check-if-a-number-has-a-decimal-place-is-a-whole-number
+web.isDecimal=function(num){
+	return num % 1 != 0
+}
 
 // //find highest value character we can use
 // var firstChar = String.fromCharCode(0)
@@ -5885,7 +6132,11 @@ alert('Welcome!') //displays first
 //		if array||string it is expected to be in assending order
 
 //inspiration http://www.javascripter.net/faq/convert3.htm
-web.toRadix=function(N,radix,numberSystem,zeroShift) {
+
+//TODO support - and . 
+//note: .toString(16) - and . fall though but when you convert back using
+// parseInt(x,16) truncates when it hits an .
+web.numberToRadix=function(N,radix,numberSystem,zeroShift) {
 	//handle special radix first
 	//if(radix=='compress'){
 	
@@ -5893,9 +6144,9 @@ web.toRadix=function(N,radix,numberSystem,zeroShift) {
 		radix=65535
 	}
 
-	if(radix<=36 && !numberSystem){
-		return Number.prototype.toString.call(N,radix)
-	}
+	//if(radix<=36 && !numberSystem){
+	//	return Number.prototype.toString.call(N,radix)
+	//}
 
 	if(!web.isNumber(radix)){
 		//now since we filtered out special commands 
@@ -5907,39 +6158,59 @@ web.toRadix=function(N,radix,numberSystem,zeroShift) {
 		}
 	}
 
-	var fn;
+	var fn
+		,charNeg
+		,charDecimal
 	if(!numberSystem){
-		numberSystem="0123456789abcdefghijklmnopqrstuvwxyz"
-		fn=(radix<=36)?function(R){return numberSystem.charAt(R)}:function(R){return String.fromCharCode(R)}
+		numberSystem=".-0123456789abcdefghijklmnopqrstuvwxyz"
+		fn=(radix>36)?function(R){return String.fromCharCode(R) /*TODO alter this to add . and - */}:undefined;
 	}else{
 		if(web.isFunction(numberSystem)){
 			fn=numberSystem
-			numberSystem="0123456789abcdefghijklmnopqrstuvwxyz"
+			numberSystem=undefined //"0123456789abcdefghijklmnopqrstuvwxyz"
 		}else if(web.isArray(numberSystem)){
 			numberSystem=numberSystem.join('')
 		}//else if string then we are already set!
-		fn=fn||function(R){return numberSystem.charAt(R)}
 	}
+	fn=fn||function(R){return numberSystem.charAt(R+2)}
 
-	var HexN="",Q=Math.floor(Math.abs(N)),R,i=0;
+	var first0=true
+	var HexN="",Q=Math.floor(Math.abs(N)),Q2=parseFloat(web.trimLeft(N.toString(),'.')),R,i=0,letter,diff;
 	while(true){
 		R=Q%radix;
-		HexN = fn(R,i++,N)+ HexN;
+		letter= fn(R,i++,N)
+		HexN = letter+ HexN;
 		Q=(Q-R)/radix;
-		if (Q==0) break;
+		if(Q==0){
+			if(first0){
+				alert(Q)
+				Q=Q2 //TODO still needs work
+				alert(Q)
+				HexN+=fn(-2); //get dot
+				first0=false
+			}else{
+				break
+			}
+		}
 	}
-	return ((N<0) ? "-"+HexN : HexN);
+	return ((N<0) ? fn(-1)+HexN : HexN); //fn(-1) gets negitive symbol for numbersystem
 }
-web.fromRadix=function(str,radix,numberSystem){
+web.radixToNumber=function(str,radix,numberSystem){
 	if(radix==null){ //compression command
 		radix=65535
 	}
 
-	var sign=1
-	if(str.charAt(0)=='-'){
-		sign=-1,
-		str=str.slice(1);
+	if(radix<=36 && !numberSystem && !web.isDecimal(N)){ //because parseint will trunkcate decimal numbers
+		return parseInt(str,radix)
 	}
+
+	//TODO fix the . and - conversion add numbersystem
+
+	var sign=1
+	//if(str.charAt(0)=='-'){
+	//	sign=-1,
+	//	str=str.slice(1);
+	//}
 
 	var value=0,l=str.length-1;
 	for (var i=l; i>=0; i--) {
@@ -5990,7 +6261,7 @@ web.baseAlphaTest=function(num){
 	if(!num){
 		return '@'
 	}
-	return web.toRadix(num,27,function(R,i,num){
+	return web.numberToRadix(num,27,function(R,i,num){
 		if(i!=0){
 			return '@ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(R)
 		}else{
@@ -6219,6 +6490,9 @@ web.worker=true;
 var args=[];
 
 web.endsWith =function(str, suffix) {
+	if(str==undefined){
+		return false
+	}
 	return str.indexOf(suffix, str.length - suffix.length) !== -1;
 }
 //Inspiration: Martin Algesten
@@ -6263,12 +6537,12 @@ String.prototype.repeat = function (count) {
 //TODO optimize asArray methods
 
 //Inspiration http://stackoverflow.com/questions/10936600/javascript-decimal-to-binary-64-bit
-web.toBinary=function(int,padding,asArray) { // asArray should be 0||null||undefined for string, 1||true for array of boolean, 2 for array of numbers 
+web.toBinary=function(number,padding,asArray) { // asArray should be 0||null||undefined for string, 1||true for array of boolean, 2 for array of numbers 
 	var val,s,l,padding=padding||64;
-	if (int>=0){
-		s = "0", val=int.toString(2);
+	if (number>=0){
+		s = "0", val=number.toString(2);
 	}else{
-		s='1', val=(-int-1).toString(2).replace(/[01]/g, function(d){return +!+d;}) // hehe: inverts each char
+		s='1', val=(-number-1).toString(2).replace(/[01]/g, function(d){return +!+d;}) // hehe: inverts each char
 	}
 	var string = s.repeat(padding-val.length)+val;
 	if(asArray){ //true,1,2
@@ -6481,6 +6755,7 @@ web.responsiveRatio=function(elem,ratio,arg2){
 		head.appendChild(div.childNodes[1]);
 		web
 	}
+	var callback =(web.isFunction(arg2))?arg2:undefined
 
 	if(web.isString(elem)){
 		elem=$(elem)
@@ -6511,6 +6786,11 @@ web.responsiveRatio=function(elem,ratio,arg2){
 			}
 			ratio=web.ratioTo(parseFloat(e[0]),parseFloat(e[2]),'percent')
 		}
+	}
+
+	//TODO if ratio is 0 (or width or height == 0 ) and there is a callback AND it is an image or iframe etc then use the callback
+	if(ratio==0 && callback){
+
 	}
 
 	var positionWrapper;
@@ -7161,7 +7441,6 @@ web.fullScreen=function(onOff,callback){ //TODO callback should be called after 
 	if(!web.isValue(onOff)){ //toggle
 		onOff=!web.isFullScreen()
 	}
-	debugger
 
 	if(onOff){
 		if (elem.requestFullscreen) {
@@ -7877,6 +8156,53 @@ web.elementWatch=function(element,watches){
 web.Object=function(){return web.create('object')}
 web.Array=web.forRange//function(){return web.create('array')}
 
+/**
+Takes 2 arrays and zippers them together, alternating values from one array and the other into a new array
+ex: a1=[1,2,3] a2=['a','b,'c','d','e'] returns [1,'a',2,'b',3,'c','d','e']
+*/
+web.zipArray=function(a1,a2){
+	if(a2==null){
+		return a1;
+	}else if(!web.isArray(a2)){
+		a1.push(a2);
+		return a1
+	}else if(!a2.length){ //it is an array so we can do this
+		return a1;
+	}
+	a2 = a2.slice(0); //shallow clone
+
+	var ans = $.map(a1,function(x){
+		return (a2.length>0)?[x,a2.shift()]/*consume array2*/:x;
+	})
+	if(a2.length){ //finish your leftovers
+		ans.push.apply(ans,a2);
+	}
+	return ans
+}
+
+web.unzipArray=function(array,consume){
+
+	if(!consume){
+		var a1=[],a2=[];
+		_.forEach(array,function(value,i){
+			if(i % 2 == 0){
+				a1.push(value)
+			}else{
+				a2.push(value)
+			}
+		})
+		return [a1,a2]
+	}else{
+		var a2=[]
+		for(var i=array.length - 1; i >= 0;i--){
+			if(i%2 == 1){
+				a2.unshift(web.take(array,i))
+			}
+		}
+		return a2
+	}
+}
+
 
 var CLASS = function(path){
 	if(web.isNodeJS()){
@@ -8214,7 +8540,13 @@ web.getCSSProperty=function(elem, property){
 		return val;
 
 	// get matched rules
-	var rules = getMatchedCSSRules(elem);
+	var rules;
+	if(web.global.getMatchedCSSRules){
+		rules = getMatchedCSSRules(elem);
+	}else{
+		console.log('Need getMatchedCSSRules pollyfill for non-webkit browsers. See https://gist.github.com/ydaniv/3033012 and https://bugs.webkit.org/show_bug.cgi?id=79653')
+		return undefined
+	}
 
 	// iterate the rules backwards
 	// rules are ordered by priority, highest last
