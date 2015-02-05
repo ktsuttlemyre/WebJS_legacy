@@ -79,9 +79,21 @@ end pollyfills
 				});
 			};
 			$.fn.outerHTML = function(){
-				if(this[0].outerHTML){
-					return this[0].outerHTML
-				}
+				 	if(this[0].outerHTML){
+						var html='';
+						this.each(function(){
+							if(this.outerHTML){
+								html+= this.outerHTML
+							}
+						})
+						return html
+					}
+				// }else{
+				// 	return this.wrapAll('</div>').parent().html()
+				// }
+				//if(this[0].outerHTML){
+				//	return this[0].outerHTML
+				//}
 				return this.wrapAll('<div></div>').parent().html()
 			}
 			//http://stackoverflow.com/questions/3086068/how-do-i-check-whether-a-jquery-element-is-in-the-dom
@@ -109,9 +121,10 @@ end pollyfills
 			$.fn.exists=function(){
 				return this.length>0;
 			}
-			$.fn.getLastClass=function(){
-				return $(this).attr('class').split(' ').pop().trim()
-			}
+			// $.fn.getLastClass=function(){
+			// 	console.warn('Depricated!!! stop using jquery plugin getlastclass')
+			// 	return (this.className||'').trim().split(' ').pop().trim()
+			// }
 
 		})(jQuery);
 
@@ -457,18 +470,28 @@ function(){
 
 
 
+// self.web=(function(){}).prototype.constructor=function(){
+// 	var web = function(){
+// 		alert('hi')
+// 	}
+// 	if(web && web.prototype.constructor){
+// 		web.prototype.constructor=self.web.prototype.constructor
+// 	}
+// 	return web
+// }
+// this.web=this.web.prototype.constructor()
 
 
-
-var web=(function(web,global,environmentFlags,undefined){
+this.web=(function(web,global,environmentFlags,undefined){
 	//if it does not exist. make it!
 	if(typeof web!='undefined'){
 		if(!isFunction(web)){//settings object
 			var settings = web;
-			defer.call(web,web.setSettings,settings); //TODO make this work!
+			defer.call(web,web.settings,settings); //TODO make this work!
 			
 		}
 	}
+	web=function(options){ //init start
 	//avoid anything with call, avoid anything with this and use this custom scope function 
 	//http://jsperf.com/bind-vs-jquery-proxy/76
 	web=function(input){
@@ -484,137 +507,137 @@ var web=(function(web,global,environmentFlags,undefined){
 		}
 	};
 	web.id="$Id$"
-	
-//private things
-var head = document.head || document.getElementsByTagName('head')[0];
-	
+		
+	//private things
+	var head = document.head || document.getElementsByTagName('head')[0];
+		
 
 
 
 
 
 
-var production=false;
-web.setProduction=function(isProduction){
-	if(isProduction.toUpperCase&&isProduction.toUpperCase()=='PRODUCTION'){
-		production=true
-		return
+	var production=false;
+	web.setProduction=function(isProduction){
+		if(isProduction.toUpperCase&&isProduction.toUpperCase()=='PRODUCTION'){
+			production=true
+			return
+		}
+		production=isProduction
 	}
-	production=isProduction
-}
-web.isDevelopment=web.isDev=function(){
-	return !production
-}
-web.isProduction=function(){
-	return production
-}
-
-//Used a lot in other languages for complex spliting
-//https://www.google.com/search?q=soh+character&oq=SOH+charac&aqs=chrome.1.69i57j0l5.4423j1j7&sourceid=chrome&es_sm=91&ie=UTF-8#safe=off&q=SOH+character+split
-//http://en.wikipedia.org/wiki/Control_character#Transmission_control
-web.SOH=web.delimiter=String.fromCharCode(0x01);
-web.slash='\\'
-web.newLine='\n'
-
-	web.isNodeJS=function(){
-		return environmentFlags.platform=='nodejs';
+	web.isDevelopment=web.isDev=function(){
+		return !production
 	}
-	//http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
-	web.isJSCommons=function(){
-		return (typeof web.global.module !== 'undefined' && web.global.module.exports)
-	}
-	web.env = (web.isNodeJS())?process.env.NODE_ENV : 'development' //TODO allow setting of this for webpages. maybe use a tag or something? maybe hashFragment? idk
-
-	web.global = global;
-	global.web=web
-	web.environment=environmentFlags;
-	var _=(web.global._)?web.global._:require('lodash')
-	var $=(web.global.$)?web.global.$:require('cheerio')
-
-
-
-
-
-web.stack=function(index){
-	if(index){
-		return (new Error).stack.split("\n")[index]
-	}
-	return (new Error).stack.split("\n")
-}
-//Inspiration http://stackoverflow.com/questions/1340872/how-to-get-javascript-caller-function-line-number-how-to-get-javascript-caller
-//number will be associated with scopeIndex
-//boolean or string will be link
-
-//TODO improve with this http://www.stacktracejs.com/
-web.lineNumber=function(link,scopeIndex){
-	if(typeof link == 'number'){ //swap if needed
-		link=varSwap(scopeIndex,scopeIndex=link);
-	}
-	scopeIndex=(scopeIndex||0)+2
-	var lines=(new Error).stack.split("\n") //TODO don't use split use substring
-	var line = web.trimLeft(web.get.call(lines,scopeIndex),'at ')
-	if(link){
-		return parseFloat(line)
-	}else{
-		return parseFloat(web.get.call(line.split(':'),-2))
-	}
-}
-web.columnNumber=function(link,scopeIndex){
-	return web.deepTrimLeft(web.lineNumber(true,1),':')
-}
-
-
-//http://getfirebug.com/wiki/index.php/Firebug_Lite_1.2#Firebug_Lite_API
-web.consoleHandler=(function(){
-	if(web.global.Firebug && web.global.console.firebuglite){
-			var tmp=window.console
-			delete window.console
-			//TODO make firebug show large commandline
-			//Firebug.chrome.showLargeCommandLine()
-			return tmp
-	}else{
-		console.warn('web.consoleHandler is browsers console')
-		return console
-	}
-})()
-
-web.bug=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
-	logWithIcon(err,web.images.bug,'error')
-	callback && callback(arg,arg1,arg2,arg3,arg4,arg5)
-}
-web.error=function(err,defered,arg,arg1,arg2,arg3,arg4,arg5){
-	if(!err&&!defered){
-		return web.error.last;
-	}
-	if(web.isFunction(err)){
-		defered=err
-		err=null
+	web.isProduction=function(){
+		return production
 	}
 
-	if(err){
-		var error=(new Error)
-		var stack = error.stack;
-		var line = (stack)?stack.split("\n")[2]:error.lineNumber;
-		//web.error('Error '+line.trim()+' :'+err);
-		//TODO send error back to server!
-	}
-	if(defered){
-		web.error.last=err
+	//Used a lot in other languages for complex spliting
+	//https://www.google.com/search?q=soh+character&oq=SOH+charac&aqs=chrome.1.69i57j0l5.4423j1j7&sourceid=chrome&es_sm=91&ie=UTF-8#safe=off&q=SOH+character+split
+	//http://en.wikipedia.org/wiki/Control_character#Transmission_control
+	web.SOH=web.delimiter=String.fromCharCode(0x01);
+	web.slash='\\'
+	web.newLine='\n'
 
-		defered && defered(arg,arg1,arg2,arg3,arg4,arg5)
-		web.error.last=undefined
+		web.isNodeJS=function(){
+			return environmentFlags.platform=='nodejs';
+		}
+		//http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
+		web.isJSCommons=function(){
+			return (typeof web.global.module !== 'undefined' && web.global.module.exports)
+		}
+		web.env = (web.isNodeJS())?process.env.NODE_ENV : 'development' //TODO allow setting of this for webpages. maybe use a tag or something? maybe hashFragment? idk
+
+		web.global = global;
+		global.web=web
+		web.environment=environmentFlags;
+		var _=(web.global._)?web.global._:require('lodash')
+		var $=(web.global.$)?web.global.$:require('cheerio')
+
+
+
+
+
+	web.stack=function(index){
+		if(index){
+			return (new Error).stack.split("\n")[index]
+		}
+		return (new Error).stack.split("\n")
 	}
-	return err
-}
-web.cancel=web.error
-web.depricated=function(reason,fn){
-	console.error('This function is depricated for reason:',reason,fn)
-}
-web.warning=null;
-web.event=null;
-var errorSilently=web.errorSilently={
-	removeIndex:true
-}
+	//Inspiration http://stackoverflow.com/questions/1340872/how-to-get-javascript-caller-function-line-number-how-to-get-javascript-caller
+	//number will be associated with scopeIndex
+	//boolean or string will be link
+
+	//TODO improve with this http://www.stacktracejs.com/
+	web.lineNumber=function(link,scopeIndex){
+		if(typeof link == 'number'){ //swap if needed
+			link=varSwap(scopeIndex,scopeIndex=link);
+		}
+		scopeIndex=(scopeIndex||0)+2
+		var lines=(new Error).stack.split("\n") //TODO don't use split use substring
+		var line = web.trimLeft(web.get.call(lines,scopeIndex),'at ')
+		if(link){
+			return parseFloat(line)
+		}else{
+			return parseFloat(web.get.call(line.split(':'),-2))
+		}
+	}
+	web.columnNumber=function(link,scopeIndex){
+		return web.deepTrimLeft(web.lineNumber(true,1),':')
+	}
+
+
+	//http://getfirebug.com/wiki/index.php/Firebug_Lite_1.2#Firebug_Lite_API
+	web.consoleHandler=(function(){
+		if(web.global.Firebug && web.global.console.firebuglite){
+				var tmp=window.console
+				delete window.console
+				//TODO make firebug show large commandline
+				//Firebug.chrome.showLargeCommandLine()
+				return tmp
+		}else{
+			console.warn('web.consoleHandler is browsers console')
+			return console
+		}
+	})()
+
+	web.bug=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
+		logWithIcon(err,web.images.bug,'error')
+		callback && callback(arg,arg1,arg2,arg3,arg4,arg5)
+	}
+	web.error=function(err,defered,arg,arg1,arg2,arg3,arg4,arg5){
+		if(!err&&!defered){
+			return web.error.last;
+		}
+		if(web.isFunction(err)){
+			defered=err
+			err=null
+		}
+
+		if(err){
+			var error=(new Error)
+			var stack = error.stack;
+			var line = (stack)?stack.split("\n")[2]:error.lineNumber;
+			//web.error('Error '+line.trim()+' :'+err);
+			//TODO send error back to server!
+		}
+		if(defered){
+			web.error.last=err
+
+			defered && defered(arg,arg1,arg2,arg3,arg4,arg5)
+			web.error.last=undefined
+		}
+		return err
+	}
+	web.cancel=web.error
+	web.depricated=function(reason,fn){
+		console.error('This function is depricated for reason:',reason,fn)
+	}
+	web.warning=null;
+	web.event=null;
+	var errorSilently=web.errorSilently={
+		removeIndex:true
+	}
 
 
 
@@ -729,2061 +752,3185 @@ var errorSilently=web.errorSilently={
 		web.queryParams=parseQueryString(location.search,location.hash)||{};*/
 
 
-web.camelCaseToReadable=function(str,strict){
-	if(strict){
-		return str.replace(/[A-Z]/g,function(a){return " "+a}).trim()
-	}
-	return str.replace(/[A-Z][^A-Z]/g,function(a){return " "+a}).trim()
-}
-
-
-
-web.isWindow=function( obj ) {
-	return obj != null && obj == obj.window;
-}
-web.isBoolean=function(obj){
-	return typeof obj == 'boolean';
-}
-web.isString=function(obj){
-	return typeof obj == 'string';
-}
-web.isStringObject=function(value){
-	return value && typeof value == 'object' && type(value) == 'String';
-}
-web.typeString=function(str){
-	var firstChar=str.charAt(0)
-	if(firstChar=='.'||firstChar=='/'){//relative path url put
-
-	}else if((/^.{4,7}:\/\//).test(str)){ //absolute path uri
-
-	}
-
-}
-
-var isStrict=(function() { return !this; })();
-web.isStrict=function(){
-	return isStrict
-};
-//http://stackoverflow.com/users/36866/some
-//http://stackoverflow.com/questions/384286/javascript-isdom-how-do-you-check-if-a-javascript-object-is-a-dom-object
-//Returns true if it is a DOM node
-web.isNode=function(o){
-  return (
-	typeof Node === "object" ? o instanceof Node : 
-	o && typeof o === "object" && typeof o.nodeType === "number" && typeof o.nodeName==="string"
-  );
-}
-
-//Returns true if it is a DOM element    
-web.isElement=function(o){
-  return (
-	typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
-	o && typeof o === "object" && o !== null && o.nodeType === 1 && typeof o.nodeName==="string"
-);
-}
-
-var isFunction= web.isFunction= function(value) {
-	return typeof value == 'function';
-}
-
-// detect native method in object not same scope of isHostObject
-  //https://github.com/dperini/nwevents/blob/ac33e52c1ed1c1c3a1bb1612384ca5b2f7a9b3ef/src/nwmatcher.js#L41
-web.isNativeFunction = function(fn) {
-	return typeof fn =='function' &&
-	  // IE/W3C browsers will return [native code]
-	  // Safari 2.0.x and older will return [function]
-	  (/\{\s*\[native code[^\]]*\]\s*\}|^\[function\]$/).test(fn);
-	}
-
-//http://stackoverflow.com/questions/596467/how-do-i-convert-a-number-to-an-integer-in-javascript
-web.toInt=function(value){ return ~~value; }
-
-web.isArray=Array.isArray;
-
-
-web.isValue=function(o){
-	return o!=null;
-}
-
-
-
-
-
-//TODO cache will definately help
-web.isArrayHash=function(obj,level){
-	if(!level){
-		web.isArray(obj) && obj.every(function(o){return web.isObject(o)})
-	}
-	return (web.isArray(obj) && web.isObject(obj[0]) && web.isObject(obj[web.toInt(obj.length/2)]) && web.isObject(obj[obj.length-1]))
-}
-web.isArrayMatix=function(obj,level){
-	if(!level){
-		web.isArray(obj) && obj.every(function(o){return web.isArray(o)})
-	}
-	return (web.isArray(obj) && web.isArray(obj[0]) && web.isArray(obj[web.toInt(obj.length/2)]) && web.isArray(obj[obj.length-1]))
-}
-
-//http://jsperf.com/checking-previously-typed-object
-web.isObject=function(obj,level){
-	if(!level){
-		return type(obj) =="Object" /*excludes array and null and regexp and HTMLelment etc*/ //Object.getPrototypeOf(obj) ===Object.prototype 
-	}else{
-		return obj === Object(obj);
-	}
-}
-web.isNumber=function(o){
-	return typeof o=='number'
-}
-web.isjQuery=function(o){
-	return (o instanceof jQuery)
-}
-web.isCollection=web.isContainer=function(obj){
-	return web.isObject(obj) || web.isArray(obj)
-}
-
-web.isEmpty=function(o){
-	if(web.isType(o,'String')){
-		return (o=='')
-	}else if(web.isType(o,'Object')){
-		return (web.keys(o).length==0)
-	}else if(web.isType('Array')){
-		return (o.length==0)
-	}else{
-			throw 'idk how to see if this is empty'
-	}
-}
-
-//https://www.inkling.com/read/javascript-definitive-guide-david-flanagan-6th/chapter-7/array-like-objects
-// Determine if o is an array-like object.
-// Strings and functions have numeric length properties, but are 
-// excluded by the typeof test. In client-side JavaScript, DOM text
-// nodes have a numeric length property, and may need to be excluded 
-// with an additional o.nodeType != 3 test.
-web.isArrayLike=function(o) {
-	if (o &&                                // o is not null, undefined, etc.
-		typeof o === "object" &&            // o is an object
-		isFinite(o.length) &&               // o.length is a finite number
-		o.length >= 0 &&                    // o.length is non-negative
-		o.length===Math.floor(o.length) &&  // o.length is an integer
-		o.length < 4294967296)              // o.length < 2^32
-		return true;                        // Then o is array-like
-	else
-		return false;                       // Otherwise it is not
-}
-
-web.duckType=function(obj,compare,threshold){
-	var score=0,total=0,properties=(web.isArray(compare))?compare:web.keys(compare);
-	if(threshold==null||threshold==1){
-		for(var i=0,l=properties.length;i<l;i++){
-			if(!obj[properties[i]]){
-				return false
-			}
+	web.camelCaseToReadable=function(str,strict){
+		if(strict){
+			return str.replace(/[A-Z]/g,function(a){return " "+a}).trim()
 		}
-		return true
-	}
-	for(var i=0,l=properties.length;i<l;i++){
-		total++
-		if(obj[properties[i]]){
-			score++
-		}
-	}
-	return (threshold)?(score/total)>threshold:(score/total)
-}
-
-
-
-
-//Inspiration http://tokenposts.blogspot.com.au/2012/04/javascript-objectkeys-browser.html
-var properties = function(o,level){
-	var k=[],p,enu;
-	for (p in o){
-		if(Object.prototype.hasOwnProperty.call(o,p)){
-			if(level&&Object.prototype.propertyIsEnumreable && level!='properties'){
-				enu=Object.prototype.propertyIsEnumreable.call(o,p)
-				if(level=='keys'&&enu){
-					k.push(p)
-				}else if(level=='nonEnumerables'&&!enu){
-					k.push(p)
-				}else{
-					throw  'IDK WHY THIS HAPPENED!'
-				}
-				continue;
-			}
-			k.push(p);
-			}
-		}
-	return k;
+		return str.replace(/[A-Z][^A-Z]/g,function(a){return " "+a}).trim()
 	}
 
 
-if(!Object.keys){
-	Object.keys=function(obj){
-		if(!force && o !== Object(o))
-			throw new TypeError('Object.keys called on a non-object');
-		return properties(o,'keys')
-		}
-}
 
-if(!Object.getOwnPropertyNames){
-	Object.getOwnPropertyNames=function(obj){
-		if(!force && o !== Object(o))
-			throw new TypeError('Object.keys called on a non-object');
-		return properties(o,'properties')
-		}
-}
-
-//TODO
-//HSould I handle localStorage?
-// for (i=0; i<=localStorage.length-1; i++)  
-//     {  
-//         key = localStorage.key(i);  
-//         alert(localStorage.getItem(key));
-//     }  
-// }
-// Object.prototype.toString.call(localStorage)
-// "[object Storage]"
-// localStorage instanceof Storage
-// true
-//level
-//0=like Object.keys enums only
-//1=all properties like Object.getOwnProperties
-//2=nonEnums difference between keys and getOwnProperties
-web.keys=function(obj,enumLevel,iterNonObject /*sort???*/){
-	//todo add iterator function?
-	if(iterNonObject){
-		return properties(o,enumLevel)
-	}else{
-		if(!enumLevel||enumLevel=='keys'){ //web.startsWith(enumLevel,'key')
-			return Object.keys(obj)
-		}else if(enumLevel=='properties'){ //web.startsWith(enumLevel,'propert')
-			return Object.getOwnPropertyNames(obj)
-		}else if(enumLevel=='nonEnumerables'){ //web.startsWith(enumLevel,'nonEnumerable')
-			var properties = Object.getOwnPropertyNames(obj);
-			return properties.filter(function(key) {
-				return !Object.prototype.propertyIsEnumreable.call(obj,key)
-			})
-		}else{
-			throw 'Error: object.keys does not know the enumlevel'
-		}
+	web.isWindow=function( obj ) {
+		return obj != null && obj == obj.window;
 	}
-}
-
-web.enumerable=function(obj,prop){
-	if(!prop){
-		return Object.keys(obj);
+	web.isWorker=function(obj){
+		if(obj){
+			return (obj instanceof Worker)
+		}//http://stackoverflow.com/questions/7931182/reliably-detect-if-the-script-is-executing-in-a-web-worker
+		return (typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope)
 	}
-	if(web.isArray(prop)){
-		return prop.filter(function(key) {
-			return Object.prototype.propertyIsEnumreable.call(obj,key)
-		})
-	}else{
-		return Object.prototype.propertyIsEnumreable.call(obj,prop)
+	web.isBoolean=function(obj){
+		return typeof obj == 'boolean';
 	}
-}
-web.nonEnumerable=function(obj,prop){
-	prop=prop||Object.getOwnPropertyNames(obj);
-	if(web.isArray(prop)){
-		return prop.filter(function(key) {
-			return !Object.prototype.propertyIsEnumreable.call(obj,key)
-		})
-	}else{
-		return !Object.prototype.propertyIsEnumreable.call(obj,prop)
+	web.isString=function(obj){
+		return typeof obj == 'string';
 	}
-}
-web.getProperties=function(obj){
-	return Object.getOwnPropertyNames(obj)
-}
-
-var webWrapper=function(obj){
-		this.value=obj
+	web.isStringObject=function(value){
+		return value && typeof value == 'object' && type(value) == 'String';
 	}
-	webWrapper.prototype=web.prototype
-	webWrapper.prototype.valueOf=function(){return this.value.valueOf()}
-	webWrapper.prototype.toString=function(){return this.value.toString()}
+	web.typeString=function(str){
+		var firstChar=str.charAt(0)
+		if(firstChar=='.'||firstChar=='/'){//relative path url put
 
-	_.forEach(web.keys(web),function(fn,method,original){
-		switch(fn.length){
-			case 1:
-			case 2:
-			case 3:
-			case 4:
-			case 5:
-			case 6:
-			case 7:
-			case 8:
-				return function(a0,a1,a2,a3,a4,a5,a6,a7){
-							return fn(this.value,a0,a1,a2,a3,a4,a5,a6,a7,a8)
-						}
-			default:
-				return function(/*arguments*/){
-					return fn.apply(this,web.toArray(arguments).unshift(this.value))
-				}
-		}
-	})
+		}else if((/^.{4,7}:\/\//).test(str)){ //absolute path uri
 
-
-
-//to use as seen in web.pubSub
-//blocking = varSwap(namespace, namespace = blocking)
-//Inspiration http://stackoverflow.com/questions/16201656/how-to-swap-two-variables-in-javascript
-//Example: b=varSwap(a,a=b)
-var varSwap=web.varSwap=function(x){
-	return x;
-}
-web.isRegExp=function(o){
-	return o instanceof RegExp
-}
-
-//TODO add regular expression that trims characters that test positive for regexp
-web.trimLeft=function(str,word,keep,deep){
-	if(!word){
-		return str.replace(web.RegExp.leadingWhitespace, '');
-	}
-	var type = typeof word;
-	if(type=='string'){
-		var i=((deep)?str.lastIndexOf(word):str.indexOf(word))
-		if(i<0){return str;}
-		return str.slice( i + ((keep)?0:word.length))
-	}
-	if(type=='number'){
-		return str.slice(Math.abs(word))
-	}
-	if(web.isRegExp(str)){
-		throw 'Not implmented because idk how it should work'
-		// var index=0;
-		// return str.replace(str,function(match,offset,str){
-		// 	if(index==-1){return match}
-		// 	if(offset==index){
-		// 		//this will run as long as we find expected indexes
-		// 	}
-		// })
-	}
-}
-web.trimRight=function(str,word,keep,deep){
-	if(!word){
-		//todo faster implementation for long strings
-		return str.replace(web.RegExp.trailingWhitespace, '');
-	}
-	var type = typeof word;
-	if(type=='string'){
-		var i = ((deep)?str.indexOf(word):str.lastIndexOf(word))
-		if(i<0){return str;}
-		return str.slice( 0, i + ((keep)?word.length:0))
-	}
-	if(type=='number'){
-		return str.slice(0,-Math.abs(word))
-	}
-	if(web.isRegExp(str)){
-		throw 'Not implmented because idk how it should work'
-	}
-
-}
-web.deepTrimRight=function(str,word,keep){ //todo possible rename to slash? maybe confusing though
-	return web.trimRight(str,word,keep,true)
-}
-web.deepTrimLeft=function(str,word,keep){
-	return web.trimLeft(str,word,keep,true)
-}
-
-web.trim=function(str){
-	//todo faster implementatoins
-	//http://blog.stevenlevithan.com/archives/faster-trim-javascript
-	//http://yesudeep.wordpress.com/2009/07/31/even-faster-string-prototype-trim-implementation-in-javascript/
-	return str.trim()
-
-}
-/*tests
-web.trimLeft('#JustGirlThings','Girl')
-"Things"
-web.trimLeft('#JustGirlThings','Girl',true)
-"GirlThings"
-web.trimRight('#JustGirlThings','Girl')
-"#Just"
-web.trimRight('#JustGirlThings','Girl',true)
-"#JustGirl"*/
-
-
-
-/*
-NOTE: if you want to process the querystring alone it should start with a '?'
-In browser:
-	() returns query object (a hashmap of values. if mutli values are found returns them as an array)
-	(url [String]) returns query object
-	(url [String], variable[value]) returns that variable value.
-	(url [undefined||String], variable[value]) like above url is location.href
-	(url [undefined||String], variable[value], replace[value]) variable will be replaced in url and returned
-In NodeJS:
-	()returns arguments as object
-*/
-web.queryString=function(url,variable,replace) {
-	var query;
-	//if(!web.isValue(variable) && !web.isValue(replace)){
-	//	variable = varSwap(url, url=variable);//catch url on the next check
-	//}
-	if(!url){
-		if(web.isNode()){
-			return require('minimist')(process.argv.slice(2));
-		}
-		url=web.global.location.href
-		query=web.global.location.search.substring(1);
-	}else{
-		query=web.trimLeft(url,'?') //don't keep ? this time
-	}
-
-	query = web.deepTrimRight(query,'#')
-
-	if(web.isValue(replace)){ //http://stackoverflow.com/questions/5413899/search-and-replace-specific-query-string-parameter-value-in-javascript
-		return url.replace(new RegExp('('+variable+'=)[^\&]+'), '$1' + encodeURIComponent(replace));
-	}else if(web.isValue(variable)){ //http://stackoverflow.com/questions/2090551/parse-query-string-in-javascript
-		var vars = query.split('&');
-		for (var i = 0; i < vars.length; i++) {
-			var pair = vars[i].split('=');
-			if (decodeURIComponent(pair[0]) == variable) {
-				return decodeURIComponent(pair[1]);
-			}
-		}
-		return ''
-		//console.warn('web.queryString did not find variable %s in %s', variable,url);
-	}else{ //inspiration http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
-					/*the browser does a simple trim left.
-						test http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
-						location.search
-						"?ggks=6h=%22s"
-						location.hash
-						"#dfs"#lkjsdf=9"
-						*/
-		return queryStringParser(query)
-	}
-}
-
-
-var queryStringParser=function(value /*,assignment,delimiter */){ //setting assigment and delimiter not really good
-	var q={}
-	value.replace(web.RegExp.queryStringParser
-		,function($0, $1, $2, $3) { 
-			if(q[$1]){
-				if(web.isArray(q[$1])){
-					q[$1].append(decodeURIComponent($3));
-				}else{
-					q[$1]=[q[$1],decodeURIComponent($3)]
-				}
-			}else{
-				q[$1]=decodeURIComponent($3); 
-			}
-			return ''
-		});
-	return q;
-}
-
-
-//TODO
-//http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
-/*
-{
-'protocol':						//not implemented
-'':								//not implemented
-
-'domain':						//not implemented
-'//':							//not implemented
-
-'port':							//not implemented
-':'								//not implemented
-
-'path':							//not implemented
-'/':							//not implemented
-
-'query':						//not implemented
-'?':{key:'value',pairs:true}
-
-'fragement':					//not implemented
-'#':'bare word'					//not implemented
-'fragmentPath':					//not implemented
-'#!':							//not implemented
-'fragmentQuery':				//not implemented
-'#?':{key:'value',pairs:true}
-}
-*/
-//currently only returns object with ? and # 
-web.url=function(url){
-	url=url||web.global.location.href
-	return {
-					/*the browser does a simple trim left.
-						test http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
-						location.search
-						"?ggks=6h=%22s"
-						location.hash
-						"#dfs"#lkjsdf=9"
-						*/
-			'?':queryStringParser(web.deepTrimRight(web.trimLeft(url,'?'),'#'))  //NOTE this is how the browser does it!	
-			,'#?':queryStringParser(web.trimLeft(url,'#')) //NOTE this is how the browser does it!	//'?'+location.hash.slice(1) //added a ? just to make parsing easier
-		}
-}
-
-
-
-web.Object=web.Object||{};
-web.Object.putAdd=function(obj,key,value){
-	obj[key]=(obj[key]!==undefined)?obj[key]+value:value;
-	return obj;
-}
-
-/*
-see if an object equals any of the other types
-*/
-web.isA=function(obj,arg0,arg1,arg2,arg3,arg4){
-	var args=(type( arg0 ) === 'Array')?arg0:[arg0,arg1,arg2,arg3,arg4];
-
-	return args.some(function(e){
-		return (typeof e == 'string')?typeof obj == e:obj instanceof e;
-	})
-}
-
-web.fork=function(url){
-	if(!(this instanceof web.fork)){return new web.fork(url)}
-	if(web.isURL(url)){
-
-	}else if(web.isHTML(url)){
-
-	}else{ //assume script
-
-	}
-	this.url=url;
-}
-web.fork.prototype.asWorker=function(){
-
-}
-web.fork.prototype.asFrame=function(){
-
-	
-}
-web.fork.prototype.asWindow=function(){
-	web.destory(this.currentInstance)
-	return this.currentInstance=window.open(this.url)
-}
-web.fork.prototype.pub=function(message,targetOrigin,transfer){
-	return web.pub(this.currentInstance,message,targetOrigin,transfer)
-}
-
-web.destory=function(obj){
-	if(!obj){
-		return 
-	}else if(web.isPopup(obj)){
-		obj.close()
-	}
-}
-
-web.isPopup=function(o){
-	return (Object.prototype.toString.call(o)=="[object global]" && !(o instanceof Window));
-}
-web.isIframe=function(o){
-	return o instanceof HTMLIFrameElement
-}
-//http://stackoverflow.com/questions/4594492/to-check-parent-window-is-iframe-or-not
-web.inIframe=function(){
-	return window.frameElement && window.frameElement.nodeName=='IFRAME'
-}
-
-
-//querystring expects to get (lastItem,callback) //callback is used after server hit
-web.abyss=function(elem,template,queryFn){
-	elem=$(elem)
-
-	var orientation,name,options,idGetter,uid='webAbyss_'+web.UID()
-
-
-	var setOptions=function(o){
-		if(o===undefined){
-			return options
-		}
-		orientation=o.orientation
-		name=o.name;
-		idGetter=o.idGetter; //id getter
-		queryFn=o.query;
-
-		//set defaults
-		options.minHeight=o.minHeight||0
-		return options
-	}
-	if(web.isObject(queryFn)){
-		options=queryFn;
-		setOptions(options)
-	}
-	if(!web.isValue(name)){
-		name=elem.attr('id')||web.UID()
-	}
-
-
-	// if(web.isArray(template)){
-
-	// }else
-	if (web.isString(template)){
-		template=web.template(template)
-	}//else assume web template compiled?
-
-	var vertical=(orientation!='horizontal');
-
-	elem.addClass('web-abyss')
-
-
-	var deferedActions=[]
-
-	var grid
-		,dataView
-		,column
-		,columns
-		,settings;
-
-
-
-
-
-		function init (datum){
-		columns=[]
-		//http://stackoverflow.com/questions/11001356/slickgrid-breakpoint-on-filter
-		dataView=new Slick.Data.DataView({ inlineFilters: false }) //SET THIS AS FALSE otherwise slickgrid will attempt to "re-compile" the filter 
-		if(vertical){
-			column={	
-				name: ""
-				//,id: "contact-card"
-				//, cssClass: "contact-card-cell"
-				,formatter:function renderCell(row, cell, value, columnDef, data) {
-					return template(data, name+'_'+web.get.call(data,idGetter) ).outerHTML()
-				}
-				,selectable:true
-				,asyncPostRender:options.postRender
-			}
-		,settings = {
-			editable: false
-			,enableAddRow: false
-			,enableCellNavigation: true
-			,enableColumnReorder: false
-			,forceFitColumns: true
-			,headerHeight: 0
-			,leaveSpaceForNewRows:true
-			,resizable:false
-			//,autoHeight:true
-			,showHeaderRow:false
-			,enableAsyncPostRender: true
-			,asyncPostRenderDelay:0
-
-		};
-		}else{
-			settings= {
-				editable: false
-				,enableAddRow: false
-				,enableCellNavigation: true
-				,enableColumnReorder: false
-				,forceFitColumns: false
-				,headerHeight: 0
-				,leaveSpaceForNewRows:false
-				,resizable:true
-				,autoHeight:true
-				//,showHeaderRow:true
-				,enableAsyncPostRender: true
-				,asyncPostRenderDelay:0
-			}
-			,column={	
-				name: ""
-				//,id: "contact-card"
-				//, cssClass: "contact-card-cell"
-				,formatter:function renderCell(row, cell, value, columnDef, data) {
-					//console.info(name,idGetter,web.get.call(data,idGetter) ,data)
-					return template(data[cell], name+'_'+web.get.call(data[cell],idGetter) ).outerHTML()
-				}
-				,selectable:true
-				,asyncPostRender:options.postRender
-				,width:300
-
-			}
-
-			var d=[]
-			d.id=0
-			dataView.addItem(d)
-		}
-		columns.push(column)
-
-			var height = options.rowHeight;
-			if(!height){ //TODO because we load a dummy image this can thow off the row height if the dummy image does not have the same aspect ratio as the data image
-				var dom=template(datum)
-				//alert($(dom).clone().appendTo('body').innerHeight())
-				height=web.height(dom,'border')
-			}
-			//enforce minHeight
-			height = (height<options.minHeight)?options.minHeight:height
-
-			settings.rowHeight=height||100
-			window.grid=grid = new Slick.Grid(elem, dataView, columns, settings);
-			grid.setSelectionModel(new Slick.RowSelectionModel());
-
-			elem.find(".slick-header").css("height","0px").css('display','none')
-			grid.resizeCanvas()
-			grid.autosizeColumns();
-			qWindow.on("resize."+uid,_.throttle(function(){
-				grid.resizeCanvas();
-			},350))
-
-			// wire up model events to drive the grid
-			dataView.onRowCountChanged.subscribe(function (e, args) {
-				//var length = grid.getDataLength()
-				grid.updateRowCount();
-				//debugger
-				//var rows = web.forRange([length,grid.getDataLength()])
-				//alert(rows)
-				//grid.invalidateRows(rows);
-				grid.render()
-			});
-
-			dataView.onRowsChanged.subscribe(function (e, args) {
-				grid.invalidateRows(args.rows);
-				grid.render();
-			});
-
-///////////////////////////////////////
-//////////////////////////////////////
-  // grid.onCellChange.subscribe(function (e, args) {
-  //   dataView.updateItem(args.item.id, args.item);
-  // });
-  // grid.onAddNewRow.subscribe(function (e, args) {
-  //   var item = {"num": data.length, "id": "new_" + (Math.round(Math.random() * 10000)), "title": "New task", "duration": "1 day", "percentComplete": 0, "start": "01/01/2009", "finish": "01/01/2009", "effortDriven": false};
-  //   $.extend(item, args.item);
-  //   dataView.addItem(item);
-  // });
-	grid.onKeyDown.subscribe(function (e) {
-		// select all rows on ctrl-a
-		if (e.which == 65 && e.ctrlKey) {
-			var rows = web.forRange(dataView.getLength())
-			grid.setSelectedRows(rows);
-			e.preventDefault();
-		}
-		return false;
-	});
-  // grid.onSort.subscribe(function (e, args) {
-  //   sortdir = args.sortAsc ? 1 : -1;
-  //   sortcol = args.sortCol.field;
-  //   if ($.browser.msie && $.browser.version <= 8) {
-  //     // using temporary Object.prototype.toString override
-  //     // more limited and does lexicographic sort only by default, but can be much faster
-  //     var percentCompleteValueFn = function () {
-  //       var val = this["percentComplete"];
-  //       if (val < 10) {
-  //         return "00" + val;
-  //       } else if (val < 100) {
-  //         return "0" + val;
-  //       } else {
-  //         return val;
-  //       }
-  //     };
-  //     // use numeric sort of % and lexicographic for everything else
-  //     dataView.fastSort((sortcol == "percentComplete") ? percentCompleteValueFn : sortcol, args.sortAsc);
-  //   } else {
-  //     // using native sort with comparer
-  //     // preferred method but can be very slow in IE with huge datasets
-  //     dataView.sort(comparer, args.sortAsc);
-  //   }
-  // });
-  // wire up model events to drive the grid
-
-
-
-///////////////////////////////////////
-//////////////////////////////////////
-			var endless=true
-			var scrollfn=(vertical)?/*vertical*/(function(e,args){
-					//calculate in pixels how close we are to the bottom
-					//(this.getDataLength()*settings.rowHeight)-args.scrollTop
-					//OR calculate in number of items
-					if(this.getViewport().bottom>=dataView.getLength()-10){
-						//console.log('polling...',dataView.getItem(dataView.getLength()-1))
-						if(false===queryFn(dataView.getItem(dataView.getLength()-1),appendData)){
-							endless=false
-							grid.onScroll.unsubscribe(debounceQueryFn)
-						}
-					}
-				}):(function(e,args){
-				//calculate in pixels how close we are to the bottom
-				//(this.getDataLength()*settings.rowHeight)-args.scrollTop
-				//OR calculate in number of items
-
-				//viewport is what the user can see
-				//rendered range is what is being virtually rendered (what is attached to the dom)
-				//canvasNode is the div element that IS the whole table (like document is in HTML)
-				//web.log(this.getViewport(),'@',this.getRenderedRange(),'@',this.getGridPosition(),'@',this.getCanvasNode())
-				if(this.getRenderedRange().rightPx>=grid.getCanvasNode().offsetWidth){
-					//console.log('polling...',dataView.getItem(dataView.getLength()-1))
-					if(false===queryFn(web.get.call(dataView.getItem(0),-1),appendData)){
-						endless=false
-						grid.onScroll.unsubscribe(debounceQueryFn)
-					}
-				}
-			});
-
-			queryFn=web.lockable(_.debounce(queryFn,500))
-			var debounceQueryFn=_.debounce(scrollfn,50)
-			grid.onScroll.subscribe(debounceQueryFn)
-
-			//do all defered actions now
-			_.forEach(deferedActions,function(fn){fn()})
-			 // function updateFilter() {
-			  //   dataView.setFilterArgs({
-			  //     percentCompleteThreshold: percentCompleteThreshold,
-			  //     searchString: searchString
-			  //   });
-			  //   dataView.refresh();
-			  // }
-
-			  if(options.filter){
-			  	//dataView.setFilterArgs(options.filter)
-			  	//dataView.setFilter(function(item,args){return options.filter.call(this,item,args)});
-			  	dataView.setFilter(options.filter)
-			  }
-			  // if you don't want the items that are not visible (due to being filtered out
-			  // or being on a different page) to stay selected, pass 'false' to the second arg
-			  dataView.syncGridSelection(grid, true);
-			  window.dataView=dataView
 		}
 
-	// When user clicks button, fetch data via Ajax, and bind it to the dataview. 
-
-	var appendData=function(array){
-		if(!grid){
-			init(array[0])
-		}
-
-		if(vertical){
-			dataView.beginUpdate()
-			_.forEach(array,function(item){dataView.addItem(item)})
-			dataView.endUpdate()
-		}else{
-			var columns=grid.getColumns()
-			var i=dataView.getItem(0)
-
-			for(var x=0,l=array.length;x<l;x++){
-				columns.push(column)
-			}
-			
-			web.extend(columns,column,array.length)
-			i.push.apply(i,array)
-			grid.setColumns(columns)
-			dataView.updateItem(0,i)
-		}
-		//this will replace all data
-		//dataView.beginUpdate();
-		//dataView.setItems(array);
-		//dataView.endUpdate();
-		//grid.render();
-
-		//trying to update settings... does not work currently
-		//settings.rowHeight= 140//template(grid.getData()).height()
-		//grid.setOptions(settings);
-		//grid.invalidate();
-		queryFn.allow() //unlock the query function (it is a web.lockable fn)
 	}
 
-	queryFn(undefined,appendData)
-	
-	var face= {
-		append:function(data){
-			if(web.isArray(data)){
-				appendData(data)
-			}else{
-				appendData([data])
-			}
-			//if(!data){
-			//	queryFn(data)
-			//}
-			//dataView.addItem(data);
-			//dataView.refresh();
-			//return name+'_'+web.get.call(data,idGetter)
-		}
-		,clear:function(){
-			grid.invalidateAllRows();
-			dataView.setItems(undefined, "Id");
-			grid.render();
-			$(window).off('.'+uid)
-		}
-		,click:function(fn){
-			if(grid){
-				grid.onClick.subscribe(function(e,args){
-					var elem=$(e.target).closest('a, .slick-cell')//traverse up the dom until you find an anchor,consume-click,or end at div.slick-cell
-					var data = this.getDataItem(args.row)
-					//grid.setSelectedRows([args.row]);
-					if(web.isArray(data)){
-						data=data[args.cell]
-					}
-					fn && fn.call(elem,e,args,data)
-					});
-			}else{
-				deferedActions.push(_.bind(face.click,face,fn))
-			}
-			return face
-		}
-		,setID:function(){ //TODO
-
-		}
-		,getElement:function(){
-			return elem;
-		}
-		,reset:function(options){
-			if(options){
-				if(web.isFunction(options)){
-					queryFn=options
-				}else if(web.isObject(options)){
-					setOptions(options)
-				}
-			}
-			grid=undefined;
-			queryFn(undefined,appendData)
-		}
-		,getSelection:function(){
-			var indices=grid.getSelectedRows()
-			for(var i=0,l=indices.length;i<l;i++){
-				indicies = dataView.getItem(indices[i])
-			}
-			return indices
-		}
-		,next:function(){
-			if(vertical){
-				var i = web.get.call(grid.getSelectedRows(),-1)
-				//grid.scrollRowIntoView(i++)
-				//grid.scrollRowToTop(i++)
-				face.scrollTo(++i)
-				grid.setActiveCell(i,0)
-				return dataView.getItem(i)
-			}else{
-				throw 'NEED TO implment!'
-			}
-		}
-		,previous:function(){
-			if(vertical){
-				var i = grid.getSelectedRows()[0]
-				grid.scrollRowToTop(i--)
-				grid.setActiveCell(i,0)
-				return dataView.getItem(i)
-			}else{
-				throw 'NEED TO implment!'
-			}
-		}
-		,select:function(index){
-			var range;
-			if(web.isArray(index)){
-				range=index
-				index=web.sort(index)[0]
-			}else{
-				range=[index]
-			}
-			
-			if(index>0){
-				return grid.setSelectedRows([]);
-			}
-
-			if(vertical){
-				face.scrollTo(index)
-				//todo handle range?
-				grid.setActiveCell(index,0)
-				grid.setSelectedRows(range);
-				return dataView.getItems(range)
-			}else{
-				throw 'NEED TO implment!'
-			}
-		}
-		,scrollTo:function(arg){
-			if(web.isString(arg)){
-				if(web.startsWith(arg,'selection',true)){
-					var list = grid.getSelectedRows()
-
-					if(list.length){
-						grid.scrollRowToTop(list[0])
-					}else if(web.endsWith(arg,'bottom',true)){
-						grid.scrollRowToTop(undefined)
-					}else{
-						grid.scrollRowToTop(0)
-					}
-					return 
-				}else if(arg='bottom'){
-					if(options.leaveSpaceForNewRows==true){
-						grid.scrollRowToTop(undefined) //hax!
-					}else{
-						console.warn('UNTESTED behavior for web.abyss().scrollTo("bottom") just a guess ')
-							grid.scrollRowIntoView(undefined)
-						}
-				}
-			}
-			grid.scrollRowToTop(arg)
-
-		}
-		,render:function(item){
-			var id;
-			if(web.isObject(item)){
-				id=web.get.call(item,idGetter)
-			}
-			var row;
-			//dataView.beginUpdate()
-			if(web.isValue(id)){
-				var viewPort=grid.getRenderedRange() //getViewport();
-				for(var i=viewPort.top, l=viewPort.bottom;i<=l;i++){
-					if(web.get.call(grid.getDataItem(i),idGetter)===id){ //match
-						row=i
-						break;
-					}
-				}
-			}
-			if(web.isValue(row)){ //Could use previously created onrowschange handler
-				grid.invalidateRow(row);
-				//dataView.endUpdate()
-				grid.render();
-			}
-		}
-		,getLength:function(){
-			return dataView.getLength()
-		}
-		,loadMore:function(){
-			if(vertical){
-				queryFn(dataView.getItem(dataView.getLength()-1),appendData)
-			}else{
-				queryFn(web.get.call(dataView.getItem(0),-1),appendData)
-			}
-		}
-		,refresh:function(){
-			return dataView&&dataView.refresh();
-		}
-		,setBackdrop:function(backdrop){
-			return elem.append(backdrop)
-		}
-		//,"0":elem
-		//,length:1
-		,getSetOptions:setOptions
-	}
-	return face
-}
-
-web.screenSaver=function(elem,fn,options){
-	elem=$(elem||document.body)
-
-
-	var qCanvas = $('<canvas class="flood-inner fill"></canvas>')
-	if(options.backdrop){
-		elem.prepend(qCanvas)
-	}else{
-		elem.append(qCanvas)
-	}
-	//canvas init
-	var canvas = qCanvas[0]
-	var ctx = canvas.getContext("2d");
-	
-	//canvas dimensions
-	var W = elem.width();
-	var H = elem.height();
-	canvas.width = W;
-	canvas.height = H;
-	
-	//snowflake particles
-	var mp = 25; //max particles
-	var particles = [];
-	for(var i = 0,l=mp; i < l; i++){
-		particles.push({
-			x: Math.random()*W //x-coordinate
-			,y:0//y: Math.random()*H, //y-coordinate
-			,r: Math.random()*4+1 //radius
-			,d: Math.random()*l //density
-		})
-	}
-	
-	//Lets draw the flakes
-	function draw(){
-		ctx.clearRect(0, 0, W, H);
-		
-		ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-		ctx.beginPath();
-		for(var i = 0, l=particles.length; i < l; i++){
-			var p = particles[i];
-			ctx.moveTo(p.x, p.y);
-			ctx.arc(p.x, p.y, p.r, 0, Math.PI*2, true);
-		}
-		ctx.fill();
-		update();
-	}
-	
-	//Function to move the snowflakes
-	//angle will be an ongoing incremental flag. Sin and Cos functions will be applied to it to create vertical and horizontal movements of the flakes
-	var angle = 0;
-	function update(){
-		angle += 0.01;
-		for(var i = 0, l=particles.length; i < l; i++){
-			var p = particles[i];
-			//Updating X and Y coordinates
-			//We will add 1 to the cos function to prevent negative values which will lead flakes to move upwards
-			//Every particle has its own density which can be used to make the downward movement different for each flake
-			//Lets make it more random by adding in the radius
-			p.y += Math.cos(angle+p.d) + 1 + p.r/2;
-			p.x += Math.sin(angle) * 2;
-			
-			//Sending flakes back from the top when it exits
-			//Lets make it a bit more organic and let flakes enter from the left and right also.
-			if(p.x > W+5 || p.x < -5 || p.y > H){
-				if(i%3 > 0){ //66.67% of the flakes
-					particles[i] = {x: Math.random()*W, y: -10, r: p.r, d: p.d};
-				}else{
-					//If the flake is exitting from the right
-					if(Math.sin(angle) > 0){
-						//Enter from the left
-						particles[i] = {x: -5, y: Math.random()*H, r: p.r, d: p.d};
-					}else{
-						//Enter from the right
-						particles[i] = {x: W+5, y: Math.random()*H, r: p.r, d: p.d};
-					}
-				}
-			}
-		}
-	}
-	
-	//animation loop
-	var loop=setInterval(draw, 33);
-	return {
-		resize:function(){
-			W = elem.width();
-			H = elem.height();
-			canvas.width = W;
-			canvas.height = H;
-		}
-		,clear:function(){
-			qCanvas.remove()
-			clearInterval(loop)
-		}
-	}
-
-}
-
-
-
-//inspiration: http://stackoverflow.com/questions/12487352/how-do-i-pause-and-resume-a-timer
-web.stopWatch=function(fn,timeout){
-	if(!(this instanceof web.stopWatch)){return new web.stopWatch(fn,timeout)}
-	this.stop(fn,timeout)
-	this.record()
-}
-web.stopWatch.prototype.record=function(){
-		var self = this;
-
-		if(this.fn){
-			if(!this.interval){
-				this.interval= setInterval(function(){ //TODO change this to web.setInterval
-					self.seconds += (new Date().getTime()-this.timePoint)/1000
-					fn &&fn.call && fn.call(self,self.seconds)
-				}, this.timeout);
-			}
-		}else{
-			var newTimePoint=new Date().getTime();
-			if(this.timePoint){
-				this.seconds+=newTimePoint-this.timePoint/1000
-			}
-			this.timePoint=newTimePoint;
-		}
-	}
-web.stopWatch.prototype.pause=function(){
-		clearInterval(this.interval);
-		this.interval=null
-		return this.seconds
-	}
-
-web.stopWatch.prototype.stop=function(fn,timeout){
-		this.pause()
-		this.fn=fn
-		this.timeout=timeout||1000
-		this.seconds=0
-		this.timePoint=null;
-		return this
-}
-
-// web.stopWatch(function(totalSeconds){
-// 	$("#hour").text(Math.floor(self.totalSeconds / 3600));
-// 	$("#min").text(Math.floor(self.totalSeconds / 60 % 60));
-// 	$("#sec").text(parseInt(self.totalSeconds % 60));
-// })
-
-
-web.probable=function(fn,chance){
-	if(!web.isValue(chance)){
-		chance=parseFloat(fn)
-		fn=undefined
-	}
-
-	if(web.isArray(fn)){
-		_.forEach(function(){
-			//Implement this
-		})
-	}else{
-		if(Math.random()<chance){
-			if(fn){
-				return fn.call()
-			}
-			return true
-		}
-	}
-	return null //maybe return null? this would show more intent that this answer came from web.probable
-}
-
-web.lockable=function(fn){
-	var allow=true;
-	if(!web.isFunction(fn)){
-		throw 'only functions are lockable'
-	}
-	var web_lockable= function (/* arguments */){
-		if(allow){
-			allow=false
-			return fn.apply(fn,arguments)
-		}
-	}
-	web_lockable.allow=function(a){
-		if(a==undefined){
-			return allow=true
-		}else if(a == 'toggle'){
-			return allow=!allow
-		}else if(a == 'status'){
-			return allow
-		}else{
-			return allow = !!a
-		}
-	}
-	return web_lockable;
-}
-
-
-/*
-for undersanding of height types see
-				 padding  border  margin
-height 				x 		x 		x
-innerHeight 		x 		x 		x
-outerHeight 		x 		x 		x
-outerHeight(true)	x 		x 		x
-
-Source: http://www.texelate.co.uk/blog/post/91-jquery-whats-the-difference-between-height-innerheight-and-outerheight/
-*/
-//height,innerHeight,outerHeight,outerHeight(true)
-//element,padding,border,margin
-web.height=function(elem,type){
-	if(web.isjQuery(elem)){
-		dummyDiv.append(elem)
-		var val;
-		switch(type){
-			case 'element':
-				val=elem.height();
-				break;
-			case 'padding':
-				val=elem.innerHeight();
-				break;
-			case 'border':
-				val= elem.outerHeight();
-				break;
-			case 'margin':
-			default:
-				val=elem.outerHeight(true);
-		}
-
-		
-		resetDummyDiv()
-		return val
-	}else{
-		throw 'need to implment height for other elements'
-	}
-}
-
-web.getClassList=function(elem){
-	var classes;
-	if(web.isjQuery(elem)){
-		classes=elem.attr('class')
-	}else{
-		classes = elem.className
-	}
-	var classList = classes.split(/\s+/);
-		for (var i = 0; i < classList.length; i++) {
-			if (classList[i] === 'someClass') {
-			//do something
-		}
-	}
-}
-
-
-web.snapTo=function(elem1,edge,elem2,edge2){
-	elem1=$(elem1)
-	elem2=$(elem2)
-	var fn = function(){
-		elem1.offset()
-		elem2.offset()
-
-		'static'
-		'relative'
-		'absolute'
-		'fixed'
-		'sticky'
-	}
-
-	fn()
-	return fn
-}
-
-web.position=function(elem,relativeTo){
-	elem=$(elem)
-	var position=elem.css('position')
-		,x,y,offset=elem.offset()
-	if(position=='fixed'){
-		if(elem.parent()[0]==web.body){
-			offset.y-=parseFloat($.css('top'))
-		}else{
-			var offset=elem.offset()
-			offset.y-=$(document).scrollTop()
-		}
-	}
-	if(relativeTo==web.document){
-		return offset
-	}else if(relativeTo==web.viewPort){
-		var offset=elem.offset()
-		offset.y=offset.y-$(document).scrollTop()
-		return offset
-	}else if(relativeTo==web.screen){
-
-	}
-}
-
-web.convertPosition=function(id,type,hoistToBody){//id can be selector, dom element or jquery (dependency = jquery)
-	var change=$(id)
-		,pos=change.position();
-	hoistToBody&&change.appendTo('body');
-	return change.css({top: pos.top, left: pos.left, position: (type||'absolute')});
-}
-
-//original Inspiration http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
-web.width=function(text,css){
-	if(web.isjQuery(text)){
-		dummyDiv.append(elem)
-		var val;
-
-		switch(type){
-			case 'element':
-				val=elem.width();
-				break;
-			case 'padding':
-				val=elem.innerWidth();
-				break;
-			case 'border':
-				val= elem.outerWidth();
-				break;
-			case 'margin':
-			default:
-				val= elem.outerWidth(true);
-		}
-
-		
-		resetDummyDiv()
-		return val
-	}else{
-		var f;
-		//TODO css can be just a font style,or css string, or object hash
-		if(css.indexOf(':')==-1){
-			f=css,css=''
-		}else{
-			f='12px arial' //TODO get default body font
-		}
-		dummyDiv.addAttr('style',css||'').text(text) //$('<div style="'+(css||'')+'">' + text + '</div>')
-			.css({'font': f}),
-		w = dummyDiv.width();
-		resetDummyDiv()
-	  return w;
-	}
-}
-
-var qWindow=$(window)
-web.reflow=function(elem){
-	if(elem){
-		$(elem).resize()
-		return
-	}
-	qWindow.resize() //forces reflow of page
-}
-
-web.lorem=function(min,max){
-	var paragraph=''
-	for(var min=0,l=max;i<l;i++){
-		paragraph+=' '+(Math.random()+1).toString(36).replace(/[\d.]/g,'')+(web.probable(.3)?'.':'')
-	}
-	return paragraph+'.'
-}
-
-var tmpArray=[];
-web.pub=function(context,message,targetOrigin,transfer){
-	if(!web.isArray(context)){
-		tmpArray.length=0
-		tmpArray.push(context)
-	}else{
-		tmpArray=context
-	}
-
-	for(var i=0,l=tmpArray.length;i<l;i++){
-		context=tmpArray[i]
-		if(web.isWindow(context)){
-
-		}else if(web.isFrame(context)){
-
-		}else if(web.isWorker(context)){
-
-		}
-	}
-}
-web.sub=function(){
-
-}
-
-
-//Inspiration http://benjii.me/2013/02/quickevent-a-tiny-javascript-event-engine/
-web.pubSub=function(namespace,blocking) {
-	if(namespace===true){
-		blocking = varSwap(namespace, namespace = blocking);
-	}
-	var nextSubscriberId = 0,listeners=[];
-
-	var subPub=(blocking)?(function(arg0,arg1,arg2,arg3,arg4,arg5){
-			var scope = (this===subPub)?web.global:this;
-			for (var i=0,l=listeners.length;i<l;i++) {
-				listeners[i]&&listeners[i].apply(scope,arg0,arg1,arg2,arg3,arg4,arg5);
-			}
-		}):(function(arg0,arg1,arg2,arg3,arg4,arg5){
-			var scope = (this===subPub)?web.global:this;
-			for (var i=0,l=listeners.length;i<l;i++) {
-				listeners[i]&&web.defer.call(scope,listeners[i],arg0,arg1,arg2,arg3,arg4,arg5);
-			}
-		})
-
-
-	subPub.alter=subPub.subscribe=subPub.unsubscribe=function(input){
-		var type = typeof input;
-		if(type == 'function'){
-			listeners[nextSubscriberId] = input;
-			return nextSubscriberId++;
-		}else if(type =='number'){
-			var handle = subPub[input];
-			delete listeners[input];
-			return handle
-		}else if(type=='object'){ //iframe,window,or worker
-			throw 'to implement'
-
-		}else if(input=='destroy'||input=='delete'){
-			for (var i=0,l=subPub.length;i<l;i++) {
-				listeners[i]=undefined
-				delete listeners[i]
-			}
-			nextSubscriberId=undefined
-		}else{
-			throw new Error('type not handled')
-		}
+	var isStrict=(function() { return !this; })();
+	web.isStrict=function(){
+		return isStrict
 	};
-	
-	if(namespace){web.put.call(web.pubSub,namespace,subPub)}
-	return subPub;
-};
-
-web.grid=function(){
-
-}
-
-web.Event=function(){};
-
-web.Event.removeSelf=function(e){
-	document.body.removeChild(e.target);
-}
-
-web.maxZIndex=2147483647
-web.maxNumber= Number.MAX_VALUE
-
-
-//http://stackoverflow.com/questions/9742110/splitting-numbers-and-letters-in-string-which-contains-both
-web.splitAlphaNum=function(str,negitives){
-	return str.match(web.RegExp[(negitives)?'partitonAlphaNumericalNegitives':'partitonAlphaNumerical'])||[]
-}
-
-web.RegExp={alphabetical:/[a-zA-Z]/g
-			,majorAtoms:/[a-gi-zA-GI-Z]/g
-			,commaSeperatedTrimSplit:/\W*,\W*/
-			,blockQuotes:/\*.*\*/
-			,leadingWhitespace:/^\s+/
-			,trailingWhitespace:/\s+$/
-			,getYoutubeHash:/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|watch\/)([^#\&\?]*).*/
-			//				/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/
-			//Char syntax	(ignore) (assign(no &)) optional
-			,queryStringParser:/([^?=&]+)(=([^&]*))?/g
-			,partitonAlphaNumericalNegitives:/[-\d.]+|(([^\s\d])((?!\d)))+|([^\s\d])+/g
-			,partitonAlphaNumerical:/[-\d.]+|([^\s\d])+/g
-			,validate:{
-				zipCode:/(^\d{5}$)|(^\d{5}-\d{4}$)/
-				,JSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
-				,YoutubeHash:/^[a-zA-Z0-9_-]{11}$/
-			}
-		}
-
-
-/*NOTE
-
-
-
-
-NumHash = function(){
-	
-
-}
-
-numhash = new NumHash();
-
-
-
-var web=this.web||{}
-web.toBitLength=web.bitClip=function(num,offset){//if offset neg then minus slots
-	if(offset==0){
-		return 0
+	//http://stackoverflow.com/users/36866/some
+	//http://stackoverflow.com/questions/384286/javascript-isdom-how-do-you-check-if-a-javascript-object-is-a-dom-object
+	//Returns true if it is a DOM node
+	web.isNode=function(o){
+	  return (
+		typeof Node === "object" ? o instanceof Node : 
+		o && typeof o === "object" && typeof o.nodeType === "number" && typeof o.nodeName==="string"
+	  );
 	}
-	if(offset<0){
-		offset = (offset ^ (offset >> 31)) - (offset >> 31) //or Math.absolute(offset)
-		return num >> offset
+
+	//Returns true if it is a DOM element    
+	web.isElement=function(o){
+	  return (
+		typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
+		o && typeof o === "object" && o !== null && o.nodeType === 1 && typeof o.nodeName==="string"
+	);
 	}
-	//if offset is postive then MAKE the num that offset!
-	var diff = num.toString(2).length-offset;
-	return (diff<0)?num:num >> diff
 
-}
+	var isFunction= web.isFunction= function(value) {
+		return typeof value == 'function';
+	}
 
-web.MAX_SAFE_CHARCODE=String.fromCharCode(Number.MAX_SAFE_INTEGER).charCodeAt(0); //16 bit!
-web.MAX_SAFE_CHARCODE_BITS=web.MAX_SAFE_CHARCODE.toString(2).length //16 or 2 bytes
-
-var _2bytes = buffer.readint()  //as number
-var _1bit = web.toBiteLength(_2bytes,2)
-
-
-*/
-
-
-
-
-<!--
-
-//-->
-/*
-
-*/
-
-var chain = web.chain = function(o,A,B,C,D,E,F,G,H,I,J,K){
-	//var g=_.defaultCall[Object.prototype.toString.call(o)];
-	//function r(A,B,C,D,E,F,G,H,I,J,K){
-   // 	else{ //if (arg0,arg1) is not a function call it accordingl
-	//        //if(g){
-	 //       //    return o[g](A,B,C,D,E,F,G,H,I,J)
-	  //      //}
-
-	var _=function (A,B,C,D,E,F,G,H,I,J,K){
-		if(!this===_){
-			alert('oats')
+	// detect native method in object not same scope of isHostObject
+	  //https://github.com/dperini/nwevents/blob/ac33e52c1ed1c1c3a1bb1612384ca5b2f7a9b3ef/src/nwmatcher.js#L41
+	web.isNativeFunction = function(fn) {
+		return typeof fn =='function' &&
+		  // IE/W3C browsers will return [native code]
+		  // Safari 2.0.x and older will return [function]
+		  (/\{\s*\[native code[^\]]*\]\s*\}|^\[function\]$/).test(fn);
 		}
-		//handle A types
-		var type=typeof A;
-		if(A===undefined){return o;} //calling () removes wrapper
-		else if(A === null){throw 'problem'} //calling (null) throws error
-		else if(type == 'object'){ //calling ({o},{hash}) iterates object props
-			for(var y in A){
-				if(!A.hasOwnProperty(y)){continue;} //make sure to skip inherit properties
-				_(y,A[y]);
-			}
-			return _;
-		}else if(type== 'function'){
-			throw 'I don\'t even'
-		}else if(type!='string'){
-			throw "I don't know what to do if first arugment isn't a string!"
-		}
-		//ok so A is a string by now (maybe)
 
-		var f=_.map[A]
-		if(f){
-			f(o,B,C,D,E,F,G,H,I,J,K);
+	//http://stackoverflow.com/questions/596467/how-do-i-convert-a-number-to-an-integer-in-javascript
+	web.toInt=function(value){ return ~~value; }
+
+	web.isArray=Array.isArray;
+
+
+	web.isValue=function(o){
+		return o!=null;
+	}
+
+
+
+
+
+	//TODO cache will definately help
+	web.isArrayHash=function(obj,level){
+		if(!level){
+			web.isArray(obj) && obj.every(function(o){return web.isObject(o)})
+		}
+		return (web.isArray(obj) && web.isObject(obj[0]) && web.isObject(obj[web.toInt(obj.length/2)]) && web.isObject(obj[obj.length-1]))
+	}
+	web.isArrayMatix=function(obj,level){
+		if(!level){
+			web.isArray(obj) && obj.every(function(o){return web.isArray(o)})
+		}
+		return (web.isArray(obj) && web.isArray(obj[0]) && web.isArray(obj[web.toInt(obj.length/2)]) && web.isArray(obj[obj.length-1]))
+	}
+
+	//http://jsperf.com/checking-previously-typed-object
+	web.isObject=function(obj,level){
+		if(!level){
+			return type(obj) =="Object" /*excludes array and null and regexp and HTMLelment etc*/ //Object.getPrototypeOf(obj) ===Object.prototype 
 		}else{
-			f=o[A];
-			if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
-				f(B,C,D,E,F,G,H,I,J,K);
-			}else{
-				o[A]=B;
-			}
+			return obj === Object(obj);
 		}
-		return _;
 	}
-	_._=_.object=o;
-	_.t=_.type=typeof o;
-	_.c=_.class=Object.prototype.toString.call(o);
-	_.set=_;
-	_.map=web.dummyObject||{};
-	_.setMap=function(map){_.map=map;return _}
-	_.valueOf=function(){return o.valueOf()}
-	_.toString=function(){return o.toString()}
-	//_.callable=(typeof o == 'function'); //TODO accept callable functions
-
-	//_.get=function(A,B,C,D,E,F,G,H,I,J,K){
-	 //   return o[A];
-	//}
-	//_.call=function(A,B,C,D,E,F,G,H,I,J,K){
-	//    var f=o[A] || o[B];
-	//    if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
-	//        return f(B,C,D,E,F,G,H,I,J,K);
-	//    }
-	//}
-		
-	if(o == null && (_.t != 'object' || _.t != 'function')){
-		throw 'problem'
+	web.isNumber=function(o){
+		return typeof o=='number'
 	}
-	//}else if(typeof o == 'function'){ //DO NOT DO THIS! treat functions as if they were "callable Objects"
-	 //   o=o(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z);
-	//}
-
-	return _;
-}
-//chain.defaultCall={'[object HTMLDivElement]':function(A,B){if(typeof B=='string'{return 'setAttribute'}}}
-//chain.defaultCall.params='[object HTMLDivElement]'
-
-web.tag=function(o,A,B,C,D,E,F,G,H,I,J,K){
-	if(typeof o== 'string'){ //if string it is a document node. cause I SAID SO
-		o=document.createElement(o);
-		//if(A != null && typeof A == 'object'){
-		//    return chain(o,A,B,C,D,E,F,G,H,I,J,K); //if given a hash object then handle it.
-		//}
-		return chain(o,A,B,C,D,E,F,G,H,I,J,K).setMap({css:function(o,B,C,D,E,F,G,H,I,J,K){
-			console.log(B)
-			web.css(B,o)
-		}})
+	web.isNumeric=function(o){
+		return !isNaN(o)
 	}
-	throw 'Error, not a string tag!'
-}
-
-//test
-/*var e=tag('div')('id','bees')('className','two')()
-var z=tag('div',{id:'bees1',className:'two0'})()
-document.body.appendChild(e);
-document.body.appendChild(z);*/
-
-
-
-
-//simple chain
-
-
-var simpleChain = function(o){
-	function f(p,v){
-		o[p]=v;
-		return f;
+	web.isjQuery=function(o){
+		return (o instanceof jQuery)
 	}
-	return f;
-}
-
-
-
-/*The advantage of this:
-1) multi pointers
-2) estimate where the pointer was before this script initiated //good for bookmarks and injections
-3) global calls (default to primary mouse) or instances
-*/
-
-
-var pointer = {x: null, y: null, element:null};
-web.Pointer=function(){//TODO accept multi pointers
-	$(document).mousemove(function(e){
-		pointer=e;
-	})
-
-	/*.addEventListener('mousemove', function(e){ 
-		pointer.x = e.clientX || e.pageX; 
-		pointer.y = e.clientY || e.pageY 
-	}, false);*/
-}
-	
-web.Pointer.prototype.getLocation=function(){
-	//TODO
-	if(!pointer.target){
-
-		//hooks were not hooked so guess where it is within the last eliment hovered
-		var elem = $( ":hover" ).last()
-		var offset = elem.offset();
-
-		var x = offset.left + elem.width() / 2,y = offset.top + elem.height() / 2;
-		return [x,y]
-	}
-	return pointer
-}
-
-
-/*pointer = new web.Pointer();
-pointer.getLocation();
-pointer.getElement();*/
-
-
-
-
-
-//adds readability to _.forEach
-_.continue=undefined;
-_.break=false;
-
-//returns new array
-//web.Array points here and allows for different syntax to create an array\
-//example
-//web.Array(5,function(i,array){return i*2}) = [0,1,4,9,16]
-//https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
-web.forRange=function(input,fn,bind,arg){
-	var array=web.create('array')
-	if(input==null){
-		return array;
-	}
-	var max=input,i=0,step=1;
-	if(web.isArray(input)){
-		i=input[0],max=input[1],step=input[2];
-	}
-	if(typeof fn=='number'){ //max index (if given)
-		//shift all inputs
-		i=input,max=fn,fn=bind,bind=arg
-	}
-	if(fn==null){
-		return _.range(i,max,step);
+	web.isCollection=web.isContainer=function(obj){
+		return web.isObject(obj) || web.isArray(obj)
 	}
 
-	max-- //noone in programming includes the max param when doing a range (everyone is always max-1) ex: length-1
-	do{
-		var ans=fn.call(bind,i,array)
-		if(ans===web.break){ 
-			break;
-		}else if(ans!==undefined){
-			array.push(ans)
+	web.isEmpty=function(o){
+		if(web.isType(o,'String')){
+			return (o=='')
+		}else if(web.isType(o,'Object')){
+			return (web.keys(o).length==0)
+		}else if(web.isType('Array')){
+			return (o.length==0)
+		}else{
+				throw 'idk how to see if this is empty'
 		}
-	}while(i++<max)
-	return array;
-}
-//does not return array
-web.range=function(input,fn,bind,arg){
-	var max=input,i=0,step=1;
-	if(web.isArray(input)){
-		i=input[0],max=input[1],step=input[2];
-	}
-	if(fn==null){
-		return _.range(i,max,step);
-	}
-	if(typeof fn=='number'){ //max index (if given)
-		//shift all inputs
-		i=input,max=fn,fn=bind,bind=arg
 	}
 
-	max-- //noone in programming includes the max param when doing a range (everyone is always max-1) ex: length-1
-	do{
-		if(fn.call(bind,i)===web.break){ 
-			break;
-		}
-	}while(i++<max)
-	return undefined;
-}
+	//https://www.inkling.com/read/javascript-definitive-guide-david-flanagan-6th/chapter-7/array-like-objects
+	// Determine if o is an array-like object.
+	// Strings and functions have numeric length properties, but are 
+	// excluded by the typeof test. In client-side JavaScript, DOM text
+	// nodes have a numeric length property, and may need to be excluded 
+	// with an additional o.nodeType != 3 test.
+	web.isArrayLike=function(o) {
+		if (o &&                                // o is not null, undefined, etc.
+			typeof o === "object" &&            // o is an object
+			isFinite(o.length) &&               // o.length is a finite number
+			o.length >= 0 &&                    // o.length is non-negative
+			o.length===Math.floor(o.length) &&  // o.length is an integer
+			o.length < 4294967296)              // o.length < 2^32
+			return true;                        // Then o is array-like
+		else
+			return false;                       // Otherwise it is not
+	}
 
-web.continue=function(){return web.continue}
-web.break=function(){return web.break}
-web.stop=function(){return web.stop}
-
-//forEach with a do range functionallity
-web.forEach=function(input,fn,bind,args){
-	if(!web.isString(input)){
-		var i=0,l,stop=false;
-		var next = web.next=function(command,arg1,arg2,arg3){
-			if(command && typeof command=='string'){ //first condition check skips ''
-				var abrev=command.slice(0,3).toUpperCase();
-				if(abrev=='REC'){
-					return web.forEach(arg1,fn,arg2||bind,arg3||args)
-				}else if(abrev=='NEX'){
-					return input[++i]
-				}else if(abrev=='PRE'){
-					return input[--i]
-				}else if(abrev=='REM'){
-					web.removeAt(input,i)
-				}else if(abrev=='STO'){
-					stop=true
-					return web.stop
-				}else{
-					return web[command]
-				}
-			}
-			//default action
-			return input[++i]
-		}
-		if(web.isArrayLike(input)){
-			l=input.length;
-
-			for(;i<l;i++){
-				if(fn(input[i],i,input,next)===false){
+	web.duckType=function(obj,compare,threshold){
+		var score=0,total=0,properties=(web.isArray(compare))?compare:web.keys(compare);
+		if(threshold==null||threshold==1){
+			for(var i=0,l=properties.length;i<l;i++){
+				if(!obj[properties[i]]){
 					return false
 				}
 			}
 			return true
-		}else if(web.isObject(input)){
-			var keys=web.keys(input);
-			l=keys.length;
-
-			for(var key;i<l;i++){
-				key=keys[i]
-				if(fn(input[key],key,input,next)===false){
-					return false;
-				}
-			}
-			return true
 		}
-		//fallthrough
-	}//fallthough
-	return !!fn.call(bind,input,0,undefined)
-}
-web.isValidJSIdentifier=function(string,strict){
-	if(strict){
-		throw "really? do you really want to do this?"
+		for(var i=0,l=properties.length;i<l;i++){
+			total++
+			if(obj[properties[i]]){
+				score++
+			}
+		}
+		return (threshold)?(score/total)>threshold:(score/total)
 	}
-	return web.RegExp.valid.JSASCIIIdentifier.test(string)
-}
-web.toPropertyNotation=function(array,favorBracket){
-	var a='';
-	_.forEach(array,function(value){
-		a+=(web.isValidJSIdentifier(value))?'.'+value:"['"+value+"']"
-	})
-	return a
-}
 
 
-function Traverser (collection,callback,bind,e){
-	this.collection=collection
-	,this.callback=callback
-	,this.scope=this.bind=bind
-	,this.index=0
-	,this.root=collection
-	,this.GID=0
-	,this.pwd=[(this.path='/')];
-	this.pwd.push('/')
-}
-Traverser.prototype.next=function(){
-	return this.collection[++this.index]
-}
-Traverser.prototype.recurse=function(collection,callback,bind,e){
-	return web.traverse(collection,callback||this.callback,bind||this.bind,e||this)
-}
-Traverser.prototype.previous=function(){
-	return this.collection[--this.index]
-}
-Traverser.prototype.remove=function(){
-	return web.removeAt(this.collection,this.index)
-}
-Traverser.prototype.stop=function(){
-	this.stop=true
-	return Traverser.prototype.stop;
-}
-Traverser.prototype.replace=function(value){
-	var tmp=this.collection[this.index]
-	this.collection[this.index]=value
-	return tmp
-}
-Traverser.prototype.move=function(region,value){
-	throw '//TODO!!!'
-	return web.assign(region,value)
-}
-Traverser.prototype.location=function(asString){
-	if(asString){
-		return web.toPropertyNotation(this.pwd)
+
+
+	//Inspiration http://tokenposts.blogspot.com.au/2012/04/javascript-objectkeys-browser.html
+	var properties = function(o,level){
+		var k=[],p,enu;
+		for (p in o){
+			if(Object.prototype.hasOwnProperty.call(o,p)){
+				if(level&&Object.prototype.propertyIsEnumreable && level!='properties'){
+					enu=Object.prototype.propertyIsEnumreable.call(o,p)
+					if(level=='keys'&&enu){
+						k.push(p)
+					}else if(level=='nonEnumerables'&&!enu){
+						k.push(p)
+					}else{
+						throw  'IDK WHY THIS HAPPENED!'
+					}
+					continue;
+				}
+				k.push(p);
+				}
+			}
+		return k;
+		}
+
+
+	if(!Object.keys){
+		Object.keys=function(obj){
+			if(!force && o !== Object(o))
+				throw new TypeError('Object.keys called on a non-object');
+			return properties(o,'keys')
+			}
 	}
-	return this.pwd
-}
-Traverser.prototype.goTo=function(asString){
-	throw '//TODO!!!'
-}
 
-Traverser.prototype.break=web.break
-Traverser.prototype.break=web.continue
-Traverser.prototype.break=web.stop
-
-
-web.traverse=function(collection,callback,bind,e,args1){
-	var pathFilter,options,sortComparator;
-	if(web.isObject(callback)){
-		options=callback;
-		sortComparator=callback.sortComparator
-		callback=callback.callback
-		options.bind=bind
-	}else if(web.isString(callback)){
-		pathFilter=callback;
-		callback=bind
-		bind=args
-		args=args1
+	if(!Object.getOwnPropertyNames){
+		Object.getOwnPropertyNames=function(obj){
+			if(!force && o !== Object(o))
+				throw new TypeError('Object.keys called on a non-object');
+			return properties(o,'properties')
+			}
 	}
-	options=options||{callback:callback,bind:bind}
-	var recursive = !!(pathFilter)||options.recursive;
 
-	bind=bind||collection
-	if(!web.isString(collection)){
-		var isArray=web.isArrayLike(collection),isObject=web.isObject(collection);
-		if(isArray||isObject){
-			e=e||new Traverser(collection,callback,bind)
+	//TODO
+	//HSould I handle localStorage?
+	// for (i=0; i<=localStorage.length-1; i++)  
+	//     {  
+	//         key = localStorage.key(i);  
+	//         alert(localStorage.getItem(key));
+	//     }  
+	// }
+	// Object.prototype.toString.call(localStorage)
+	// "[object Storage]"
+	// localStorage instanceof Storage
+	// true
+	//level
+	//0=like Object.keys enums only
+	//1=all properties like Object.getOwnProperties
+	//2=nonEnums difference between keys and getOwnProperties
+	web.keys=function(obj,enumLevel,iterNonObject /*sort???*/){
+		//todo add iterator function?
+		if(iterNonObject){
+			return properties(o,enumLevel)
+		}else{
+			if(!enumLevel||enumLevel=='keys'){ //web.startsWith(enumLevel,'key')
+				return Object.keys(obj)
+			}else if(enumLevel=='properties'){ //web.startsWith(enumLevel,'propert')
+				return Object.getOwnPropertyNames(obj)
+			}else if(enumLevel=='nonEnumerables'){ //web.startsWith(enumLevel,'nonEnumerable')
+				var properties = Object.getOwnPropertyNames(obj);
+				return properties.filter(function(key) {
+					return !Object.prototype.propertyIsEnumreable.call(obj,key)
+				})
+			}else{
+				throw 'Error: object.keys does not know the enumlevel'
+			}
+		}
+	}
 
-			e.keys=(isObject)?web.keys(collection):undefined;
+	web.enumerable=function(obj,prop){
+		if(!prop){
+			return Object.keys(obj);
+		}
+		if(web.isArray(prop)){
+			return prop.filter(function(key) {
+				return Object.prototype.propertyIsEnumreable.call(obj,key)
+			})
+		}else{
+			return Object.prototype.propertyIsEnumreable.call(obj,prop)
+		}
+	}
+	web.nonEnumerable=function(obj,prop){
+		prop=prop||Object.getOwnPropertyNames(obj);
+		if(web.isArray(prop)){
+			return prop.filter(function(key) {
+				return !Object.prototype.propertyIsEnumreable.call(obj,key)
+			})
+		}else{
+			return !Object.prototype.propertyIsEnumreable.call(obj,prop)
+		}
+	}
+	web.getProperties=function(obj){
+		return Object.getOwnPropertyNames(obj)
+	}
 
-			if(sortComparator && e.keys){
-				e.keys=e.keys.sort(sortComparator);
+	var webWrapper=function(obj){
+			this.value=obj
+		}
+		webWrapper.prototype=web.prototype
+		webWrapper.prototype.valueOf=function(){return this.value.valueOf()}
+		webWrapper.prototype.toString=function(){return this.value.toString()}
+
+		_.forEach(web.keys(web),function(fn,method,original){
+			switch(fn.length){
+				case 1:
+				case 2:
+				case 3:
+				case 4:
+				case 5:
+				case 6:
+				case 7:
+				case 8:
+					return function(a0,a1,a2,a3,a4,a5,a6,a7){
+								return fn(this.value,a0,a1,a2,a3,a4,a5,a6,a7,a8)
+							}
+				default:
+					return function(/*arguments*/){
+						return fn.apply(this,web.toArray(arguments).unshift(this.value))
+					}
+			}
+		})
+
+
+
+	//to use as seen in web.pubSub
+	//blocking = varSwap(namespace, namespace = blocking)
+	//Inspiration http://stackoverflow.com/questions/16201656/how-to-swap-two-variables-in-javascript
+	//Example: b=varSwap(a,a=b)
+	var varSwap=web.varSwap=function(x){
+		return x;
+	}
+	web.isRegExp=function(o){
+		return o instanceof RegExp
+	}
+
+	//TODO add regular expression that trims characters that test positive for regexp
+	web.trimLeft=function(str,word,keep,deep){
+		if(!word){
+			return str.replace(web.RegExp.leadingWhitespace, '');
+		}
+		var type = typeof word;
+		if(type=='string'){
+			var i=((deep)?str.lastIndexOf(word):str.indexOf(word))
+			if(i<0){return str;}
+			return str.slice( i + ((keep)?0:word.length))
+		}
+		if(type=='number'){
+			return str.slice(Math.abs(word))
+		}
+		if(web.isRegExp(str)){
+			throw 'Not implmented because idk how it should work'
+			// var index=0;
+			// return str.replace(str,function(match,offset,str){
+			// 	if(index==-1){return match}
+			// 	if(offset==index){
+			// 		//this will run as long as we find expected indexes
+			// 	}
+			// })
+		}
+	}
+	web.trimRight=function(str,word,keep,deep){
+		if(!word){
+			//todo faster implementation for long strings
+			return str.replace(web.RegExp.trailingWhitespace, '');
+		}
+		var type = typeof word;
+		if(type=='string'){
+			var i = ((deep)?str.indexOf(word):str.lastIndexOf(word))
+			if(i<0){return str;}
+			return str.slice( 0, i + ((keep)?word.length:0))
+		}
+		if(type=='number'){
+			return str.slice(0,-Math.abs(word))
+		}
+		if(web.isRegExp(str)){
+			throw 'Not implmented because idk how it should work'
+		}
+
+	}
+	web.deepTrimRight=function(str,word,keep){ //todo possible rename to slash? maybe confusing though
+		return web.trimRight(str,word,keep,true)
+	}
+	web.deepTrimLeft=function(str,word,keep){
+		return web.trimLeft(str,word,keep,true)
+	}
+
+	web.trim=function(str){
+		//todo faster implementatoins
+		//http://blog.stevenlevithan.com/archives/faster-trim-javascript
+		//http://yesudeep.wordpress.com/2009/07/31/even-faster-string-prototype-trim-implementation-in-javascript/
+		return str.trim()
+
+	}
+	/*tests
+	web.trimLeft('#JustGirlThings','Girl')
+	"Things"
+	web.trimLeft('#JustGirlThings','Girl',true)
+	"GirlThings"
+	web.trimRight('#JustGirlThings','Girl')
+	"#Just"
+	web.trimRight('#JustGirlThings','Girl',true)
+	"#JustGirl"*/
+
+
+
+	/*
+	NOTE: if you want to process the querystring alone it should start with a '?'
+	In browser:
+		() returns query object (a hashmap of values. if mutli values are found returns them as an array)
+		(url [String]) returns query object
+		(url [String], variable[value]) returns that variable value.
+		(url [undefined||String], variable[value]) like above url is location.href
+		(url [undefined||String], variable[value], replace[value]) variable will be replaced in url and returned
+	In NodeJS:
+		()returns arguments as object
+	*/
+	web.queryString=function(url,variable,replace) {
+		var query;
+		//if(!web.isValue(variable) && !web.isValue(replace)){
+		//	variable = varSwap(url, url=variable);//catch url on the next check
+		//}
+		if(!url){
+			if(web.isNode()){
+				return require('minimist')(process.argv.slice(2));
+			}
+			url=web.global.location.href
+			query=web.global.location.search.substring(1);
+		}else{
+			query=web.trimLeft(url,'?') //don't keep ? this time
+		}
+
+		query = web.deepTrimRight(query,'#')
+
+		if(web.isValue(replace)){ //http://stackoverflow.com/questions/5413899/search-and-replace-specific-query-string-parameter-value-in-javascript
+			return url.replace(new RegExp('('+variable+'=)[^\&]+'), '$1' + encodeURIComponent(replace));
+		}else if(web.isValue(variable)){ //http://stackoverflow.com/questions/2090551/parse-query-string-in-javascript
+			var vars = query.split('&');
+			for (var i = 0; i < vars.length; i++) {
+				var pair = vars[i].split('=');
+				if (decodeURIComponent(pair[0]) == variable) {
+					return decodeURIComponent(pair[1]);
+				}
+			}
+			return ''
+			//console.warn('web.queryString did not find variable %s in %s', variable,url);
+		}else{ //inspiration http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
+						/*the browser does a simple trim left.
+							test http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
+							location.search
+							"?ggks=6h=%22s"
+							location.hash
+							"#dfs"#lkjsdf=9"
+							*/
+			return queryStringParser(query)
+		}
+	}
+
+
+	var queryStringParser=function(value /*,assignment,delimiter */){ //setting assigment and delimiter not really good
+		var q={}
+		value.replace(web.RegExp.queryStringParser
+			,function($0, $1, $2, $3) { 
+				if(q[$1]){
+					if(web.isArray(q[$1])){
+						q[$1].append(decodeURIComponent($3));
+					}else{
+						q[$1]=[q[$1],decodeURIComponent($3)]
+					}
+				}else{
+					q[$1]=decodeURIComponent($3); 
+				}
+				return ''
+			});
+		return q;
+	}
+
+
+
+web.urlAddProtocol=function(url){
+	web.depricated('web.urlAddProtocol will be depricated soon and will be integrated to web.url')
+	var protocol = window.location.protocol||'http:'
+	if(web.startsWith(url,'//')){
+		url=protocol+url
+	}else if(! (web.startsWith(url,'http://')||web.startsWith(url,'https://'))){
+		url=protocol+'//'+url
+	}
+	return url
+}
+
+web.toAbsoluteURL= function(url) {
+	web.depricated('web.toAbsoluteURL will be depricated soon and will be integrated to web.url')
+	if(!url){return} //url||location.href; i dont think i should do this just return undefined
+
+	//if already absolute then return
+	if((/^\w+:\/\//).test(url)){
+		return url
+	}
+	if(document){//if browser then use this
+		var link = document.createElement("a");
+		link.href = url;
+		return (link.protocol+"//"+link.host+link.pathname+link.search+link.hash);
+	}else{
+		//inspiration http://stackoverflow.com/questions/14780350/convert-relative-path-to-absolute-using-javascript
+		var stack = url.split("/")
+		if(url.slice(0,2)=='//'){
+			return stack.shift()+url
+		}else if(url.charAt(0)=='/'){
+			return web.origin()+url
+		}
+		var parts = url.split("/");
+
+		stack.pop(); // remove current file name (or empty string)
+					 // (omit if "base" is the current folder without trailing slash)
+		for (var i=0; i<parts.length; i++) {
+			if (parts[i] == ".")
+				continue;
+			if (parts[i] == "..")
+				stack.pop();
+			else
+				stack.push(parts[i]);
+		}
+		return stack.join("/");
+	}
+}
+
+	//TODO
+	//http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
+	/*
+	{
+	'protocol':						//not implemented
+	'://':								//not implemented
+
+	'hostname':
+	'.'
+
+	'domain':						//not implemented
+	'//':							//not implemented
+
+	'port':							//not implemented
+	':'								//not implemented
+
+	'path':							//not implemented
+	'/':							//not implemented
+
+	'query':						//not implemented
+	'?':{key:'value',pairs:true}
+
+	'fragement':					//not implemented
+	'#':'bare word'					//not implemented
+	'fragmentPath':					//not implemented
+	'#!':							//not implemented
+	'fragmentQuery':				//not implemented
+	'#?':{key:'value',pairs:true}
+
+	'@'
+	}
+	*/
+	//currently only returns object with ? and # 
+
+
+	web.url=function(url,cmd1,cmd2){
+		url=url||web.global.location.href
+
+		// if(web.isObject(cmd1)){
+		// 		url.addSearch(queryData);
+		// 	if(web.isObject(cmd2)){
+		// 		url.addFragment(hashData);
+		// 	}
+		// }
+
+		if(cmd1&&cmd1.toUpperCase){
+			cmd1=cmd1.toUpperCase()
+
+			if(cmd1=='DOMAIN'){
+				//http://stackoverflow.com/questions/8498592/extract-root-domain-name-from-string
+				url = web.toAbsoluteURL(url)
+				var matches = url.match(/^https?\:\/\/([^\/?#]+)(?:[\/?#]|$)/i);
+				return (matches && matches[1])||new URI(url).domain();  // domain will be null if no match is found
+			}else if(cmd1=='PROTOCOL'){
+
+			}
+		}
+		
+
+		var uri = new URI(url)
+
+
+
+
+		url = /*web.unescapeHTML(*/ uri.toString() //) //idk if web.unescapeHTML should be a part of this?
+
+
+		var face=  {
+				url:url
+				,toString:function(){
+					return this.url
+				}
+							/*the browser does a simple trim left.
+								test http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
+								location.search
+								"?ggks=6h=%22s"
+								location.hash
+								"#dfs"#lkjsdf=9"
+								*/
+					,apply:function(part,data,replace){ //TODO implement replace
+						if(part===''){
+							throw 'not implmented'
+						}else if (part=="//"){
+							throw 'not implmented'
+						}else if (part==":"){
+							throw 'not implmented'
+						}else if (part=="/"){
+							throw 'not implemented'
+						}else if(part=='?'){
+							this.url = uri.addSearch(data).toString()
+							this['?']=queryStringParser(web.deepTrimRight(web.trimLeft(this.url,'?'),'#'))  //NOTE this is how the browser does it!	
+						}else if(part=='#'){
+							throw 'not implmented'
+						}else if(part=='#?'){
+							this.url = uri.addFragment(data).toString()
+							this['#?']=queryStringParser(web.trimLeft(this.url,'#')) //NOTE this is how the browser does it!	//'?'+location.hash.slice(1) //added a ? just to make parsing easier
+						}else if(part=='#!'){
+							throw 'not implemented'
+						}else{
+
+						}
+						return this
+					}
+					,replace:function(part,data){
+						return this.apply(part,data,true)
+					}
+					,remove:function(part){
+						return this.apply(part,'',true)
+					}
+				}
+
+		face['?']=queryStringParser(web.deepTrimRight(web.trimLeft(url,'?'),'#'))
+		face['#?']=queryStringParser(web.trimLeft(url,'#'))
+		face['//']=web.url(url,'domain')
+
+		if(uri['//']=='youtube.com'||uri['//']=='youtu.be'){
+			uri.slug=web.getYoutubeHash(url.toString())
+			return uri
+		}
+
+		url = undefined
+
+		return face
+	}
+
+
+
+	web.Object=web.Object||{};
+	web.Object.putAdd=function(obj,key,value){
+		obj[key]=(obj[key]!==undefined)?obj[key]+value:value;
+		return obj;
+	}
+
+	/*
+	see if an object equals any of the other types
+	*/
+	web.isA=function(obj,arg0,arg1,arg2,arg3,arg4){
+		var args=(type( arg0 ) === 'Array')?arg0:[arg0,arg1,arg2,arg3,arg4];
+
+		return args.some(function(e){
+			return (typeof e == 'string')?typeof obj == e:obj instanceof e;
+		})
+	}
+
+	web.fork=function(url){
+		if(!(this instanceof web.fork)){return new web.fork(url)}
+		if(web.isURL(url)){
+
+		}else if(web.isHTML(url)){
+
+		}else{ //assume script
+
+		}
+		this.url=url;
+	}
+	web.fork.prototype.asWorker=function(){
+
+	}
+	web.fork.prototype.asFrame=function(){
+
+		
+	}
+	web.fork.prototype.asWindow=function(){
+		web.destory(this.currentInstance)
+		return this.currentInstance=window.open(this.url)
+	}
+	web.fork.prototype.pub=function(message,targetOrigin,transfer){
+		return web.pub(this.currentInstance,message,targetOrigin,transfer)
+	}
+
+	web.destory=function(obj){
+		if(!obj){
+			return 
+		}else if(web.isPopup(obj)){
+			obj.close()
+		}
+	}
+
+	web.isPopup=function(o){
+		return (Object.prototype.toString.call(o)=="[object global]" && !(o instanceof Window));
+	}
+	web.isIframe=function(o){
+		return o instanceof HTMLIFrameElement
+	}
+	web.isMedia=function(o){
+		return web.isNode(o) && (o.nodeName=='VIDEO' ||  o.nodeName=='AUDIO')
+	}
+	web.isCanvas=function(o){
+		return web.isNode(o) && o.nodeName=='CANVAS';
+	}
+	//http://stackoverflow.com/questions/4594492/to-check-parent-window-is-iframe-or-not
+	web.inIframe=function(){
+		return window.frameElement && window.frameElement.nodeName=='IFRAME'
+	}
+
+
+	//querystring expects to get (lastItem,callback) //callback is used after server hit
+	web.abyss=function(elem,template,queryFn){
+		elem=$(elem)
+
+		var orientation,name,options,idGetter,uid='webAbyss_'+web.UID()
+
+
+		var setOptions=function(o){
+			if(o===undefined){
+				return options
+			}
+			orientation=o.orientation
+			name=o.name;
+			idGetter=o.idGetter; //id getter
+			queryFn=o.query;
+
+			//set defaults
+			options.minHeight=o.minHeight||0
+			return options
+		}
+		if(web.isObject(queryFn)){
+			options=queryFn;
+			options=setOptions(options)
+		}
+		if(!web.isValue(name)){
+			name=elem.attr('id')||web.UID()
+		}
+
+
+		// if(web.isArray(template)){
+
+		// }else
+		if (web.isString(template)){
+			template=web.template(template,undefined,options.callback)
+		}//else assume web template compiled?
+		//DO NOT CALL setCallback on the template because we call outerHTML on the returned jquery object from template and it ruins any listeners
+		//instead use callback in the slickgrid render function
+		//else if(template.setCallback){
+		//	template.setCallback(options.callback)
+		//}
+
+		var vertical=(orientation!='horizontal');
+
+		elem.addClass('web-abyss')
+
+
+		var deferedActions=[]
+
+		var grid
+			,dataView
+			,column
+			,columns
+			,settings;
+
+
+
+
+
+			function init (datum){
+			columns=[]
+			//http://stackoverflow.com/questions/11001356/slickgrid-breakpoint-on-filter
+			dataView=new Slick.Data.DataView({ inlineFilters: false }) //SET THIS AS FALSE otherwise slickgrid will attempt to "re-compile" the filter 
+			if(vertical){
+				column={	
+					name: ""
+					//,id: "contact-card"
+					//, cssClass: "contact-card-cell"
+					,formatter:function renderCell(row, cell, value, columnDef, data) {
+						var id=name+'_'+web.get.call(data,idGetter)
+						//web.defer(options.renderCallback,id)
+						return template(data, id ).outerHTML()
+					}
+					,selectable:true
+					,asyncPostRender:options.postRender
+				}
+			,settings = {
+				editable: false
+				,enableAddRow: false
+				,enableCellNavigation: true
+				,enableColumnReorder: false
+				,forceFitColumns: true
+				,headerHeight: 0
+				,leaveSpaceForNewRows:true
+				,resizable:false
+				//,autoHeight:true
+				,showHeaderRow:false
+				,enableAsyncPostRender: true
+				,asyncPostRenderDelay:0
+
+			};
+			}else{
+				settings= {
+					editable: false
+					,enableAddRow: false
+					,enableCellNavigation: true
+					,enableColumnReorder: false
+					,forceFitColumns: false
+					,headerHeight: 0
+					,leaveSpaceForNewRows:false
+					,resizable:true
+					,autoHeight:true
+					//,showHeaderRow:true
+					,enableAsyncPostRender: true
+					,asyncPostRenderDelay:0
+				}
+				,column={	
+					name: ""
+					//,id: "contact-card"
+					//, cssClass: "contact-card-cell"
+					,formatter:function renderCell(row, cell, value, columnDef, data) {
+						//console.info(name,idGetter,web.get.call(data,idGetter) ,data)
+						var id=name+'_'+web.get.call(data[cell],idGetter)
+						//web.defer(options.renderCallback,id)
+						return template(data[cell], id).outerHTML()
+					}
+					,selectable:true
+					,asyncPostRender:options.postRender
+					,width:300
+
+				}
+
+				var d=[]
+				d.id=0
+				dataView.addItem(d)
+			}
+			columns.push(column)
+
+				var height = options.rowHeight;
+				if(!height){ //TODO because we load a dummy image this can thow off the row height if the dummy image does not have the same aspect ratio as the data image
+					var dom=template(datum)
+					//alert($(dom).clone().appendTo('body').innerHeight())
+					height=web.height(dom,'border')
+				}
+				//enforce minHeight
+				height = (height<options.minHeight)?options.minHeight:height
+
+				settings.rowHeight=height||100
+				window.grid=grid = new Slick.Grid(elem, dataView, columns, settings);
+				grid.setSelectionModel(new Slick.RowSelectionModel());
+
+				elem.find(".slick-header").css("height","0px").css('display','none')
+				grid.resizeCanvas()
+				grid.autosizeColumns();
+				qWindow.on("resize."+uid,_.throttle(function(){
+					grid.resizeCanvas();
+				},350))
+
+				// wire up model events to drive the grid
+				dataView.onRowCountChanged.subscribe(function (e, args) {
+					//var length = grid.getDataLength()
+					grid.updateRowCount();
+					//debugger
+					//var rows = web.forRange([length,grid.getDataLength()])
+					//alert(rows)
+					//grid.invalidateRows(rows);
+					grid.render()
+				});
+
+				dataView.onRowsChanged.subscribe(function (e, args) {
+					grid.invalidateRows(args.rows);
+					grid.render();
+				});
+
+	///////////////////////////////////////
+	//////////////////////////////////////
+	  // grid.onCellChange.subscribe(function (e, args) {
+	  //   dataView.updateItem(args.item.id, args.item);
+	  // });
+	  // grid.onAddNewRow.subscribe(function (e, args) {
+	  //   var item = {"num": data.length, "id": "new_" + (Math.round(Math.random() * 10000)), "title": "New task", "duration": "1 day", "percentComplete": 0, "start": "01/01/2009", "finish": "01/01/2009", "effortDriven": false};
+	  //   $.extend(item, args.item);
+	  //   dataView.addItem(item);
+	  // });
+		grid.onKeyDown.subscribe(function (e) {
+			// select all rows on ctrl-a
+			if (e.which == 65 && e.ctrlKey) {
+				var rows = web.forRange(dataView.getLength())
+				grid.setSelectedRows(rows);
+				e.preventDefault();
+			}
+			return false;
+		});
+	  // grid.onSort.subscribe(function (e, args) {
+	  //   sortdir = args.sortAsc ? 1 : -1;
+	  //   sortcol = args.sortCol.field;
+	  //   if ($.browser.msie && $.browser.version <= 8) {
+	  //     // using temporary Object.prototype.toString override
+	  //     // more limited and does lexicographic sort only by default, but can be much faster
+	  //     var percentCompleteValueFn = function () {
+	  //       var val = this["percentComplete"];
+	  //       if (val < 10) {
+	  //         return "00" + val;
+	  //       } else if (val < 100) {
+	  //         return "0" + val;
+	  //       } else {
+	  //         return val;
+	  //       }
+	  //     };
+	  //     // use numeric sort of % and lexicographic for everything else
+	  //     dataView.fastSort((sortcol == "percentComplete") ? percentCompleteValueFn : sortcol, args.sortAsc);
+	  //   } else {
+	  //     // using native sort with comparer
+	  //     // preferred method but can be very slow in IE with huge datasets
+	  //     dataView.sort(comparer, args.sortAsc);
+	  //   }
+	  // });
+	  // wire up model events to drive the grid
+
+
+
+	///////////////////////////////////////
+	//////////////////////////////////////
+				var endless=true
+				var scrollfn=(vertical)?/*vertical*/(function(e,args){
+						//calculate in pixels how close we are to the bottom
+						//(this.getDataLength()*settings.rowHeight)-args.scrollTop
+						//OR calculate in number of items
+						if(this.getViewport().bottom>=dataView.getLength()-10){
+							//console.log('polling...',dataView.getItem(dataView.getLength()-1))
+							if(false===queryFn(dataView.getItem(dataView.getLength()-1),appendData)){
+								endless=false
+								grid.onScroll.unsubscribe(debounceQueryFn)
+							}
+						}
+					}):(function(e,args){
+					//calculate in pixels how close we are to the bottom
+					//(this.getDataLength()*settings.rowHeight)-args.scrollTop
+					//OR calculate in number of items
+
+					//viewport is what the user can see
+					//rendered range is what is being virtually rendered (what is attached to the dom)
+					//canvasNode is the div element that IS the whole table (like document is in HTML)
+					//web.log(this.getViewport(),'@',this.getRenderedRange(),'@',this.getGridPosition(),'@',this.getCanvasNode())
+					if(this.getRenderedRange().rightPx>=grid.getCanvasNode().offsetWidth){
+						//console.log('polling...',dataView.getItem(dataView.getLength()-1))
+						if(false===queryFn(web.get.call(dataView.getItem(0),-1),appendData)){
+							endless=false
+							grid.onScroll.unsubscribe(debounceQueryFn)
+						}
+					}
+				});
+
+				queryFn=web.lockable(_.debounce(queryFn,500))
+				var debounceQueryFn=_.debounce(scrollfn,50)
+				grid.onScroll.subscribe(debounceQueryFn)
+
+				//do all defered actions now
+				_.forEach(deferedActions,function(fn){fn()})
+				 // function updateFilter() {
+				  //   dataView.setFilterArgs({
+				  //     percentCompleteThreshold: percentCompleteThreshold,
+				  //     searchString: searchString
+				  //   });
+				  //   dataView.refresh();
+				  // }
+
+				  if(options.filter){
+				  	//dataView.setFilterArgs(options.filter)
+				  	//dataView.setFilter(function(item,args){return options.filter.call(this,item,args)});
+				  	dataView.setFilter(options.filter)
+				  }
+				  // if you don't want the items that are not visible (due to being filtered out
+				  // or being on a different page) to stay selected, pass 'false' to the second arg
+				  dataView.syncGridSelection(grid, true);
+				  window.dataView=dataView
 			}
 
+		// When user clicks button, fetch data via Ajax, and bind it to the dataview. 
 
-			for(var i=0,l=(e.keys)?e.keys.length:collection.length; i<l; i++){
-				e.index=i;
-				e.GID++
+		var appendData=function(array){
+			if(!grid){
+				init(array[0])
+			}
 
-				//set e.value and e.key based on if it is an object we are iterating
-				if(isObject){
-					e.key=e.keys[i]
-					e.value=collection[e.key]
-					e.pwd[e.pwd.length-1]=e.key;
-				}else{//isArray
-					e.key=i.toString()
-					e.value=collection[i];
-					e.pwd[e.pwd.length-1]=i;
+			if(vertical){
+				dataView.beginUpdate()
+				_.forEach(array,function(item){dataView.addItem(item)})
+				dataView.endUpdate()
+			}else{
+				var columns=grid.getColumns()
+				var i=dataView.getItem(0)
+
+				for(var x=0,l=array.length;x<l;x++){
+					columns.push(column)
+				}
+				
+				web.extend(columns,column,array.length)
+				i.push.apply(i,array)
+				grid.setColumns(columns)
+				dataView.updateItem(0,i)
+			}
+			//this will replace all data
+			//dataView.beginUpdate();
+			//dataView.setItems(array);
+			//dataView.endUpdate();
+			//grid.render();
+
+			//trying to update settings... does not work currently
+			//settings.rowHeight= 140//template(grid.getData()).height()
+			//grid.setOptions(settings);
+			//grid.invalidate();
+			queryFn.allow() //unlock the query function (it is a web.lockable fn)
+		}
+		
+		if(options.autoLoad!==false){
+			queryFn(undefined,appendData)
+		}
+
+		var face= {
+			get:function(i){
+				if(i>-1){
+					return dataView.getItem(i)
+				}else if(i<0){
+					return dataView.getItem((dataView.getLength()-1)-i)
+				}else{
+					return face.getSelection()
+				}
+			}
+			,append:function(data){
+				if(web.isArray(data)){
+					appendData(data)
+				}else{
+					appendData([data])
+				}
+				//if(!data){
+				//	queryFn(data)
+				//}
+				//dataView.addItem(data);
+				//dataView.refresh();
+				//return name+'_'+web.get.call(data,idGetter)
+			}
+			,prepend:function(data){
+
+			}
+			,insert:function(data,before){ //inserts relative to current item highlighted
+				if(before){
+
+				}else{ //after
+
 				}
 
-				//set path on e
-				e.path=e.pwd.join('/');
-
-				//if we are filtering out dirs do it now that we have a path variable
-				if(pathFilter && !pathFilter.test(e.path)){
-					continue
+			}
+			,clear:function(){
+				grid.invalidateAllRows();
+				dataView.setItems(undefined, "Id");
+				grid.render();
+				$(window).off('.'+uid)
+			}
+			,click:function(fn){
+				if(grid){
+					grid.onClick.subscribe(function(e,args){
+						var elem=$(e.target).closest('a, .slick-cell')//traverse up the dom until you find an anchor,consume-click,or end at div.slick-cell
+						var data = this.getDataItem(args.row)
+						//grid.setSelectedRows([args.row]);
+						if(web.isArray(data)){
+							data=data[args.cell]
+						}
+						fn && fn.call(elem,e,args,data)
+						});
+				}else{
+					deferedActions.push(_.bind(face.click,face,fn))
 				}
-				//call the callback on object
-				if(callback.call(bind,e)===Traverser.prototype.break){
-						return Traverser.prototype.break
+				return face
+			}
+			,setID:function(){ //TODO
+
+			}
+			,getElement:function(i){
+				if(!web.isValue(i)){
+					return elem
+				}
+				if(i=='selected'){
+					return elem.find('.active.selected').contents()
 				}
 
-				//see if it is recursive
-				if(recursive && (web.isArrayLike(e.value)||web.isObject(e.value)) ){ 
-					//fix the path for recursive call
-					e.path+='/'
-					e.pwd.push('/')
-					//run filter since path changed
+			}
+			,reset:function(options){
+				if(options){
+					if(web.isFunction(options)){
+						queryFn=options
+					}else if(web.isObject(options)){
+						setOptions(options)
+					}
+				}
+				grid=undefined;
+				queryFn(undefined,appendData)
+			}
+			,getSelection:function(){
+				var indices=grid.getSelectedRows() //grid returns array of number indecies
+				for(var i=0,l=indices.length;i<l;i++){ 
+					indicies = dataView.getItem(indices[i]) //just reuse the array and replace indecies with elements
+				}
+				return indices
+			}
+			,next:function(){
+				if(vertical){
+					var i = web.get.call(grid.getSelectedRows(),-1)
+					//grid.scrollRowIntoView(i++)
+					//grid.scrollRowToTop(i++)
+					face.scrollTo(++i)
+					grid.setActiveCell(i,0)
+					return dataView.getItem(i)
+				}else{
+					throw 'NEED TO implment!'
+				}
+			}
+			,previous:function(){
+				if(vertical){
+					var i = grid.getSelectedRows()[0]
+					grid.scrollRowToTop(i--)
+					grid.setActiveCell(i,0)
+					return dataView.getItem(i)
+				}else{
+					throw 'NEED TO implment!'
+				}
+			}
+			,select:function(index){
+				var range;
+				if(web.isArray(index)){
+					range=index
+					index=web.sort(index)[0]
+				}else{
+					range=[index]
+				}
+				
+				if(index>0){
+					return grid.setSelectedRows([]);
+				}
+
+				if(vertical){
+					face.scrollTo(index)
+					//todo handle range?
+					grid.setActiveCell(index,0)
+					grid.setSelectedRows(range);
+					if(range.length==1||range[0]==range[1]){
+						return face.get(index)
+					}
+					return dataView.getItems(range)
+				}else{
+					throw 'NEED TO implment!'
+					// 	face.scrollTo(index)
+					// //todo handle range?
+					// grid.setActiveCell(index,0)
+					// grid.setSelectedRows(range);
+					// if(range.length==1||range[0]==range[1]){
+					// 	return face.get(index)
+					// }
+					// return dataView.getItems(range)
+				}
+			}
+			,scrollTo:function(arg){
+				if(!grid){
+					return
+				}
+				if(web.isString(arg)){
+					if(web.startsWith(arg,'selection',true)){
+						var list = grid.getSelectedRows()
+
+						if(list.length){
+							grid.scrollRowToTop(list[0])
+						}else if(web.endsWith(arg,'bottom',true)){
+							grid.scrollRowToTop(undefined)
+						}else{
+							grid.scrollRowToTop(0)
+						}
+						return 
+					}else if(arg='bottom'){
+						if(options.leaveSpaceForNewRows==true){
+							grid.scrollRowToTop(undefined) //hax!
+						}else{
+							console.warn('UNTESTED behavior for web.abyss().scrollTo("bottom") just a guess ')
+								grid.scrollRowIntoView(undefined)
+							}
+					}
+				}
+				grid.scrollRowToTop(arg)
+
+			}
+			,render:function(item){
+				var id;
+				if(web.isObject(item)){
+					id=web.get.call(item,idGetter)
+				}
+				var row;
+				//dataView.beginUpdate()
+				if(web.isValue(id)){
+					var viewPort=grid.getRenderedRange() //getViewport();
+					for(var i=viewPort.top, l=viewPort.bottom;i<=l;i++){
+						if(web.get.call(grid.getDataItem(i),idGetter)===id){ //match
+							row=i
+							break;
+						}
+					}
+				}
+				if(web.isValue(row)){ //Could use previously created onrowschange handler
+					grid.invalidateRow(row);
+					//dataView.endUpdate()
+					grid.render();
+				}
+			}
+			,getLength:function(){
+				return dataView.getLength()
+			}
+			,loadMore:function(){
+				if(vertical){
+					queryFn(dataView.getItem(dataView.getLength()-1),appendData)
+				}else{
+					queryFn(web.get.call(dataView.getItem(0),-1),appendData)
+				}
+			}
+			,refresh:function(){
+				return dataView&&dataView.refresh();
+			}
+			,setBackdrop:function(backdrop){
+				return elem.append(backdrop)
+			}
+
+			//,"0":elem
+			//,length:1
+			,getSetOptions:setOptions
+		}
+		return face
+	}
+
+	web.screenSaver=function(elem,fn,options){
+		elem=$(elem||document.body)
+
+
+		var qCanvas = $('<canvas class="flood-inner fill"></canvas>')
+		if(options.backdrop){
+			elem.prepend(qCanvas)
+		}else{
+			elem.append(qCanvas)
+		}
+		//canvas init
+		var canvas = qCanvas[0]
+		var ctx = canvas.getContext("2d");
+		
+		//canvas dimensions
+		var W = elem.width();
+		var H = elem.height();
+		canvas.width = W;
+		canvas.height = H;
+		
+		//snowflake particles
+		var mp = 25; //max particles
+		var particles = [];
+		for(var i = 0,l=mp; i < l; i++){
+			particles.push({
+				x: Math.random()*W //x-coordinate
+				,y:0//y: Math.random()*H, //y-coordinate
+				,r: Math.random()*4+1 //radius
+				,d: Math.random()*l //density
+			})
+		}
+		
+		//Lets draw the flakes
+		function draw(){
+			ctx.clearRect(0, 0, W, H);
+			
+			ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+			ctx.beginPath();
+			for(var i = 0, l=particles.length; i < l; i++){
+				var p = particles[i];
+				ctx.moveTo(p.x, p.y);
+				ctx.arc(p.x, p.y, p.r, 0, Math.PI*2, true);
+			}
+			ctx.fill();
+			update();
+		}
+		
+		//Function to move the snowflakes
+		//angle will be an ongoing incremental flag. Sin and Cos functions will be applied to it to create vertical and horizontal movements of the flakes
+		var angle = 0;
+		function update(){
+			angle += 0.01;
+			for(var i = 0, l=particles.length; i < l; i++){
+				var p = particles[i];
+				//Updating X and Y coordinates
+				//We will add 1 to the cos function to prevent negative values which will lead flakes to move upwards
+				//Every particle has its own density which can be used to make the downward movement different for each flake
+				//Lets make it more random by adding in the radius
+				p.y += Math.cos(angle+p.d) + 1 + p.r/2;
+				p.x += Math.sin(angle) * 2;
+				
+				//Sending flakes back from the top when it exits
+				//Lets make it a bit more organic and let flakes enter from the left and right also.
+				if(p.x > W+5 || p.x < -5 || p.y > H){
+					if(i%3 > 0){ //66.67% of the flakes
+						particles[i] = {x: Math.random()*W, y: -10, r: p.r, d: p.d};
+					}else{
+						//If the flake is exitting from the right
+						if(Math.sin(angle) > 0){
+							//Enter from the left
+							particles[i] = {x: -5, y: Math.random()*H, r: p.r, d: p.d};
+						}else{
+							//Enter from the right
+							particles[i] = {x: W+5, y: Math.random()*H, r: p.r, d: p.d};
+						}
+					}
+				}
+			}
+		}
+		
+		//animation loop
+		var loop=setInterval(draw, 33);
+		return {
+			resize:function(){
+				W = elem.width();
+				H = elem.height();
+				canvas.width = W;
+				canvas.height = H;
+			}
+			,clear:function(){
+				qCanvas.remove()
+				clearInterval(loop)
+			}
+		}
+
+	}
+
+
+
+	//inspiration: http://stackoverflow.com/questions/12487352/how-do-i-pause-and-resume-a-timer
+	web.stopWatch=function(fn,timeout){
+		if(!(this instanceof web.stopWatch)){return new web.stopWatch(fn,timeout)}
+		this.stop(fn,timeout)
+		this.record()
+	}
+	web.stopWatch.prototype.record=function(){
+			var self = this;
+
+			if(this.fn){
+				if(!this.interval){
+					this.interval= setInterval(function(){ //TODO change this to web.setInterval
+						self.seconds += (new Date().getTime()-this.timePoint)/1000
+						fn &&fn.call && fn.call(self,self.seconds)
+					}, this.timeout);
+				}
+			}else{
+				var newTimePoint=new Date().getTime();
+				if(this.timePoint){
+					this.seconds+=newTimePoint-this.timePoint/1000
+				}
+				this.timePoint=newTimePoint;
+			}
+		}
+	web.stopWatch.prototype.pause=function(){
+			clearInterval(this.interval);
+			this.interval=null
+			return this.seconds
+		}
+
+	web.stopWatch.prototype.stop=function(fn,timeout){
+			this.pause()
+			this.fn=fn
+			this.timeout=timeout||1000
+			this.seconds=0
+			this.timePoint=null;
+			return this
+	}
+
+	// web.stopWatch(function(totalSeconds){
+	// 	$("#hour").text(Math.floor(self.totalSeconds / 3600));
+	// 	$("#min").text(Math.floor(self.totalSeconds / 60 % 60));
+	// 	$("#sec").text(parseInt(self.totalSeconds % 60));
+	// })
+
+
+	web.probable=function(fn,chance){
+		if(!web.isValue(chance)){
+			chance=parseFloat(fn)
+			fn=undefined
+		}
+
+		if(web.isArray(fn)){
+			_.forEach(function(){
+				//Implement this
+			})
+		}else{
+			if(Math.random()<chance){
+				if(fn){
+					return fn.call()
+				}
+				return true
+			}
+		}
+		return null //maybe return null? this would show more intent that this answer came from web.probable
+	}
+
+	web.lockable=function(fn){
+		var allow=true;
+		if(!web.isFunction(fn)){
+			throw 'only functions are lockable'
+		}
+		var web_lockable= function (/* arguments */){
+			if(allow){
+				allow=false
+				return fn.apply(fn,arguments)
+			}
+		}
+		web_lockable.allow=function(a){
+			if(a==undefined){
+				return allow=true
+			}else if(a == 'toggle'){
+				return allow=!allow
+			}else if(a == 'status'){
+				return allow
+			}else{
+				return allow = !!a
+			}
+		}
+		return web_lockable;
+	}
+
+
+	/*
+	for undersanding of height types see
+					 padding  border  margin
+	height 				x 		x 		x
+	innerHeight 		x 		x 		x
+	outerHeight 		x 		x 		x
+	outerHeight(true)	x 		x 		x
+
+	Source: http://www.texelate.co.uk/blog/post/91-jquery-whats-the-difference-between-height-innerheight-and-outerheight/
+	*/
+	//height,innerHeight,outerHeight,outerHeight(true)
+	//element,padding,border,margin
+	web.height=function(elem,type){
+		if(web.isjQuery(elem)){
+			dummyDiv.append(elem)
+			var val;
+			switch(type){
+				case 'element':
+					val=elem.height();
+					break;
+				case 'padding':
+					val=elem.innerHeight();
+					break;
+				case 'border':
+					val= elem.outerHeight();
+					break;
+				case 'margin':
+				default:
+					val=elem.outerHeight(true);
+			}
+
+			
+			resetDummyDiv()
+			return val
+		}else{
+			throw 'need to implment height for other elements'
+		}
+	}
+
+	web.getClassList=function(elem){
+		var classes;
+		if(web.isjQuery(elem)){
+			classes=elem.attr('class')
+		}else{
+			classes = elem.className
+		}
+		var classList = classes.split(/\s+/);
+			for (var i = 0; i < classList.length; i++) {
+				if (classList[i] === 'someClass') {
+				//do something
+			}
+		}
+	}
+
+
+	web.snapTo=function(elem1,edge,elem2,edge2){
+		elem1=$(elem1)
+		elem2=$(elem2)
+		var fn = function(){
+			elem1.offset()
+			elem2.offset()
+
+			'static'
+			'relative'
+			'absolute'
+			'fixed'
+			'sticky'
+		}
+
+		fn()
+		return fn
+	}
+
+	web.position=function(elem,relativeTo){
+		elem=$(elem)
+		var position=elem.css('position')
+			,x,y,offset=elem.offset()
+		if(position=='fixed'){
+			if(elem.parent()[0]==web.body){
+				offset.y-=parseFloat($.css('top'))
+			}else{
+				var offset=elem.offset()
+				offset.y-=$(document).scrollTop()
+			}
+		}
+		if(relativeTo==web.document){
+			return offset
+		}else if(relativeTo==web.viewPort){
+			var offset=elem.offset()
+			offset.y=offset.y-$(document).scrollTop()
+			return offset
+		}else if(relativeTo==web.screen){
+
+		}
+	}
+
+	web.convertPosition=function(id,type,hoistToBody){//id can be selector, dom element or jquery (dependency = jquery)
+		var change=$(id)
+			,pos=change.position();
+		hoistToBody&&change.appendTo('body');
+		return change.css({top: pos.top, left: pos.left, position: (type||'absolute')});
+	}
+
+	//original Inspiration http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
+	web.width=function(text,css){
+		if(web.isjQuery(text)){
+			dummyDiv.append(elem)
+			var val;
+
+			switch(type){
+				case 'element':
+					val=elem.width();
+					break;
+				case 'padding':
+					val=elem.innerWidth();
+					break;
+				case 'border':
+					val= elem.outerWidth();
+					break;
+				case 'margin':
+				default:
+					val= elem.outerWidth(true);
+			}
+
+			
+			resetDummyDiv()
+			return val
+		}else{
+			var f;
+			//TODO css can be just a font style,or css string, or object hash
+			if(css.indexOf(':')==-1){
+				f=css,css=''
+			}else{
+				f='12px arial' //TODO get default body font
+			}
+			dummyDiv.addAttr('style',css||'').text(text) //$('<div style="'+(css||'')+'">' + text + '</div>')
+				.css({'font': f}),
+			w = dummyDiv.width();
+			resetDummyDiv()
+		  return w;
+		}
+	}
+
+	var qWindow=$(window)
+	web.reflow=function(elem,callback){
+		if(web.isFunction(elem)){
+			callback=elem
+			elem=undefined
+		}
+		
+		var elem = (elem)?$(elem):qWindow;
+		elem.trigger('resize','reflow') //.resize() //forces reflow of page
+		web.defer(callback)
+	}
+
+	web.lorem=function(min,max){
+		var paragraph=''
+		for(var min=0,l=max;i<l;i++){
+			paragraph+=' '+(Math.random()+1).toString(36).replace(/[\d.]/g,'')+(web.probable(.3)?'.':'')
+		}
+		return paragraph+'.'
+	}
+
+	var tmpArray=[];
+	web.pub=function(context,message,targetOrigin,transfer){
+		if(!web.isArray(context)){
+			tmpArray.length=0
+			tmpArray.push(context)
+		}else{
+			tmpArray=context
+		}
+
+		for(var i=0,l=tmpArray.length;i<l;i++){
+			context=tmpArray[i]
+			if(web.isWindow(context)){
+
+			}else if(web.isFrame(context)){
+
+			}else if(web.isWorker(context)){
+
+			}
+		}
+	}
+	web.sub=function(){
+
+	}
+
+
+	//Inspiration http://benjii.me/2013/02/quickevent-a-tiny-javascript-event-engine/
+	web.pubSub=function(namespace,blocking) {
+		if(namespace===true){
+			blocking = varSwap(namespace, namespace = blocking);
+		}
+		var nextSubscriberId = 0,listeners=[];
+
+		var subPub=(blocking)?(function(arg0,arg1,arg2,arg3,arg4,arg5){
+				var scope = (this===subPub)?web.global:this;
+				for (var i=0,l=listeners.length;i<l;i++) {
+					listeners[i]&&listeners[i].apply(scope,arg0,arg1,arg2,arg3,arg4,arg5);
+				}
+			}):(function(arg0,arg1,arg2,arg3,arg4,arg5){
+				var scope = (this===subPub)?web.global:this;
+				for (var i=0,l=listeners.length;i<l;i++) {
+					listeners[i]&&web.defer.call(scope,listeners[i],arg0,arg1,arg2,arg3,arg4,arg5);
+				}
+			})
+
+
+		subPub.alter=subPub.subscribe=subPub.unsubscribe=function(input){
+			var type = typeof input;
+			if(type == 'function'){
+				listeners[nextSubscriberId] = input;
+				return nextSubscriberId++;
+			}else if(type =='number'){
+				var handle = subPub[input];
+				delete listeners[input];
+				return handle
+			}else if(type=='object'){ //iframe,window,or worker
+				throw 'to implement'
+
+			}else if(input=='destroy'||input=='delete'){
+				for (var i=0,l=subPub.length;i<l;i++) {
+					listeners[i]=undefined
+					delete listeners[i]
+				}
+				nextSubscriberId=undefined
+			}else{
+				throw new Error('type not handled')
+			}
+		};
+		
+		if(namespace){web.put.call(web.pubSub,namespace,subPub)}
+		return subPub;
+	};
+
+	web.grid=function(){
+
+	}
+
+	web.Event=function(){};
+
+	web.Event.removeSelf=function(e){
+		document.body.removeChild(e.target);
+	}
+
+	//Web.constants
+	web.maxZIndex=2147483647
+	web.maxNumber= Number.MAX_VALUE
+	web.constnats={
+		phi:1.6180339887498948482 //(1+Math.sqrt(5))/2
+		,pi:Math.pi
+	}
+
+	//http://stackoverflow.com/questions/9742110/splitting-numbers-and-letters-in-string-which-contains-both
+	web.splitAlphaNum=function(str,negitives){
+		return str.match(web.RegExp[(negitives)?'partitonAlphaNumericalNegitives':'partitonAlphaNumerical'])||[]
+	}
+
+	web.RegExp={alphabetical:/[a-zA-Z]/g
+				,majorAtoms:/[a-gi-zA-GI-Z]/g
+				,commaSeperatedTrimSplit:/\s*,\s*/
+				,blockQuotes:/\*.*\*/
+				,leadingWhitespace:/^\s+/
+				,trailingWhitespace:/\s+$/
+				,getYoutubeHash:/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|watch\/)([^#\&\?]*).*/
+				//				/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/
+				//Char syntax	(ignore) (assign(no &)) optional
+				,queryStringParser:/([^?=&]+)(=([^&]*))?/g
+				,partitonAlphaNumericalNegitives:/[-\d.]+|(([^\s\d])((?!\d)))+|([^\s\d])+/g
+				,partitonAlphaNumerical:/[-\d.]+|([^\s\d])+/g
+				,validate:{
+					zipCode:/(^\d{5}$)|(^\d{5}-\d{4}$)/
+					,JSASCIIIdentifier:/^[a-zA-Z_$][0-9a-zA-Z_$]*$/
+					,YoutubeHash:/^[a-zA-Z0-9_-]{11}$/
+				}
+			}
+
+//http://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
+//http://ryanve.com/lab/dimensions/
+	// web.dimensions=function(item){
+	// 	var output={}
+
+	// 	if(!item||item=='window'){
+	// 		output.window={
+	// 					width:
+	// 					,height:
+	// 					}
+	// 	}
+	// }
+
+
+	/*NOTE
+
+
+
+
+	NumHash = function(){
+		
+
+	}
+
+	numhash = new NumHash();
+
+
+
+	var web=this.web||{}
+	web.toBitLength=web.bitClip=function(num,offset){//if offset neg then minus slots
+		if(offset==0){
+			return 0
+		}
+		if(offset<0){
+			offset = (offset ^ (offset >> 31)) - (offset >> 31) //or Math.absolute(offset)
+			return num >> offset
+		}
+		//if offset is postive then MAKE the num that offset!
+		var diff = num.toString(2).length-offset;
+		return (diff<0)?num:num >> diff
+
+	}
+
+	web.MAX_SAFE_CHARCODE=String.fromCharCode(Number.MAX_SAFE_INTEGER).charCodeAt(0); //16 bit!
+	web.MAX_SAFE_CHARCODE_BITS=web.MAX_SAFE_CHARCODE.toString(2).length //16 or 2 bytes
+
+	var _2bytes = buffer.readint()  //as number
+	var _1bit = web.toBiteLength(_2bytes,2)
+
+
+	*/
+
+
+	//url or html //soon you can you wml :-D
+	//signatures
+	//target (optional) can be string or another window element
+	//web.window('<html></html>')
+	//web.window('google.com')
+
+	//experimental target=_background is supported
+	web.window=function(url,options){
+		var win,html,cmd,session=web.GUID();
+
+
+		options=options||{}
+		if(web.isString(options)){
+			var tmp = options
+			options={}
+			options.target=tmp;
+		}
+		options.target=options.target||'_blank'
+		cmd = (options.cmd||'').trim() || 'scrollbars=yes'
+
+		url = url ||'about:blank'
+		if(web.isjQuery(url)){
+			options.width=url.width()
+			options.height=url.height()
+			html=url.outerHTML()
+			url=undefined
+		}else{
+			if(url.toString){
+			//if(web.isString(url)||url instanceof Location){
+				url=url.toString().trim()
+				if(web.startsWith(url,'<')){ //TODO support this
+					//TODO figure out what type of data it is
+					html=url
+					url=undefined
+				}
+			}else{
+				throw 'url must provide a toString function'
+			}
+		}
+
+
+		if(!options.location){
+			cmd+=',location=no'
+		}
+		if(options.width){
+			cmd+=', width='+options.width
+		}
+		if(options.height){
+			cmd+=', height='+options.height
+		}
+
+
+		var top,left;
+
+		//center calculations for dual monitors http://stackoverflow.com/questions/4068373/center-a-popup-window-on-screen
+		if(options.horizontal){
+			if(options.horizontal=="center"){ //NOTE: devtools window area causes this to be off
+				// Fixes dual-screen position
+				var dualScreenLeft = (options.position=="absolute")?window.screen.width:(window.screenLeft || screen.left || 0);
+				var width = (options.position=="absolute")?screen.width: (window.outerWidth || document.documentElement.clientWidth ||document.body.clientWidth);
+				left = ((width / 2) - (options.width / 2)) + dualScreenLeft;
+			}
+			cmd+=', left='+left
+		}
+		if(options.vertical){
+			if(options.vertical=="center"){ //NOTE: devtools window area causes this to be off
+				var dualScreenTop = (options.position=="absolute")?window.screen.height:(window.screenTop || screen.top || 0)
+				var height = (options.position=="absolute")?screen.height: (window.outerHeight || document.documentElement.clientHeight ||document.body.clientHeight);
+				top = ((height / 2) - (options.height / 2)) + dualScreenTop;
+			}
+			cmd+=', top='+top 
+		}
+
+
+		var callbacks
+			,submit=(function(/*arguments*/){ //first arg is fn name, second is targetOrigin, rest are applied to fn in worker
+			var message={jobID:web.UID('web.workers')}
+			message['arguments']=web.toArray(arguments)
+			message.fn = message['arguments'].shift() //get fn
+			var targetOrigin=message['arguments'].shift()||"*"
+
+			var callback =message['arguments'].pop()
+			if(!web.isFunction(callback)){
+				message['arguments'].push(callback)
+			}
+
+			//Optimize transferables
+			var transferlist=[]
+			_.each(message,function(value,key){
+					
+				if(web.isTransferable(value)){
+					transferlist.push(value)
+					return
+				}
+				value = value.buffer
+				if(value){
+					if(web.isTransferable(value)){
+					transferlist.push(value)
+					return
+					}
+				}
+			})
+
+			if(message===undefined){
+				return worker
+			}else{
+
+				if(transferlist.length){
+					worker.postMessage(message,targetOrigin,transferlist)
+				}else{
+					worker.postMessage(message,targetOrigin)
+				}
+				callbacks[message.jobID]=callback
+			}
+		})
+
+
+
+		if(!web.isString(options.target)){
+			win = target
+			options.target='_blank'
+			if(url){
+				win.location.href=url
+			}
+		}else{ //target it is a string
+			if(options.target.toLowerCase()=='_background'){ //handle special experimental string
+				//http://stackoverflow.com/questions/10812628/open-a-new-tab-in-the-background
+				//NOTE: event.initMouseEvent is depricated https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent.initMouseEvent
+
+				var a = document.createElement("a");
+				a.href = url||web.toDataURI(html,'text/html');
+				a.target='_blank' //if it fails at least it will go to the bg
+
+				//the tenth parameter of initMouseEvent sets ctrl key
+				//var evt = document.createEvent("MouseEvents");
+				// evt.initMouseEvent("click" /*type*/
+				// 					//canBubble, cancelable, view,
+				// 					,true,	true,	window
+				// 					//detail, screenX, screenY, clientX, clientY,
+				// 					,0, 0, 0, 0, 0
+				// 					//ctrlKey, altKey, shiftKey, metaKey, button, relatedTarget
+				// 					,true, false, false, false, 0, null);
+				var evt = new MouseEvent('click', {"detail":0
+												,"screenX":0
+												,"screenY":0
+												,"clientX":0
+												,"clientY":0
+												,"ctrlKey":true
+												,"shiftKey":false
+												,"altKey":false
+												,"metaKey":true
+												,"button":0
+												,'view': window
+												,'bubbles': true
+												,'cancelable': true
+												});
+				a.dispatchEvent(evt);
+				return
+			}
+			alert(cmd)
+			win=window.open(url, options.target, cmd);
+		}
+
+		if(html){
+			//win.document.open() //calling document.write autocalls this //https://developer.mozilla.org/en-US/docs/Web/API/Document.write
+			win.document.write(html)
+			win.document.close()
+		}
+
+		var face=(function(cmd,cmd2){
+			if(cmd==null&&cmd2==null){
+				return win
+			}
+			//TODO injection code
+			if(cmd == 'inject'){
+				win.postMessage({"cmd":cmd,"arguments":cmd2,"session":session})
+			}
+		})
+		
+
+
+		if(!win){
+			web.notify('Oops','You have popups blocked!')
+			return
+		}
+		win.focus(); //might not be nessissary
+		
+		var callbacks={}
+		win.addEventListener('message',function(e){
+			console.info('gotPostMessage',e)
+			//message coming from worker to parent document
+			if(web.isValue(e.origin)){ //is ''
+				if(e.origin!=''){ //TODO look at trusted origins here
+				}
+			}
+			var source =e.target||e.originalTarget||e.srcElement
+			if(source!=win){
+				return
+			}
+			if(!web.isObject(e.data) && !e.data.session && e.data.session!=session){
+				return
+			}
+			var cb = callbacks[e.data.jobID]
+			if(cb){
+				if(Array.isArray(e.data.data)){
+					callbacks[e.data.jobID].apply(callbacks[e.data.jobID],e.data.data)
+				}else{
+					callbacks[e.data.jobID].call(callbacks[e.data.jobID],e.data.data)
+				}
+				callbacks[e.data.jobID]=undefined
+			}else{
+				//throw 'error with web.window returning wrong jobID'
+			}
+		},false)
+		win.addEventListener('error', function(e){console.error('Web.js error in web.window',e)}, false);
+
+		return face
+	}
+
+
+
+
+/*
+Parent
+	Access everything
+Workers
+	The DOM (it's not thread-safe)
+	The window object
+	The document object
+	The parent object
+*/
+
+//DOM / iframe / iframe subdomain / iframe domain/ 
+
+//Signature
+//web.worker('./worker.js')
+//web.worker({message:function(m){return m+'appended text'}})
+//web.worker('./worker.js',{message:function(m){return m+'appended text'}})
+//web.worker(function(){self.preperation=true},{message:function(m){return m+'appended text'}})
+//web.worker({'':function(){self.preperation=true},message:function(m){return m+'appended text'}})
+//object key of '' == initialization
+		//TODO console code http://www.codeovertones.com/2011/08/how-to-debug-webworker-threads.html
+		//TODO error code http://www.codeovertones.com/2011/08/how-to-debug-webworker-threads.html
+web.worker=function(url,options){
+	var face=(function(cmd,cmd2){
+		//TODO injection code
+		if(cmd == 'inject'){
+			worker.postMessage({cmd:cmd,arguments:cmd2})
+		}
+	})
+		,api,worker,blob,code = ''
+		,callbacks={}
+		,submit=(function(/*arguments*/){ //first arg is fn name then rest are applied to fn in worker
+		var message={jobID:web.UID('web.workers')}
+		message['arguments']=web.toArray(arguments)
+		message.fn = message['arguments'].shift() //get fn
+
+		var callback =message['arguments'].pop()
+		if(!web.isFunction(callback)){
+			message['arguments'].push(callback)
+		}
+
+		//Optimize transferables
+		var transferlist=[]
+		_.each(message,function(value,key){
+				
+			if(web.isTransferable(value)){
+				transferlist.push(value)
+				return
+			}
+			value = value.buffer
+			if(value){
+				if(web.isTransferable(value)){
+				transferlist.push(value)
+				return
+				}
+			}
+		})
+
+		if(message===undefined){
+			return worker
+		}else{
+
+			if(transferlist.length){
+				worker.postMessage(message,transferlist)
+			}else{
+				worker.postMessage(message)
+			}
+			callbacks[message.jobID]=callback
+		}
+	})
+
+
+	if(web.isObject(url)||web.isFunction(url)){
+		api=url
+		url=null
+	}
+
+	if(web.isObject(api)){ //finish digesting the object of functions
+		var URL = window.URL || window.webkitURL
+		_.each(api,function(value,key){
+			if(!key){return}
+			//code +="\n\nself.addEventListener(\'"+key+"\',\n"
+			//	+ value.toString() + "\n, false);";
+			code +="\nself['"+key+"'] = "+ value.toString() + ";\n";
+			web.put.call(face,key,_.partial(submit,key))
+		})
+	}
+	web.put.call(face,'close',_.partial(submit,'close'))
+
+	if(api['']){ //clear out worker var we temporarily used
+		code="\n("+api[''].toString()+")();\n"
+	}
+
+	code+="\n\nself.addEventListener(\'message\', function(e) {\n"
+			//+"self.event=e;\n"
+			//+"var obj={callback:function(evnt){self.postMessage(evnt)}}"
+			+'//message coming from parent doc to worker\n'
+			+'if(e.origin!=null){ //is "" \n'
+			+'	if(e.origin!=""){ //TODO look at trusted origins here\n'
+			+'	}\n'
+			+'}\n'
+			+'var source =e.target||e.originalTarget||e.srcElement\n'
+			//+'if(source!=self.){' //TODO find how to check owner in webworker
+			//+'	return'
+			//+'}'
+			+"var o={data:self[e.data.fn].apply(/*obj||*/ self,e.data.arguments),jobID:e.data.jobID,arguments:e.data.arguments,fn:e.data.fn};\n"
+			+"if(o.data===undefined){return};\n"
+			+"self.postMessage(o);\n"
+			+"}\n, false);";
+
+	if(!url){
+		blob = new Blob(
+			[code]
+			,{ type: "text/javascript" }
+			)
+		blob = URL.createObjectURL(blob)
+	}
+
+
+	worker= new Worker(url||blob);
+
+	if(url&&code){
+		face('inject',code)
+	}
+
+	worker.addEventListener('message',function(e){
+		//message coming from worker to parent document
+		if(web.isValue(e.origin)){ //is ''
+			if(e.origin!=''){ //TODO look at trusted origins here
+			}
+		}
+		var source =e.target||e.originalTarget||e.srcElement
+		if(source!=worker){
+			return
+		}
+
+		var cb = callbacks[e.data.jobID]
+		if(cb){
+			if(Array.isArray(e.data.data)){
+				callbacks[e.data.jobID].apply(callbacks[e.data.jobID],e.data.data)
+			}else{
+				callbacks[e.data.jobID].call(callbacks[e.data.jobID],e.data.data)
+			}
+			callbacks[e.data.jobID]=undefined
+		}else{
+			throw 'error with webworker returning wrong jobID'
+		}
+	},false)
+	worker.addEventListener('error', function(e){console.error('Web.js error in web.worker',e)}, false);
+
+
+
+return face
+
+}
+/************
+	test
+*************/
+//worker=web.worker({'message':function(arg){return arg.replace('do','did')}})
+//DEPRICATED worker('message','howdy do work here',function(message){console.log(message)})
+//DEPRICATED worker('close')
+
+//alternitive syntax
+//worker.message('howdy do work here',function(message){console.log(message)})
+//worker.close()
+
+
+web.api=function(obj,cmd2){
+	obj=obj||web
+	var thing;
+
+	// if(web.isString(obj)){
+	// 	if(web.endsWith(obj,'.js')){ //support file.bookmark.js and file.doc.js etc?
+	// 		thing=web.worker(obj,functions)
+	// 	}else if(web.isURL(obj)){
+	// 		thing=web.window(obj)
+	// 	}else{
+	// 		throw 'problem in web.api'
+	// 	}
+	// 	obj=thing()
+	// }
+
+	self.addEventListener('message', function(e) {
+		//+"obj.event=e;\n"
+		//+"var obj={callback:function(evnt){obj.postMessage(evnt)}}
+		if(web.isValue(e.origin)){ //is ''
+			if(e.origin!=''){ //TODO look at trusted origins here
+			}
+		}
+		var source =e.target||e.originalTarget||e.srcElement
+		if(source!=self){
+			return
+		}
+		if(!web.isObject(e.data) && !e.data.session && e.data.session!=session){
+			return
+		}
+		//+'if(source!=obj.){' //TODO find how to check owner in webworker
+		//+'	return'
+		//+'}'
+		var data = (web.put)?(web.put.call(obj,e.data.fn||'')).apply(/*obj||*/ obj,e.data.arguments):obj[e.data.fn].apply(/*obj||*/ obj,e.data.arguments)
+		var o={
+			"data":data
+			,"jobID":e.data.jobID
+			,"arguments":e.data.arguments
+			,"fn":e.data.fn
+		};
+		if(o.data===undefined){return};
+			obj.postMessage(o);
+	}, false);
+
+	return thing || obj
+}
+
+web.average=function(array,getter){
+	var avg=0
+		,i=0
+		,l=array.length;
+	if(getter.call){
+		for(;i<l;i++){
+			avg+=(getter(array[i])||0)
+		}
+	}else if(web.isString(getter)){
+		for(;i<l;i++){
+			avg+=(web.get.call(array[i],getter)||0)
+		}
+	}else{
+		for(;i<l;i++){
+			avg+=(array[i]||0)
+		}
+	}
+	return avg/l
+}
+
+web.variance=function(array,getter,isPopulation){
+	var avg = web.average(array,getter)
+		,v = 0
+ 		,i=0
+ 		,l=array.length;
+	if(getter.call){
+		for(;i<l;i++){
+			v += (Math.pow( (getter(array[i]) - avg), 2 )||0);
+		}
+	}else if(web.isString(getter)){
+		for(;i<l;i++){
+			v += (Math.pow( (web.get.call(array[i],getter) - avg), 2 )||0);
+		}
+	}else{
+		for(;i<l;i++){
+			v += (Math.pow( (array[i] - avg), 2 )||0);
+		}
+	}
+
+	return (isPopulation)?v/l:v/(l-1)
+}
+web.standardDeviation=function(array,getter,isPopulation){
+	return Math.sqrt(web.variance(array,getter,isPopulation))
+}
+//TEST for all stats above
+// web.gesture(document,function(e){
+//   console.log(e,
+//   web.standardDeviation(e.gesture,'touches.0.clientX')
+// ,  web.standardDeviation(e.gesture,'touches.0.clientY'))
+
+// window.e=e
+// })
+
+
+
+web.isLine=function(array,xGetter,yGetter){
+
+}
+
+web.toGesture=function(gesture){
+
+}
+
+web.gesture=function(elem,callback){
+	if(web.isFunction(elem)){
+		callback=elem
+		elem=document
+	}
+	elem=$(elem)[0] //normalize
+
+	var gesture,fingers=0,strokes=0,p$=P$('test'),start;
+
+	elem.addEventListener('touchstart', function(event) {
+		if(strokes++){//TODO maybe add time for when fingers add?
+			return //only allows below code to run on first finger
+		}
+		gesture=[]
+		start=event
+	})
+
+	elem.addEventListener('touchmove', function(event) {
+		event.preventDefault();
+
+
+		for(var i=0,l=event.touches.length;i<l;i++){
+			//event.touches[i]=web.remap(event.touches[i],event.touches[i],{'clientX':'X','clientY':'Y'})
+
+		}
+
+		gesture.push(event)
+
+		fingers=Math.max(event.touches.length,fingers)
+	}, false); 
+
+	elem.addEventListener('touchend',function(event){
+		//last event does not have positions
+		if(--strokes!=0){
+			return
+		}
+
+
+
+		var output=function(name,cmd){
+			if(name){
+				if(cmd=='delete'||cmd){
+					//todo!
+					return
+				}
+				//adding training set
+				var instances = p$.AddGesture(name,output.gesture)
+				//console.log('added name=',name,'to p$. Number of ',name,'s ='instances)
+				return instances
+			}
+
+			//TODO possibly fix code so this conversion does not need to happen?
+			//convert web.touch event to proper points array
+			var matrix=[],points=output.gesture
+			for(var i=0,l=output.fingers;i<l;i++){
+				matrix.push([])
+			}
+			var o,p;
+			for(var i=0,l=points.length;i<l;i++){
+				for(var j=0,k=points[i].touches.length;j<k;j++){
+					o=points[i].touches[j]
+					p={}
+					p.X=o.clientX
+					p.Y=o.clientY
+					p.ID=j+1
+					matrix[j].push(p)
+				}
+			}
+			window.matrix=matrix
+			points=matrix.shift()
+			points=points.concat.apply(points,matrix)
+			window.points=points
+			//return
+
+
+			//search
+			var result = p$.Recognize(points)//does search
+			//output.name=result.name
+			//output.score=result.score
+			//console.log('name=',result.Name,'score=',result.Score,result)
+			return result
+		}
+		output.fingers=fingers //number of total fingers used in a gesture
+		output.strokes=(fingers==1)?1:undefined //total strokes (needs computation)
+		output.startstart
+		output.gesture=gesture
+		output.end=event
+
+
+
+
+		callback(output)
+	})
+
+}
+
+self.showGestureDebug=true
+//test web.gesture
+web.gesture(function(e){
+	window.e=e
+	console.log('standard deviations of x and y'
+	,web.standardDeviation(e.gesture,'touches.0.clientX')
+	,web.standardDeviation(e.gesture,'touches.0.clientY'))
+	var results =e()
+	self.showGestureDebug && web.notify(results.Name,results.Score);
+
+})
+
+
+
+
+	var chain = web.chain = function(o,A,B,C,D,E,F,G,H,I,J,K){
+		//var g=_.defaultCall[Object.prototype.toString.call(o)];
+		//function r(A,B,C,D,E,F,G,H,I,J,K){
+	   // 	else{ //if (arg0,arg1) is not a function call it accordingl
+		//        //if(g){
+		 //       //    return o[g](A,B,C,D,E,F,G,H,I,J)
+		  //      //}
+
+		var _=function (A,B,C,D,E,F,G,H,I,J,K){
+			if(!this===_){
+				alert('oats')
+			}
+			//handle A types
+			var type=typeof A;
+			if(A===undefined){return o;} //calling () removes wrapper
+			else if(A === null){throw 'problem'} //calling (null) throws error
+			else if(type == 'object'){ //calling ({o},{hash}) iterates object props
+				for(var y in A){
+					if(!A.hasOwnProperty(y)){continue;} //make sure to skip inherit properties
+					_(y,A[y]);
+				}
+				return _;
+			}else if(type== 'function'){
+				throw 'I don\'t even'
+			}else if(type!='string'){
+				throw "I don't know what to do if first arugment isn't a string!"
+			}
+			//ok so A is a string by now (maybe)
+
+			var f=_.map[A]
+			if(f){
+				f(o,B,C,D,E,F,G,H,I,J,K);
+			}else{
+				f=o[A];
+				if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
+					f(B,C,D,E,F,G,H,I,J,K);
+				}else{
+					o[A]=B;
+				}
+			}
+			return _;
+		}
+		_._=_.object=o;
+		_.t=_.type=typeof o;
+		_.c=_.class=Object.prototype.toString.call(o);
+		_.set=_;
+		_.map=web.dummyObject||{};
+		_.setMap=function(map){_.map=map;return _}
+		_.valueOf=function(){return o.valueOf()}
+		_.toString=function(){return o.toString()}
+		//_.callable=(typeof o == 'function'); //TODO accept callable functions
+
+		//_.get=function(A,B,C,D,E,F,G,H,I,J,K){
+		 //   return o[A];
+		//}
+		//_.call=function(A,B,C,D,E,F,G,H,I,J,K){
+		//    var f=o[A] || o[B];
+		//    if(typeof f == 'function'){ //if (arg0,arg1) is a function call it accordingly
+		//        return f(B,C,D,E,F,G,H,I,J,K);
+		//    }
+		//}
+			
+		if(o == null && (_.t != 'object' || _.t != 'function')){
+			throw 'problem'
+		}
+		//}else if(typeof o == 'function'){ //DO NOT DO THIS! treat functions as if they were "callable Objects"
+		 //   o=o(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z);
+		//}
+
+		return _;
+	}
+	//chain.defaultCall={'[object HTMLDivElement]':function(A,B){if(typeof B=='string'{return 'setAttribute'}}}
+	//chain.defaultCall.params='[object HTMLDivElement]'
+
+	web.tag=function(o,A,B,C,D,E,F,G,H,I,J,K){
+		if(typeof o== 'string'){ //if string it is a document node. cause I SAID SO
+			o=document.createElement(o);
+			//if(A != null && typeof A == 'object'){
+			//    return chain(o,A,B,C,D,E,F,G,H,I,J,K); //if given a hash object then handle it.
+			//}
+			return chain(o,A,B,C,D,E,F,G,H,I,J,K).setMap({css:function(o,B,C,D,E,F,G,H,I,J,K){
+				console.log(B)
+				web.css(B,o)
+			}})
+		}
+		throw 'Error, not a string tag!'
+	}
+
+	//test
+	/*var e=tag('div')('id','bees')('className','two')()
+	var z=tag('div',{id:'bees1',className:'two0'})()
+	document.body.appendChild(e);
+	document.body.appendChild(z);*/
+
+
+
+
+	//simple chain
+
+
+	var simpleChain = function(o){
+		function f(p,v){
+			o[p]=v;
+			return f;
+		}
+		return f;
+	}
+
+
+
+	/*The advantage of this:
+	1) multi pointers
+	2) estimate where the pointer was before this script initiated //good for bookmarks and injections
+	3) global calls (default to primary mouse) or instances
+	*/
+
+
+	var pointer = {x: null, y: null, element:null};
+	web.Pointer=function(){//TODO accept multi pointers
+		$(document).mousemove(function(e){
+			pointer=e;
+		})
+
+		/*.addEventListener('mousemove', function(e){ 
+			pointer.x = e.clientX || e.pageX; 
+			pointer.y = e.clientY || e.pageY 
+		}, false);*/
+	}
+		
+	web.Pointer.prototype.getLocation=function(){
+		//TODO
+		if(!pointer.target){
+
+			//hooks were not hooked so guess where it is within the last eliment hovered
+			var elem = $( ":hover" ).last()
+			var offset = elem.offset();
+
+			var x = offset.left + elem.width() / 2,y = offset.top + elem.height() / 2;
+			return [x,y]
+		}
+		return pointer
+	}
+
+
+	/*pointer = new web.Pointer();
+	pointer.getLocation();
+	pointer.getElement();*/
+
+
+
+
+
+	//adds readability to _.forEach
+	_.continue=undefined;
+	_.break=false;
+
+	//returns new array
+	//web.Array points here and allows for different syntax to create an array\
+	//example
+	//web.Array(5,function(i,array){return i*2}) = [0,1,4,9,16]
+	//https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
+	web.forRange=function(input,fn,bind,arg){
+		var array=web.create('array')
+		if(input==null){
+			return array;
+		}
+		var max=input,i=0,step=1;
+		if(web.isArray(input)){
+			i=input[0],max=input[1],step=input[2];
+		}
+		if(typeof fn=='number'){ //max index (if given)
+			//shift all inputs
+			i=input,max=fn,fn=bind,bind=arg
+		}
+		if(fn==null){
+			return _.range(i,max,step);
+		}
+
+		max-- //noone in programming includes the max param when doing a range (everyone is always max-1) ex: length-1
+		do{
+			var ans=fn.call(bind,i,array)
+			if(ans===web.break){ 
+				break;
+			}else if(ans!==undefined){
+				array.push(ans)
+			}
+		}while(i++<max)
+		return array;
+	}
+	//does not return array
+	web.range=function(input,fn,bind,arg){
+		var max=input,i=0,step=1;
+		if(web.isArray(input)){
+			i=input[0],max=input[1],step=input[2];
+		}
+		if(fn==null){
+			return _.range(i,max,step);
+		}
+		if(typeof fn=='number'){ //max index (if given)
+			//shift all inputs
+			i=input,max=fn,fn=bind,bind=arg
+		}
+
+		max-- //noone in programming includes the max param when doing a range (everyone is always max-1) ex: length-1
+		do{
+			if(fn.call(bind,i)===web.break){ 
+				break;
+			}
+		}while(i++<max)
+		return undefined;
+	}
+
+	web.continue=function(){return web.continue}
+	web.break=function(){return web.break}
+	web.stop=function(){return web.stop}
+
+	//forEach with a do range functionallity
+	web.forEach=function(input,fn,bind,args){
+		if(!web.isString(input)){
+			var i=0,l,stop=false;
+			var next = web.next=function(command,arg1,arg2,arg3){
+				if(command && typeof command=='string'){ //first condition check skips ''
+					var abrev=command.slice(0,3).toUpperCase();
+					if(abrev=='REC'){
+						return web.forEach(arg1,fn,arg2||bind,arg3||args)
+					}else if(abrev=='NEX'){
+						return input[++i]
+					}else if(abrev=='PRE'){
+						return input[--i]
+					}else if(abrev=='REM'){
+						web.removeAt(input,i)
+					}else if(abrev=='STO'){
+						stop=true
+						return web.stop
+					}else{
+						return web[command]
+					}
+				}
+				//default action
+				return input[++i]
+			}
+			if(web.isArrayLike(input)){
+				l=input.length;
+
+				for(;i<l;i++){
+					if(fn(input[i],i,input,next)===false){
+						return false
+					}
+				}
+				return true
+			}else if(web.isObject(input)){
+				var keys=web.keys(input);
+				l=keys.length;
+
+				for(var key;i<l;i++){
+					key=keys[i]
+					if(fn(input[key],key,input,next)===false){
+						return false;
+					}
+				}
+				return true
+			}
+			//fallthrough
+		}//fallthough
+		return !!fn.call(bind,input,0,undefined)
+	}
+	web.isValidJSIdentifier=function(string,strict){
+		if(strict){
+			throw "really? do you really want to do this?"
+		}
+		return web.RegExp.valid.JSASCIIIdentifier.test(string)
+	}
+	web.toPropertyNotation=function(array,favorBracket){
+		var a='';
+		_.forEach(array,function(value){
+			a+=(web.isValidJSIdentifier(value))?'.'+value:"['"+value+"']"
+		})
+		return a
+	}
+
+
+	function Traverser (collection,callback,bind,e){
+		this.collection=collection
+		,this.callback=callback
+		,this.scope=this.bind=bind
+		,this.index=0
+		,this.root=collection
+		,this.GID=0
+		,this.pwd=[(this.path='/')];
+		this.pwd.push('/')
+	}
+	Traverser.prototype.next=function(){
+		return this.collection[++this.index]
+	}
+	Traverser.prototype.recurse=function(collection,callback,bind,e){
+		return web.traverse(collection,callback||this.callback,bind||this.bind,e||this)
+	}
+	Traverser.prototype.previous=function(){
+		return this.collection[--this.index]
+	}
+	Traverser.prototype.remove=function(){
+		return web.removeAt(this.collection,this.index)
+	}
+	Traverser.prototype.stop=function(){
+		this.stop=true
+		return Traverser.prototype.stop;
+	}
+	Traverser.prototype.replace=function(value){
+		var tmp=this.collection[this.index]
+		this.collection[this.index]=value
+		return tmp
+	}
+	Traverser.prototype.move=function(region,value){
+		throw '//TODO!!!'
+		return web.assign(region,value)
+	}
+	Traverser.prototype.location=function(asString){
+		if(asString){
+			return web.toPropertyNotation(this.pwd)
+		}
+		return this.pwd
+	}
+	Traverser.prototype.goTo=function(asString){
+		throw '//TODO!!!'
+	}
+
+	Traverser.prototype.break=web.break
+	Traverser.prototype.break=web.continue
+	Traverser.prototype.break=web.stop
+
+
+	web.traverse=function(collection,callback,bind,e,args1){
+		var pathFilter,options,sortComparator;
+		if(web.isObject(callback)){
+			options=callback;
+			sortComparator=callback.sortComparator
+			callback=callback.callback
+			options.bind=bind
+		}else if(web.isString(callback)){
+			pathFilter=callback;
+			callback=bind
+			bind=args
+			args=args1
+		}
+		options=options||{callback:callback,bind:bind}
+		var recursive = !!(pathFilter)||options.recursive;
+
+		bind=bind||collection
+		if(!web.isString(collection)){
+			var isArray=web.isArrayLike(collection),isObject=web.isObject(collection);
+			if(isArray||isObject){
+				e=e||new Traverser(collection,callback,bind)
+
+				e.keys=(isObject)?web.keys(collection):undefined;
+
+				if(sortComparator && e.keys){
+					e.keys=e.keys.sort(sortComparator);
+				}
+
+
+				for(var i=0,l=(e.keys)?e.keys.length:collection.length; i<l; i++){
+					e.index=i;
+					e.GID++
+
+					//set e.value and e.key based on if it is an object we are iterating
+					if(isObject){
+						e.key=e.keys[i]
+						e.value=collection[e.key]
+						e.pwd[e.pwd.length-1]=e.key;
+					}else{//isArray
+						e.key=i.toString()
+						e.value=collection[i];
+						e.pwd[e.pwd.length-1]=i;
+					}
+
+					//set path on e
+					e.path=e.pwd.join('/');
+
+					//if we are filtering out dirs do it now that we have a path variable
 					if(pathFilter && !pathFilter.test(e.path)){
 						continue
 					}
-					//do recursion
-					if(e.recurse(e.value,options)===Traverser.prototype.break){
-						return Traverser.prototype.break
+					//call the callback on object
+					if(callback.call(bind,e)===Traverser.prototype.break){
+							return Traverser.prototype.break
 					}
-					e.pwd.pop()
+
+					//see if it is recursive
+					if(recursive && (web.isArrayLike(e.value)||web.isObject(e.value)) ){ 
+						//fix the path for recursive call
+						e.path+='/'
+						e.pwd.push('/')
+						//run filter since path changed
+						if(pathFilter && !pathFilter.test(e.path)){
+							continue
+						}
+						//do recursion
+						if(e.recurse(e.value,options)===Traverser.prototype.break){
+							return Traverser.prototype.break
+						}
+						e.pwd.pop()
+					}
+
 				}
-
+				return true
 			}
-			return true
+			//fallthrough
+		}//fallthough
+		e.value=collection[key],e.index=undefined,e.key=undefined;
+
+		//set path on e
+		//e.path=e.pwd.join('/');
+
+		//if we are filtering out dirs do it now that we have a path variable
+		if(pathFilter && !pathFilter.test(e.path)){
+			return
 		}
-		//fallthrough
-	}//fallthough
-	e.value=collection[key],e.index=undefined,e.key=undefined;
+		//call the callback on object
+		if(callback.call(bind,e)===Traverser.prototype.break){
+				return Traverser.prototype.break
+		}
+	}
 
-	//set path on e
-	//e.path=e.pwd.join('/');
 
-	//if we are filtering out dirs do it now that we have a path variable
-	if(pathFilter && !pathFilter.test(e.path)){
+	web.forPartition=function(collection,fn,bind){
+
+	}
+
+
+	web.simplifyXML=function(obj,arrayLocation,xml){
+		if(web.isString(xml)){
+			xml = web.toObject(xml)
+		}
+		var output = [];
+		obj.traverse(obj,function(value,key,control){
+
+		})
+
+	}
+
+
+	//JSON to table
+	//http://marianoguerra.github.io/json.human.js/
+	//editable html
+	//http://vitalets.github.io/x-editable/demo-bs3.html?c=inline
+	web.toHTML=function(){
+
+	}
+
+	//http://stackoverflow.com/questions/9267899/arraybuffer-to-base64-encoded-string
+	//another resource https://gist.github.com/jonleighton/958841
+	//for others see http://stackoverflow.com/questions/246801/how-can-you-encode-a-string-to-base64-in-javascript
+	web.toBase64=function(input){
+		var type = web.isType(input)
+		if(type=='ArrayBuffer'){
+			var binary = '';
+			var bytes = new Uint8Array( input );
+			var len = bytes.byteLength;
+			for (var i = 0; i < len; i++) {
+				binary += String.fromCharCode( bytes[ i ] );
+			}
+			return window.btoa( binary );
+		}else if(type=='String'){
+			return btoa(unescape(encodeURIComponent(input))) //see SET's comment http://stackoverflow.com/questions/246801/how-can-you-encode-a-string-to-base64-in-javascript
+		}
+		throw 'not implemented'
 		return
 	}
-	//call the callback on object
-	if(callback.call(bind,e)===Traverser.prototype.break){
-			return Traverser.prototype.break
+
+	//TODO
+	//http://www.techmcq.com/article/Converting-an-image-into-data-URI-using-JavaScript-FileReader/61
+	web.toDataURI=function(input,mimeType,callback){
+		if(!web.isValue(mimeType)){
+			throw 'must provide a mimeType'
+		}
+		var type = web.isType(input);
+
+		if(type=='ArrayBuffer'||type=='String'){
+			return 'data:'+mimeType+';charset=utf-8;base64,'+web.toBase64(input)
+		}
+
+	//TODO use url above to decipher below code
+	function fileSelected(evt) {
+		var files = evt.target.files;
+		var type = '';
+		var fr = new FileReader();
+		fr.onload = function(event){
+			//TODO the below code should probably be in a callback
+			callback.call(f,event)
+			if(type.indexOf("image") == 0){ //fileContent is a blank div to show preview
+				var fileContent=document.getElementById('fileContent')
+				fileContent.innerHTML = "&lt;img src='" + event.target.result + "' /&gt;";
+				fileContent.innerHTML += "&lt;br/&gt;";
+				var d = event.target.result;
+				d = d.replace("data:;","data:" + type + ";");
+				fileContent.innerHTML += "&lt;strong&gt;Data URI: &lt;/strong&gt;" + d;
+			}
+		}
+		
+		for (var i = 0, f; f = files[i]; i++) {
+		  
+		  //Gives name of file : f.name
+		  //Gives type of file : f.type e.g. text/plain or image/png etc
+		  //Gives size of file : f.size (in bytes)
+		  //Gives last modified date : f.lastModifiedDate
+		  
+		  var fileCopy = f.slice(0, f.size); //i.e. read entire file, as reading half image file doesn't solve any purpose
+		  
+		  type = f.type;
+		if(f.type.indexOf("image") == 0)
+			fr.readAsDataURL(fileCopy); //on successful read, fr.onload function will be called and that will populate the result in fileContent container
+		}
+	  }
+	  
+	  //attach change event of file control
+	  document.getElementById('files').addEventListener('change', fileSelected, false);
+
+
 	}
+
+	//http://stackoverflow.com/questions/1760492/how-can-i-tell-if-a-javascript-object-is-an-image-or-a-canvas
+	web.isImage = function(o){
+		return (o.nodeName.toLowerCase() === 'img'); //OR return i instanceof HTMLImageElement;
+	}
+
+
+
+!(function( $ ){
+var debug = false;
+
+var isEditable=function(e){
+			var editable = e.attr('contenteditable');
+			//if(editable=='false'){editable=false;}; //normalization of undefined and "true"
+			///*toggle*/ editable=!editable;
+			return JSON.parse(editable);
 }
 
 
-web.forPartition=function(collection,fn,bind){
-
+//This must be done because css changes are somtimes batched
+var pollingDefer= function (func,opts) {
+	if(!opts.laggingLayout){
+		return func();
+	}
+	//opts.e.css('font-size',"2px");
+	
+	//var textAlign = opts.widthRef.e.css('text-align');
+	//opts.widthRef.css('text-align','left');
+	//console.log('doodie',opts.e,opts.e.css('font-size'))
+	var parent = opts.widthRef;
+	var initWidth = parent.width();
+	var counter=0;
+	var max = 10;
+	var id=setInterval(function() { 
+		if(counter==0){//first run
+			func.apply(undefined, []); //sometimes the first run causes a repain/reflow?
+			//more info http://stackoverflow.com/a/6956049
+			//http://functionsource.com/post/dont-be-trigger-happy-how-to-not-trigger-layout
+		}
+		if(initWidth!=parent.width()){
+			func.apply(undefined, []); 
+			console.log('counter',counter)
+			clearInterval(id);
+			return;
+		}
+		if(counter++ >= max){
+			console.log('counter',counter)
+			clearInterval(id);
+		}
+	}, 20);//seems as if chrome debounces somewhere between 100 and 40ms
 }
 
+	var defaultOptions = {
+		global:{
+			'min-font-size'	: 2
+			,'max-font-size': Number.POSITIVE_INFINITY
+			,'min-width'	: Number.NEGATIVE_INFINITY
+			,'max-width'	: Number.POSITIVE_INFINITY
+			,rateTech 		: 'throttle'
+			,rateTechTime 	: 100
+			,laggingLayout	: false
+			,editable		: false
+			,onEditComplete	: false
+		}
+		,user:null
 
-web.simplifyXML=function(obj,arrayLocation,xml){
-	if(web.isString(xml)){
-		xml = web.toObject(xml)
 	}
-	var output = [];
-	obj.traverse(obj,function(value,key,control){
 
+	//allow users to set the options from $.fluidtext();
+	$.fluidtext=function(options){
+		$(window).fluidtext('options',options);
+		return options;
+	};
+
+	var UID = -1;
+	$.fn.fluidtext = function( ratio, options ) {
+		//normalize to lowercase; if string
+		if($.type(ratio)=='string'){
+			ratio = ratio.toLowerCase();
+
+			//if we are trying to trigger a resize or resample do it here and close out;
+			if(ratio == 'resample'|| ratio == 'resize'){
+				return this.each(function(){
+					var e = $(this)
+					if(e.hasClass('fluidtext')){
+						e.trigger($.Event(ratio+'.fluidtext'));
+					}else{
+						e.find('.fluidtext').fluidtext('resize').end();
+					}
+				});
+			}
+			if(ratio=='delete'||ratio=="remove"){
+				return this.remove();
+			}
+
+			if(ratio == 'options'){//if the first argument is 'options' then set the global options with the next param
+				if(options.rateTech){ //check the rate tech to make sure it is legit
+					var param =options.rateTech.toLowerCase()
+					if(['throttle','debounce','none'].indexOf(param)==-1){
+						console.error('FluidText: The parameter '+options.rateTech+'is not acceptable');
+					}else{
+						options.rateTech=param;
+					}
+				}
+				defaultOptions.user = $.extend(true,{},defaultOptions.global,options)
+				return this;
+			}
+
+		}
+
+		// Setup options
+		var o = $.extend(true, {}, (defaultOptions.user || defaultOptions.global), options);
+
+
+	return this.each(function(){
+		var  e = $(this),fontSize,fluid,width,widthRef;
+		var opts = $.extend(true, {}, o); //clone
+		var r = ratio;
+		var ratioRef = (r=='parent')?'parent':(r=='fluid')?'fluid':null;
+
+		
+		//keeps the text from falling out of it's container
+		e.css('line-height','normal').addClass('fluidtext');
+
+		var init = function(event){
+		// Store the object
+		fontSize = parseFloat(e.css("font-size").replace('px',''));
+		
+		//make sure fluid works by changing it to inline-block to get the width then back to original
+		if(ratioRef=='fluid'){
+			var tmp = e.css('display');
+			width = e.css('display','inline-block').width();
+			//alert(e.px('font-size'))
+			//if(e.px('font-size')<=0){
+				//e.css('font-size','1px')
+			//}
+			e.css('display',tmp);
+		}else{
+			width=e.width();
+		}
+
+		widthRef = (ratioRef)?e.parent():e;
+		r = (!ratioRef)?parseFloat(r)*parseFloat(10):(parseFloat(width)/parseFloat(fontSize));
+			// console.warn('init',e.css('display'),e.width(),r,widthRef.width());
+			
+			//set all properties to an object so they are passed by ref
+			opts.e=e
+			,opts.widthRef=widthRef
+			,opts.r=r
+			,opts.ratioRef=ratioRef
+			//,opts['max-font-size']=max
+			//,opts['min-font-size']=min;
+			//console.log('opts',opts)
+
+		}
+		init();
+		
+	//console.log(args[0],fluid,r,width,widthRef.width(),fontSize)
+	// Resizer() resizes items based on the object width divided by the r * 10
+	var resizer = function (opts) {
+		//var width = (r=='parent')?e.parentNode.offsetWidth:e.offsetWidth;
+		return function(){//console.warn('resize',opts.e.css('display'),opts.e.width(),opts.r,opts.widthRef.width());
+			//constrain requested width
+			var width = opts.widthRef.width();
+
+	
+
+
+			//alert(e.text())
+			var widthExtreme = opts['max-width']; 
+			if(widthExtreme <= width){
+				width=widthExtreme;
+			}else if( (widthExtreme=opts['min-width']) >= width || isNaN(width)){
+				width=widthExtreme;
+			}
+			
+			//calculate
+			var fontSize = Math.floor(parseFloat(width) / opts.r);
+
+
+			//constrain max-font-size
+			var sizeExtreme=opts['max-font-size'];
+			if(sizeExtreme<=1){
+				sizeExtreme=opts.widthRef.height()*sizeExtreme;
+			}
+
+			if(sizeExtreme <= fontSize){
+				fontSize=sizeExtreme;
+			}else if((sizeExtreme=opts['min-font-size']) >= fontSize || isNaN(fontSize)){
+				fontSize=sizeExtreme;
+			}
+			
+			debug && console.log('resizing','parent width',opts.widthRef,opts.widthRef.width(),'chosen',width,'calc font size',Math.floor(parseFloat(width) / opts.r),'chosen',fontSize)
+			//set font-size css
+			opts.e.css('font-size',fontSize+"px");
+			}}(opts)
+	
+	// Call once to set.
+	pollingDefer(resizer,opts);
+	
+	//if there is a throttle lib then use it
+	var resizerThrottled=resizer;
+	if(opts.rateTech!='none'){
+		if(_ &&_[opts.rateTech]){
+			resizerThrottled=_[opts.rateTech](resizer,opts.rateTecTime);
+		}else if($.throttle) {
+			// https://github.com/cowboy/jquery-throttle-debounce
+			resizerThrottled=$.throttle(opts.rateTecTime, resizeFunction);
+		}
+		// Call on resize. Opera debounces their resize by default. 
+	}
+	$(window).on('resize', resizerThrottled);
+
+
+	var id = UID++;
+		
+
+
+
+
+	e.bind('resample.fluidtext'/*+(id++)*/, function(event) {
+		init(event);
+		pollingDefer(resizer,opts);
+	});
+
+	e.bind('resize.fluidtext'/*+(id++)*/, function(event) {
+		pollingDefer(resizer,opts);
+	});
+
+	e.bind("input.fluidtext",function(e){
+		console.log(e)
+		init(e)
+		resizer()
 	})
-
-}
-
-
-//JSON to table
-//http://marianoguerra.github.io/json.human.js/
-//editable html
-//http://vitalets.github.io/x-editable/demo-bs3.html?c=inline
-web.toHTML=function(){
-
-}
-
-//http://stackoverflow.com/questions/9267899/arraybuffer-to-base64-encoded-string
-//another resource https://gist.github.com/jonleighton/958841
-//for others see http://stackoverflow.com/questions/246801/how-can-you-encode-a-string-to-base64-in-javascript
-web.toBase64=function(input){
-	if(web.isType(input)=='ArrayBuffer'){
-		var binary = '';
-		var bytes = new Uint8Array( input );
-		var len = bytes.byteLength;
-		for (var i = 0; i < len; i++) {
-			binary += String.fromCharCode( bytes[ i ] );
-		}
-		return window.btoa( binary );
-	}
-	throw 'not implemented'
-	return
-}
-
-//TODO
-//http://www.techmcq.com/article/Converting-an-image-into-data-URI-using-JavaScript-FileReader/61
-web.toDataURI=function(input,mimeType,callback){
-	if(!web.isValue(mimeType)){
-		throw 'must provide a mimeType'
-	}
-	if(web.isType(input)=='ArrayBuffer'){
-		return 'data:'+mimeType+';base64,'+web.toBase64(input)
-	}
+	//document.getElementById("editor").addEventListener("input", function() {
+    //alert("input event fired");
+	//}, false);
+	
 
 
-function fileSelected(evt) {
-	var files = evt.target.files;
-	var type = '';
-	var fr = new FileReader();
-	fr.onload = function(event)
-	{
-		if(type.indexOf("image") == 0){
-			document.getElementById('fileContent').innerHTML = "&lt;img src='" + event.target.result + "' /&gt;";
-			document.getElementById('fileContent').innerHTML += "&lt;br/&gt;";
-			var d = event.target.result;
-			d = d.replace("data:;","data:" + type + ";");
-			document.getElementById('fileContent').innerHTML += "&lt;strong&gt;Data URI: &lt;/strong&gt;" + d;
-		}
+	var resample=function(){e.trigger($.Event('resample.fluidtext'));};
+	/*read 'copy',*/
+	var eventTriggers = {allowed:/*write*/ 'cut focus keypress input textInput DOMNodeInserted',
+						blocked:'drop paste'};
+
+	//add the editable function only when clicked
+	if(opts.editable){
+		//e.attr('contenteditable',true);
+		// e.click(function(){
+		// 	console.log('editing on')
+		// 	if(!isEditable(e)){
+		// 		e.attr('contenteditable',true);
+		// 		//e.css('postion','relative').append($('<span/>').addClass('close-circle'));
+		// 		e.on(eventTriggers.allowed,resample)
+		// 		e.on(eventTriggers.blocked,false)
+		// 		_.defer(resample); //go ahead and sample
+		// 		return false;
+		// 	}
+		// }).blur(function(){
+		// 	if(isEditable(e)){
+		// 		console.log('editing off')
+		// 		e.attr('contenteditable',false);
+		// 		e.off(eventTriggers.allowed,resample);
+		// 		e.off(eventTriggers.blocked,false);
+		// 		opts.onEditComplete && opts.onEditComplete.call(e[0],_.escape(e.html().replace(/<\/div>/g,"").replace(/<div>/g,"\n").replace(/<br\s*[\/]?>/gi, "\n")));
+		// 		_.defer(resample); //go ahead and sample
+		// 	}
+		// });
 	}
 	
-	for (var i = 0, f; f = files[i]; i++) {
-	  
-	  //Gives name of file : f.name
-	  //Gives type of file : f.type e.g. text/plain or image/png etc
-	  //Gives size of file : f.size (in bytes)
-	  //Gives last modified date : f.lastModifiedDate
-	  
-	  var fileCopy = f.slice(0, f.size); //i.e. read entire file, as reading half image file doesn't solve any purpose
-	  
-	  type = f.type;
-	if(f.type.indexOf("image") == 0)
-		fr.readAsDataURL(fileCopy); //on successful read, fr.onload function will be called and that will populate the result in fileContent container
-	}
+	//for debuging
+	//e.click(function(){
+	//	e.trigger($.Event('resize.fluidtext'));
+	//})
+	
+	
+		
+
+		
+	});
   }
-  
-  //attach change event of file control
-  document.getElementById('files').addEventListener('change', fileSelected, false);
+	//on document Load handle data tags
+	// $(function(){
+	// 	$('[data-fluidtext]').each(function(){
+	// 		console.log('found')
+	// 		//parse arguments
+	// 		var argOrder =[/*'ratio',*/'min-font-size','max-font-size','min-width','max-width']
+	// 		,e= $(this)
+	// 		,args = (e.attr('data-fluidtext') || "fluid").split(" ")
+	// 		,ratio = args.shift()
+	// 		,o = {}; 
+
+	// 		//fill out the temp options object with the args
+	// 		$.each(args,function(index,value){
+	// 			o[argOrder[index]]=value;
+	// 		})
+
+	// 		//call FluidText as typical
+	// 		e.fluidtext(ratio,o);
+	// 	})
+	// });
+})( jQuery );
 
 
-}
 
-//http://stackoverflow.com/questions/1760492/how-can-i-tell-if-a-javascript-object-is-an-image-or-a-canvas
-web.isImage = function(o){
-	return (o.nodeName.toLowerCase() === 'img'); //OR return i instanceof HTMLImageElement;
-}
+
 
 
 //http://stackoverflow.com/questions/2153979/chrome-extension-how-to-save-a-file-on-disk
@@ -2859,9 +4006,15 @@ var inputFileMimeHandlers={
 	,model:'bin'
 	,message:'text'
 }
+
+
 //http://stackoverflow.com/questions/1829774/jquery-simulating-a-click-on-a-input-type-file-doesnt-work-in-firefox
 //http://stackoverflow.com/questions/210643/in-javascript-can-i-make-a-click-event-fire-programmatically-for-a-file-input
-web.inputFile=function(element,preview,callback){
+
+
+//callback map accepts either a map object of what types it accepts as well as how to handle them or it is an open any file and will return a list to the hanlder
+//todo implement filter for open any file format
+web.inputFile=function(element,preview /*,filter*/ ,callbackMap){
 	//web to fileDrop api
 	// bin = binary
 	// dataURI = 'url', 'uri' or 'src' reads Data URI (very nice for generating thumbnails)
@@ -2869,15 +4022,18 @@ web.inputFile=function(element,preview,callback){
 	// text = if 'text' reads data as UTF-8 string
 	// Not supported! =if starts with 'read' is assumed to be a method name on native File object which will be called.
 	// Any other string value istreated as character encoding (e.g. 'cp1251') and data is read as text in that encoding.
-	if(web.isFunction(element)){
-		callback=element
-		element=undefined
-	}else if(web.isFunction(preview)){
-		callback=preview
-		preview=undefined
-	}else if(web.isFunction(callback)){
-
+	if(!web.isValue(callbackMap)){
+		if(!web.isBoolean(preview)){
+			callbackMap=preview
+			preview = false
+		}else if(web.isFunction(element)){
+			callbackMap=element
+			element=undefined
+		}
 	}
+
+	var callback=(web.isFunction(callbackMap))?callbackMap:null
+
 /*	if(!web.isNode(element)||!web.isjQuery(element)){
 		if(web.isString(element)){
 			callback=readType
@@ -2891,23 +4047,21 @@ web.inputFile=function(element,preview,callback){
 
 
 	var guid = web.GUID() //TODO find a way that I don't have to use this
-	var fileDropHTML=$('<div>'+
-	'<fieldset id="'+guid+'"class="fd-zone media well well-sm" >'+
+	var fileDropHTML=$('<fieldset id="'+guid+'"class="fd-zone media well well-sm click-though" >'+
 	  '<span class="glyphicon glyphicon-file pull-left" style="font-size:5em"></span><div class="media-body" style="align:left"><b> Input: </b><br>Drop, paste or'+
-	  '<div><iframe src="javascript:false" name="fd_992" id="fd_992" style="display: none;"></iframe><form method="post" enctype="multipart/form-data" target="fd_992" style="position: relative;"><input type="hidden" name="fd-callback"><input type="file" name="fd-file" class=" fd-file" multiple="multiple"></form></div><p><button type="button" class="btn btn-default">select</button></p></div>'+
+	  '<div><iframe src="javascript:false" name="fd_992" id="fd_992" style="display: none;"></iframe><form method="post" enctype="multipart/form-data" target="fd_992" style="position: relative;"><input type="hidden" name="fd-callback"><input id="fileDropInput" type="file" name="fd-file" class=" fd-file" multiple="multiple" style="height:35px;line-height: 1.42857143;font-family: Lucida Grande,Lucida Sans,Arial,sans-serif; font-size: 1em;"></form></div><p><button id="fileDropDisplayButton" type="button" class="btn btn-default" onclick="document.getElementById(\'fileDropInput\').click()">select</button></p></div>'+
 	 '<!-- Putting another element on top of file input so it overlays it and user can interact with it freely. -->'+
 	  //'<p style="z-index: 10; position: relative">'+
 	  //  '<input type="checkbox" id="multiple">'+
 	  //  '<label for="multiple">Allow multiple selection</label>'+
 	  //'</p>'+
-	'</fieldset>'+
-	'</div>');
+	'</fieldset>');
 	
 	var notice;
 	if(!element){
 		//Pnotify
 		notice = new PNotify({
-			text: fileDropHTML.html(),
+			text: fileDropHTML.outerHTML(),
 			icon: false,
 			width: 'auto',
 			hide: false,
@@ -2942,26 +4096,31 @@ web.inputFile=function(element,preview,callback){
 		});*/
 
 	}else{
-		$(element).append(fileDropHTML.html())
+		console.log(element[0],"&&&&&&&&&&&")
+		$(element).append(fileDropHTML.outerHTML())
+		//$("#fileDropInput").height($("#fileDropDisplayButton").height()) //does not work for modal
 	}
 
 
 
-web.onEvent('paste.'+guid
-		,$('#'+guid)
-		,function(a,b,c){
-			console.log('yes')
-			if(callback(a,b,c)!==false){
-				web.off('paste',$('#'+guid))
-			}
+	web.onEvent('paste.'+guid
+			,$('#'+guid)
+			,function(a,b,c){
+				console.log('yes')
+				if(callback(a,b,c)!==false){
+					web.off('paste',$('#'+guid))
+				}
 			}
 		)
-
-	 
+	var tmp = $('#'+guid)
+	var parent = tmp.parent()
 	  // Attach FileDrop to an area ('zone' is an ID but you can also give a DOM node):
 	  var zone = new FileDrop(guid/*, {iframe: {url: 'upload.php'}};*/);// Tell FileDrop we can deal with iframe uploads using this URL:
-
-
+	
+	//filedrop constructor wraps the element for some silly reason. remove that shit
+	if(parent[0]!==tmp.parent()[0]){
+		tmp.unwrap()
+	}
 
 		// zone.event('upload', function(e){
 		//   zone.eventFiles(e).each(function(file) {
@@ -2979,60 +4138,69 @@ web.onEvent('paste.'+guid
 		//   });
 		// });
 
-zone.event('send', function (files) {
-	files.each(function (file) {
-		console.warn('File has mimeType=',file.mime)
-		
+zone.event('send', function (files){
+	web.error=null
+	web.event=this.event()
 
-/*read a file http://stackoverflow.com/questions/3582671/how-to-open-a-local-disk-file-with-javascript
-		function readSingleFile(e) {
-  var file = e.target.files[0];
-  if (!file) {
-	return;
-  }
-  var reader = new FileReader();
-  reader.onload = function(e) {
-	var contents = e.target.result;
-	displayContents(contents);
-  };
-  reader.readAsText(file);
-}
+	if(callback){
+		callback.call(this,web.event,files)
+	}else{
+		files.each(function (file) {
+			console.warn(file,'File has mimeType=',file.mime)
+			
 
-function displayContents(contents) {
-  var element = document.getElementById('file-content');
-  element.innerHTML = contents;
-}
+	/*read a file http://stackoverflow.com/questions/3582671/how-to-open-a-local-disk-file-with-javascript
+			function readSingleFile(e) {
+	  var file = e.target.files[0];
+	  if (!file) {
+		return;
+	  }
+	  var reader = new FileReader();
+	  reader.onload = function(e) {
+		var contents = e.target.result;
+		displayContents(contents);
+	  };
+	  reader.readAsText(file);
+	}
 
-document.getElementById('file-input')
-  .addEventListener('change', readSingleFile, false);*/
+	function displayContents(contents) {
+	  var element = document.getElementById('file-content');
+	  element.innerHTML = contents;
+	}
 
-		if(preview){
-			//TODO make preview work!
-			console.error('preview not implemented')
-			// file.readData(
-		   //    function(str){
-		   //    	notice&&notice.remove()
-		   //      callback&&callback(null,str)
-		   //    },
-		   //    function(){
-		   //    	notice&&notice.remove()
-		   //    	callback&&callback('Problem reading this file.');
-		   //    },'uri' //dataURI
-		   //  )
-		}
-		file.readData(
-		  function(str){
-			//TODO handle preview
-			//(preview)?web.toDataURI(str,file.mime)
-			notice&&notice.remove()
-			callback&&callback(null,str)
-		  },
-		  function(){
-			notice&&notice.remove()
-			callback&&callback('Problem reading this file.');
-		  },inputFileMimeHandlers[file.mime.split('/').shift()||'application']
-		)
-	})
+	document.getElementById('file-input')
+	  .addEventListener('change', readSingleFile, false);*/
+
+			if(preview){
+				//TODO make preview work!
+				console.error('preview not implemented')
+				// file.readData(
+			   //    function(str){
+			   //    	notice&&notice.remove()
+			   //      callback&&callback(null,str)
+			   //    },
+			   //    function(){
+			   //    	notice&&notice.remove()
+			   //    	callback&&callback('Problem reading this file.');
+			   //    },'uri' //dataURI
+			   //  )
+			}
+
+			file.readData(
+			  function(str){
+				//TODO handle preview
+				//(preview)?web.toDataURI(str,file.mime)
+				notice&&notice.remove()
+				callback&&callback.call(this,null,str)
+			  },
+			  function(){
+				notice&&notice.remove()
+				callback&&callback.call(this,'Problem reading this file.');
+			  },inputFileMimeHandlers[file.mime.split('/').shift()||'application']
+			)
+		})
+	}
+	web.error=web.event=null
 })
 
 
@@ -3266,9 +4434,24 @@ web.startsWith=function(str,prefix,caseInsensitive){
 		if(str.length==prefix.length){
 			return str==prefix
 		}
-		return str.slice(0, prefix.length) == prefix;
+		return str.slice(0, prefix.length) == prefix; //does chop string but shouldnt iterate though whole string
 	}
 };
+
+web.endsWith=function(str,suffix,caseInsensitive) {
+	if(str&&suffix){
+		if(caseInsensitive){
+			str=str.toLowerCase()
+			suffix=suffix.toLowerCase();
+		}
+		if(str.length==suffix.length){
+			return str==suffix
+		}
+		//return str.slice(0, prefix.length) == prefix;
+		return str.indexOf(suffix, str.length - suffix.length) !== -1; //does not chop up string. should be faster
+	}
+};
+
 web.caseInsensitive=function(w,w2){
 	return w.toUpperCase()==w2.toUpperCase()
 }
@@ -3373,7 +4556,7 @@ web.notify=function(title,message,options,callback){
 		icon: false,
 		type: type,
 		width:'auto',
-		hide: false,
+		hide: true,
 		buttons: {
 			closer: false,
 			sticker: false
@@ -3381,6 +4564,10 @@ web.notify=function(title,message,options,callback){
 		insert_brs: false
 	});
 
+
+	notice.get().click(function() {
+	    notice.remove();
+	});
 
 
 
@@ -3458,6 +4645,133 @@ web.confirm=function(title,message,options,callback){
 	}
 	return web.prompt(title,message,$.extend(true,{prompt:false},options),callback)
 }
+
+web.node=function(nodeName,inner,style){
+
+}
+window.t="html\n"+
+"	head\n"+
+"	body\n"+
+"		div\n"+
+"			h1 #id .class3 $'color:black; background-color:red' >what type of content would you like to see?\n"+
+//"			h1#id.class3@style='color:black;background-color:red'>what type of content would you like to see?\n"+
+"		input @value='text goes here' >\n"+
+"		br\n"+
+"		button >go\n"+
+"		submit\n"
+web.DOM=function(text){
+	//text.replace(/(\t*)(.*?)[\r\n>]+/g,function(a,b,c,d,e){console.log('match=',a,'tabs=',(b||'').length,'command=',c,'index',d);})
+
+	var fragment=document.createDocumentFragment()
+		,nodeStack=[]
+		,indentLevel=0
+		,previousIndentLevel=0
+		,node;
+
+		nodeStack.push(fragment)
+
+	text.replace(/(\t*)(.*?)[\r\n]+/g,function(match,tabs,command,index,string){
+
+		indentLevel=(tabs||'').length+1
+		console.log('match=',match,'indentLevel=',indentLevel,'command=',command,'index',index);
+		if(/\W/.test(command)){ //if true then it can't be a nodename
+			console.log('further processing on '+command)
+			var com=undefined
+			command = web.split(command,' ',1)
+			node=document.createElement(command[0])
+			command = web.split(command[1],' >',1)
+
+			//command[0]=command[0].replace(/[#.$](["'])[^]*?\1/g,function())
+
+			///([^#.@]+)(?:[#.@])*/g no spaces
+			command[0]=command[0].replace(/([^#.@$]+)\s?([#.@$])*/g,function(match,pruned,com,position,string){//console.log(match,pruned,position,string)}
+				//if(com){
+			
+					if(com=='#'){
+						node.id=pruned
+					}else if(com=='.'){
+						node.className+=pruned+' '
+					}else if(com=='@'){
+						//TODO@@@@@
+						console.warn('not implmented')
+					}else if(com='$'){
+						console.warn('not implmented')
+					}
+				//}else{
+				//	node=document.createElement(pruned)
+				//}
+
+
+				com=match.charAt(match.length-1)
+				return ''
+			})
+			if(command[0]){
+				node=document.createElement(command[0])
+			}
+
+			command[1]&&node.appendChild(document.createTextNode(command[1]))
+		}else{ //it is a node creation command
+			if(! isNaN(command.charAt(0)) ){
+				var split = web.splitAlphaNum(command)
+				indentLevel=split.shift()
+				command=split.pop()
+			}
+			//test if it is a element?
+			node=document.createElement(command)
+		}
+
+		//while(nodeStack.length!=)
+
+		if(indentLevel<previousIndentLevel){
+			//while(indentLevel-previousIndentLe)
+
+			//console.log(nodeStack[nodeStack.length-2],nodeStack[nodeStack.length-1])
+			nodeStack[indentLevel-1].appendChild(node)
+			nodeStack[indentLevel]=node
+		}else if(indentLevel>previousIndentLevel){
+			nodeStack[nodeStack.length-1].appendChild(node)
+			nodeStack.push(node)
+		}else{
+			nodeStack[indentLevel-1].appendChild(node)
+			nodeStack[indentLevel]=node
+		}
+		//reset
+		node=null;
+		previousIndentLevel=indentLevel
+		return ''
+	})
+
+	//while(nodeStack.length>1){
+	//	nodeStack[nodeStack.length-2].appendChild(nodeStack.pop())
+	//}
+
+	//fragment.appendChild(nodeStack.pop())
+	return fragment
+
+}
+
+
+web.chromeCastHook=function(applicationID,callback){
+	var sessionListener=function(){},receiverListener=function(){};
+	window['__onGCastApiAvailable'] = function(loaded, errorInfo) {
+		if(web.isFunction(applicationID)){
+			callback=applicationID
+			applicationID=undefined
+		}
+		applicationID=applicationID||chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
+
+		if (loaded) {
+			var sessionRequest = new chrome.cast.SessionRequest(applicationID);
+			var apiConfig = new chrome.cast.ApiConfig(sessionRequest,
+				sessionListener,
+				receiverListener);
+			chrome.cast.initialize(apiConfig, callback, function(){callback('unknown chromecast error')});
+		}else{
+			console.log(errorInfo);
+		}
+	}
+}
+
 //callback(e,notify,value)
 web.prompt=function(title,message,options,callback){
 	if(web.isString(options)){
@@ -3506,8 +4820,8 @@ web.prompt=function(title,message,options,callback){
 web.shadowBox=function(elem,html,callback){
 	var options={}
 	var modal = $(''
-		+'<div class="modal fade bs-example-modal-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true">'
-		+'  <div class="modal-dialog modal-lg">'
+		+'<div class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true">'
+		+'  <div class="modal-dialog">'
 		+'    <div class="modal-content">'
 		+'      '+html
 		+'    </div>'
@@ -3515,20 +4829,87 @@ web.shadowBox=function(elem,html,callback){
 		+'</div>')
 
 	$(elem).append(modal)
-	modal.modal(options).on('hidden.bs.modal', function (e) {
-		modal.remove()
-	})
-	return
+	modal.modal(options)//.on('hidden.bs.modal', function (e) {
+	//	modal.remove()
+	//})
+	return modal
 }
 
 
 web.callback=function(element,callback){
+	if(!callback){
+		return element
+	}
+	if(web.isjQuery(element)){
+		var allRadio=true
+		element.each(function(){
+			if(this.tagName!='INPUT' && this.type !='radio'){
+				allRadio=false
+			}
+		})
+		if(allRadio){
+			return web.radio(element,callback)
+		}
+
+		throw 'web.callback has unknown jquery structure'
+	}
 	if(web.isType(element,PNotify)){
 		element.get().on('pnotify.confirm', _.bind(callback,element,true)||dummyFunction).on('pnotify.cancel', _.bind(callback,element,false)||dummyFunction);
 	}else{
 		throw 'I don\'t know how to add a callback to '+element
 	}
 	return callback;
+}
+
+web.collisionRectangle=function(rect1,rect2,difference){ //http://stackoverflow.com/questions/12066870/how-to-check-if-an-element-is-overlapping-other-elements
+	if(difference){
+		return
+	}
+	return /*overlap=*/ !(rect1.right < rect2.left ||
+		rect1.left > rect2.right ||
+		rect1.bottom < rect2.top ||
+		rect1.top > rect2.bottom)
+}
+web.toRectangle=function(input){
+	if(input.getBoundingClientRect){
+		return input.getBoundingClientRect()
+	}else if(input.toUpperCase){
+		if(input =='VIEWPORT'){
+			return {
+				top:0
+				,left:0
+				,bottom:(window.innerHeight || document.documentElement.clientHeight) /*or $(window).height() */
+				,right:(window.innerWidth || document.documentElement.clientWidth) /*or $(window).width() */
+			}
+		}
+	}
+	return {}
+}
+//tells if your object is completely in viewport. if jquery then it will return true if all elements are in the viewport
+web.isInViewport=function(el){ //http://stackoverflow.com/questions/123999/how-to-tell-if-a-dom-element-is-visible-in-the-current-viewport
+	//special bonus for those using jQuery
+	if (el instanceof jQuery) {
+		var isInViewport=true
+		el.each(function(){
+			if(!web.isInViewport(this)){
+				return isInViewport=false
+			}
+		})
+		return isInViewport
+	}
+
+	var rect = el.getBoundingClientRect();
+
+	return (
+		rect.top >= 0 &&
+		rect.left >= 0 &&
+		rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && /*or $(window).height() */
+		rect.right <= (window.innerWidth || document.documentElement.clientWidth) /*or $(window).width() */
+	);
+}
+
+web.collisionCircle=function(){
+
 }
 
 web.attachTo=function(elem,parent){
@@ -4012,6 +5393,14 @@ web.hasInterface=function(obj,inter){
 
 //if true returns absolute url, if false returns false
 web.isURL=function(url){
+	var protocol = web.deepTrimRight(url,'//')
+	if(web.endsWith(protocol,':')){
+		protocol=protocol.slice(0,-1)
+		if(protocol=='http'||protocol=='https'||protocol==''||protocol=='file'){
+			return true
+		}
+	}
+
 	console.warn('isURl is broken for now need to add options to web.toAbsoluteURL so bare words are not prepended to current location')
 	var tmp,url=web.toAbsoluteURL(url),count=0;
 	URI.withinString(url,function(u){tmp=u;return ''})
@@ -4030,45 +5419,14 @@ web.origin=function(){
 	return location.origin || location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '');
 }
 
-web.toAbsoluteURL = function(url) {
-	//if already absolute then return
-	if((/^\w+:\/\//).test(url)){
-		return url
-	}
-	if(document){//if browser then use this
-		var link = document.createElement("a");
-		link.href = url;
-		return (link.protocol+"//"+link.host+link.pathname+link.search+link.hash);
-	}else{
-		//inspiration http://stackoverflow.com/questions/14780350/convert-relative-path-to-absolute-using-javascript
-		var base=location.href;
-		var stack = base.split("/")
-		if(url.slice(0,2)=='//'){
-			return stack.shift()+url
-		}else if(url.charAt(0)=='/'){
-			return web.origin()+url
-		}
-		var parts = url.split("/");
 
-		stack.pop(); // remove current file name (or empty string)
-					 // (omit if "base" is the current folder without trailing slash)
-		for (var i=0; i<parts.length; i++) {
-			if (parts[i] == ".")
-				continue;
-			if (parts[i] == "..")
-				stack.pop();
-			else
-				stack.push(parts[i]);
-		}
-		return stack.join("/");
-	}
+web.context=function(){
+
 }
 
-web.context=function(){return web}
-
 var webPutDeferedPrefix='web.put[Defered]='
- //inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
- web.put=function(path,value,callback){ //path only supports dotNotation and now brakets! :-D
+//inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
+web.put=function(path,value,callback){ //path only supports dotNotation and now brakets! :-D
 	var firstChar=path.charAt(0);
 	
 	var obj = setScope(this,undefined)
@@ -4077,26 +5435,26 @@ var webPutDeferedPrefix='web.put[Defered]='
 		//remote storage
 		if(firstChar=='.'||firstChar=='/'){//relative path url put
 			$.ajax({
-			   url: value,
-			   data:value,
-			   type: 'POST', //maybe use put? idk
-			   success: callback,
-			   error: function(response){
+				url: value,
+				data:value,
+				type: 'POST', //maybe use put? idk
+				success: callback,
+				error: function(response){
 				web.put(webPutDeferedPrefix,web.push( (web.get(webPutDeferedPrefix)||[]), this.url+'?'+this.data))
 				web.error.call(this,'Defered: saved to local storage till connnectivity returns',callback.call(this,response))
-			   }
+				}
 			});
 		}else if((/^.{4,7}:\/\//).test(path)){//absolute path put can be remote or local
 			if(web.startsWith('http')){ //remote
 				$.ajax({
-				   url: value,
-				   data:value,
-				   type: 'POST', //maybe use put? idk
-				   success: callback,
-				   error: function(response){
+					url: value,
+					data:value,
+					type: 'POST', //maybe use put? idk
+					success: callback,
+					error: function(response){
 					web.put(webPutDeferedPrefix,web.push( (web.get(webPutDeferedPrefix)||[]), this.url+'?'+this.data))
 					web.error.call(this,'Defered: saved to local storage till connnectivity returns',callback.call(response))
-				   }
+					}
 				});
 			}else if(web.startsWith('store')){
 				//http://stackoverflow.com/questions/2010892/storing-objects-in-html5-localstorage
@@ -4124,29 +5482,29 @@ var webPutDeferedPrefix='web.put[Defered]='
 	obj=obj||web.global;
  
 	var partitionChar='@' //TODO find the programmers secret delimiter trick from C++
-	  var bracketsPattern=/\[(\D*?)\]/g
-	  var arrayPattern = /\[\d+?\]/g;
-	  var bracketVariables=[];
+	var bracketsPattern=/\[(\D*?)\]/g
+	var arrayPattern = /\[\d+?\]/g;
+	var bracketVariables=[];
 
 	if(web.isString(path)){
-	  path=path.replace(bracketsPattern,function(a){
-		bracketVariables.push(a.slice(2,a.length-2))
-		return '.'+partitionChar
-	  })
+		path=path.replace(bracketsPattern,function(a){
+			bracketVariables.push(a.slice(2,a.length-2))
+			return '.'+partitionChar
+		})
 
-	  if(path.charAt(0)=='.'){ //remove  
-		path=path.slice(1)
-	  }
+		if(path.charAt(0)=='.'){ //remove  
+			path=path.slice(1)
+		}
 
-	  path = path.split('.');
+		path = path.split('.');
 	}
 
 	//path is now in the form of 
 	//['root','@','child[9]','@[89]'] where @s are variable,pee 
 
 
-	  var numbers,caret,variable;
-	  //traverse
+	var numbers,caret,variable;
+	//traverse
 		for (var i = 0, l=path.length; i < l;) {
 			caret=path[i++];
 
@@ -4203,20 +5561,20 @@ var webPutDeferedPrefix='web.put[Defered]='
 					}
 				}
 			}
-	  return obj;
+	return obj;
 }
 web.set=function(context,path,value){
 	web.depricated('use put',web.set)
 
-  var ns = path.split('.'), o =(context=context||window);
-  var prop = ns.pop();
-  for(var i = 0, l = ns.length; i < l; i++){
-	o = o[ns[i]] = o[ns[i]] || {};
-  }
-  
-  o[prop]=value;
+	var ns = path.split('.'), o =(context=context||window);
+	var prop = ns.pop();
+	for(var i = 0, l = ns.length; i < l; i++){
+		o = o[ns[i]] = o[ns[i]] || {};
+	}
+	
+	o[prop]=value;
 
-  return o;
+	return o;
 };
 
 //becomes async when you give a callback
@@ -4389,15 +5747,21 @@ Set the settings for this instance of web.
 If you send "reset" then the inital settings will be used
 otherwise send an object with dot notation keys to their correct locations.
 */
-web.setSettings=(function(initialSettings){
+web.settings=(function(initialSettings){
 	//DEV NOTE intialSettings will stay in memory in the closure. You can use it later to reset settings
 	//if we had inital settings then set them.
-	initialSettings && setSettings(initialSettings);
+	initialSettings && settings(initialSettings);
 	//return our function.
-	return function setSettings(obj){
+	return function settings(obj){
+		if(obj===undefined){
+			return undefined //TODO make this return options
+		}
+		if(obj==null){
+			return null //TODO IDK what this should return 
+		}
 		//sending reset will reset settings
 		if(obj=='reset'){
-			return web.setSettings(initialSettings);
+			return web.settings(initialSettings);
 		}
 	var key=Object.keys(obj);
 	for(var list=key,i=0,l=list.length;i<l;i++){
@@ -4407,7 +5771,7 @@ web.setSettings=(function(initialSettings){
 		
 		}
 	}
-})(web.setSettings);
+})(web.settings);
 /*******************************************************************************
 ********************************************************************************
 ********************************************************************************
@@ -4752,6 +6116,7 @@ web.parseHTML.deferedImageLoad=function(elem,id){
 	}
 }
 
+//TODO TEST THIS or see if the old one is needed
 web.partitionHTML=function(input){
 	var doc={
 		HTML:''
@@ -4759,47 +6124,89 @@ web.partitionHTML=function(input){
 		,BODY:''
 	};
 
-	input.replace(/<(?:"[^"]*"['"]*|'[^']*'['"]*|[^'">])+>/gi,function(rawMatch,offset,string){
-		var match=rawMatch.slice(1,rawMatch.indexOf(' ')).toUpperCase().replace(/ /g,'')
-		var controlCharacter='';
+	input.replace(/<(?:"[^"]*"['"]*|'[^']*'['"]*|[^'">])+>/gi,function(match,offset,string){
+		var tag=match.slice(1,match.indexOf(' ')).toUpperCase()
+		var controlCharacter=match.charAt(1)
 
-		if(web.startsWith(match,'/')){
-			controlCharacter='/'
-			match=match.slice(1)
-		}else if(web.startsWith(match,'!--')){
-			controlCharacter='!--'
-			match=match.slice(3)
-		}else if(web.startsWith(match,'!')){
-			controlCharacter='!'
-			match=match.slice(1)
+		if(controlCharacter=='/'){
+			//isEndTag, return
+			//return ''
+		}else if(controlCharacter=='!'){
+			if(match.charAt(1)=='-' && match.charAt(2)=='-'){
+				//is comment
+				//return ''
+			}else{ //is cdata
+				//return ''
+			}
 		}
 
-		var caret=doc[match]
+		var caret=doc[tag]
 		if(caret==undefined){
 			return
 		}else if(caret==''){
 			if(controlCharacter=='/'){
-				throw 'ugh!!!'+rawMatch
+				throw 'ugh!!!'+match
 			}
-			doc[match]=[offset,rawMatch]
+			doc[tag]=[offset,match]
 			return ''
 		}else if(Array.isArray(caret)){
 			var o = {
-				tag:input.slice(caret[0],offset+rawMatch.length)
+				tag:input.slice(caret[0],offset+match.length)
 				,innerHTML:input.slice(caret[0]+caret[1].length,offset)
 			}
-			doc[match]=o
+			doc[tag]=o
 			return
 		}else{
-			console.error('found this tag too many times',match,offset,string)
+			console.error('found this tag too many times',tag,offset,string)
 		}
 
 	})
 	return doc
-
-
-
 }
+
+// web.partitionHTML=function(input){
+// 	var doc={
+// 		HTML:''
+// 		,HEAD:''
+// 		,BODY:''
+// 	};
+
+// 	input.replace(/<(?:"[^"]*"['"]*|'[^']*'['"]*|[^'">])+>/gi,function(rawMatch,offset,string){
+// 		var match=rawMatch.slice(1,rawMatch.indexOf(' ')).toUpperCase().replace(/ /g,'')
+// 		var controlCharacter=match.charAt(0)
+
+// 		if(controlCharacter=='!' && match.charAt(1)=='-' && match.charAt(2)=='-'){
+// 			controlCharacter='!--'
+// 			match=match.slice(3)
+// 		}else if(controlCharacter=='/'||controlCharacter=='!'){
+// 			match=match.slice(1)
+// 		}else{
+// 			controlCharacter=''
+// 		}
+
+// 		var caret=doc[match]
+// 		if(caret==undefined){
+// 			return
+// 		}else if(caret==''){
+// 			if(controlCharacter=='/'){
+// 				throw 'ugh!!!'+rawMatch
+// 			}
+// 			doc[match]=[offset,rawMatch]
+// 			return ''
+// 		}else if(Array.isArray(caret)){
+// 			var o = {
+// 				tag:input.slice(caret[0],offset+rawMatch.length)
+// 				,innerHTML:input.slice(caret[0]+caret[1].length,offset)
+// 			}
+// 			doc[match]=o
+// 			return
+// 		}else{
+// 			console.error('found this tag too many times',match,offset,string)
+// 		}
+
+// 	})
+// 	return doc
+// }
 //inspiration http://stackoverflow.com/questions/6756583/prevent-browser-from-loading-a-drag-and-dropped-file
 //it is silly when you drop a file in a webpage and it auto loads. lets stop that.
 web.preventDragDropLoading=function(){
@@ -4844,18 +6251,25 @@ web.toDOM=function(obj){
 //Win-win winning!~
 //oh you can also associate a ID with the parent element
 //using jquery compile to doT template return as jquery obj
-web.template=function $_webTemplate(template,options){
+web.template=function $_webTemplate(template, /*conditions,*/ options,callback){
 	//TODO TODO TODO TODO!!!!
 	//SOMEWHERE IS A REFERENCE THAT IS Causing the compiled templates to contain references to old data that was given to compiled web.templates
 	var conditions=web.toArray(arguments)
 	
 	//get options(if exists)
-	options=conditions.pop() //just take it, cause you are the programmer and you don't need no reason
+	callback=conditions.pop()
+	if(!web.isFunction(callback)){
+		options=callback
+		callback=null
+	}else{
+		options=conditions.pop() //just take it, cause you are the programmer and you don't need no reason
+	}
+
 	if(!web.isObject(options)){ //got a little hasty?
 		conditions.push(options) // then put it back
 		options={} //make your own, pretend it didn't happen
 	}
-	options=options||{}
+
 	var map = options.map
 	//todo options.defaults
 	//todo options.functions (like escape and other doT functions)
@@ -4979,6 +6393,11 @@ web.template=function $_webTemplate(template,options){
 			instance.find('.consume-click').on('click',function(e){alert('stopProp');e.stopPropagation();return false})
 		}
 
+		if(web.isFunction(callback)){
+			console.info('buub')
+			instance=callback(instance)||instance
+		}
+
 		//this will either set the id or return (if the id var was null undefined etc)
 		if(web.isValue(id)){
 			instance.attr("id",id); //make sure not to chain on returns in case id==undefined cause it will return an empty stirng 
@@ -5008,6 +6427,9 @@ web.template=function $_webTemplate(template,options){
 		}
 		alert()
 	}
+	face.setCallback=function(cb){
+				callback=cb
+			}
 	return face
 }
 
@@ -5256,7 +6678,7 @@ web.keyboard=function(elem, keyCombo,callback){
 
 	if(keyCombo=='search'){
 		elem.keydown(function(e){
-			if ( ((e.ctrlKey||e.metaKey) && e.keyCode===70) || e.keyCode===114){
+			if ( ((e.ctrlKey||e.metaKey) && e.keyCode===70 && !e.shiftKey) || e.keyCode===114){
 				callback(e)
 			}
 		});
@@ -5438,9 +6860,7 @@ web.randomInt=function (min, max) {
 	cb(matches);
 };
 };
-web.endsWith=function(string,suffix) {
-	return string.indexOf(suffix, string.length - suffix.length) !== -1;
-};
+
 web.concat=function(in1,in2){
 	if(web.isArray(in1)){
 		in1.push(in2);
@@ -5546,10 +6966,10 @@ web.toArray=function(obj,keys,index2){
 	}
 	return array;
 }
-web.split=function(string,occurance,position){
+web.split=function(string,occurance,position,keep){ //TODO implment keep. keep will be (undefined||false) 'left', 'right', or true. Left and right append delimiter accordingly true keeps it but it is its own entry in the array
 	if(position==1){
 		var i = string.indexOf(occurance)
-		return [string.substring(0,i),string.substring(i+1)]
+		return [string.substring(0,i),string.substring(i+occurance.length)]
 	}else{
 		throw 'not implemented'
 	}
@@ -5609,6 +7029,21 @@ web.escapeRegExp=function(string) {
 web.replaceAll=function(str,find,replace){
 	return str.split(find).join(replace);
   //return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
+}
+
+web.arrayToObject=function(array,invert,delimiters){ //TODO delimiters will be an array of characters to ignore
+	var obj = {}
+	if(invert){
+		for(var i=0,l=array.length;i<l;i++){
+			obj[array[i+1]]=array[i++]
+		}
+	}else{
+		for(var i=0,l=array.length;i<l;i++){
+			obj[array[i]]=array[++i]
+		}
+	}
+	return obj
+
 }
 
 //inspiration http://stackoverflow.com/questions/23013573/swap-key-with-value-json
@@ -5759,6 +7194,135 @@ return;
 }
 
 
+
+web.getComputedStyle=function(elem){
+	if(web.isjQuery(elem)){
+		var array=[]
+		elem.forEach(function(){
+			array.push(web.getComputedStyle(this))
+		})
+		return (array.length<=1)?array[0]:array;
+	}
+	if(web.global.getComputedStyle){
+		return web.global.getComputedStyle(elem)
+	}else{
+		web.error('need pollyfill for get computed style!') //http://stackoverflow.com/questions/1573053/javascript-function-to-convert-color-names-to-hex-codes
+	}
+}
+
+//Inspiration http://stackoverflow.com/questions/1573053/javascript-function-to-convert-color-names-to-hex-codes
+web.colorNameToHex=function(color){
+	dummyDiv.style.color = color;
+	//Color in RGB 
+	color=window.getComputedStyle(dummyDiv).color;
+	resetDummyDiv()
+	return color
+}
+
+//http://stackoverflow.com/questions/298750/how-do-i-select-text-nodes-with-jquery
+var hightlighterColorClasses={}
+web.hightlighter=function(elem,text,color){
+	var baseClass='web-highlighter'
+	var colorClass='';
+	var rawColor=color;
+
+	if(color){
+		color=web.colorNameToHex(color)
+		if(web.startsWith(color,'#')){
+			color=color.slice(1)
+		}
+		
+		colorClass=baseClass+'-'+color
+		if(!hightlighterColorClasses[color]){
+			web.css('.'+colorClass+' {background-color:'+rawColor+'}')
+			hightlighterColorClasses[color]=true
+		}
+
+	}
+	elem=elem||document.body
+	
+
+	var tag = 'mark'||'span'
+	var attributes='class="'+baseClass+' '+(colorClass||'')+'"'
+
+	//inputText = document.getElementById("inputText")
+	var innerHTML = elem.innerHTML
+	var counter=0
+	var nodes=[]
+
+	$(elem)
+		.contents()
+		.each(function(){
+			if(this.nodeType === 3){ //Node.TEXT_NODE
+				//var innerHTML = this.innerHTML
+				var node=$(this);
+				var content=node.text()
+				if(content.indexOf('my')>=0){
+					console.log(content)
+				}
+
+				if(content.length){
+					//http://stackoverflow.com/questions/1788939/jquery-find-and-wrap-textnode-with-some-element
+					node.replaceWith(content.replace(text,function(match){
+						console.log('ddd',node,node.text())
+						counter++
+						nodes.push(node)
+						return '<'+tag+' '+attributes+' >'+ match +'</'+tag+'>'
+					}))
+				}
+			}else{
+				web.hightlighter(this,text,rawColor)
+			}
+
+		});
+
+	return {
+		clear:function(){
+			$(tag+'.'+baseClass+((colorClass)?'.'+colorClass:'')).contents().unwrap().parent()[0].normalize(); //TODO when this is 'undone' it still has broken up the text into textnodes. be sure to append textnodes back
+			//_.forEach(nodes,function(value,index){
+			//})
+
+		}
+		,length:counter
+	}
+}
+// web.hightlighter=function(elem,text,color){
+// 	var colorClass='web-highlighter'
+// 	if(color){
+// 		var rawColor=color;
+// 		color=web.colorNameToHex(color)
+// 		if(web.startsWith(color,'#')){
+// 			color=color.slice(1)
+// 		}
+		
+// 		colorClass='-'+color
+// 		if(!hightlighterColorClasses[color]){
+// 			web.css('.'+colorClass+' {background-color:'+rawColor+'}')
+// 			hightlighterColorClasses[color]=true
+// 		}
+
+// 	}
+// 	elem=elem||document.body
+	
+// 	colorClass=(colorClass)?'class="'+colorClass+'"':''
+// 	var tag = 'mark'||'span'
+
+// 	//inputText = document.getElementById("inputText")
+// 	var innerHTML = elem.innerHTML
+// 	var counter=0
+// 	elem.innerHTML=innerHTML.replace(text,function(match){
+// 		counter++
+// 		return '<'+tag+' '+colorClass+' >'+ match +'</'+tag+'>'
+// 	})
+// 	return {
+// 		clear:function(){
+
+// 		}
+// 		,length:counter
+// 	}
+// }
+
+
 //inspiration http://shebang.brandonmintern.com/foolproof-html-escaping-in-javascript/
 //inspiration for "secure" way
 //http://stackoverflow.com/questions/24816/escaping-html-strings-with-jquery
@@ -5789,11 +7353,14 @@ web.unescapeHTML=function(str){
 	//if(document){
 	//	var div = document.createElement('div');
 	//	div.innerHTML = str;
-   // 	var child = div.childNodes[0];
+	// 	var child = div.childNodes[0];
 	//	return child ? child.nodeValue : '';
 	//}else{
+		if(!str){
+			return str
+		}
 		return str.replace(/&(amp|lt|gt|quot|#39|#x2F);/g, function (s) {
-		  return unescapeHTMLMap[s];
+			return unescapeHTMLMap[s];
 		});
 	//}
 }
@@ -5851,6 +7418,7 @@ web.screenshot=function(targetElement,type,callback){
 //inspiration: http://stackoverflow.com/questions/3452546/javascript-regex-how-to-get-youtube-video-id-from-url
 web.getYoutubeHash=function(url){
 	if(!url){return ''}
+	if(web.contains('/user/')){console.warn('skipping a youtube user page')}
 	var match = url.match(web.RegExp.getYoutubeHash);
 	var hash=(match)?match[2].trim():'';
 	if(web.RegExp.validate.YoutubeHash.test(hash)){
@@ -5868,11 +7436,17 @@ web.getYoutubeHash=function(url){
 			v = web.deepTrimLeft(url,'/')
 			if(v&&web.RegExp.validate.YoutubeHash.test(v)){
 				return v
+			}else{
+				if(!(/[\W]/).test(v)){
+					v = v.slice(0,11)
+					console.warn("truncating youtube hash from expected youtube url "+url+' hashvalue =\''+hash+'\' length'+hash.length);
+					return v
+				}
 			}
 		}
 	}
-	console.error("Unable to extract hash from expected youtube url "+url+' hashvalue =\''+hash+'\' length'+hash.length);
-	return 
+	console.warn("Possible incorect hash from expected youtube url "+url+' hashvalue =\''+hash+'\' length'+hash.length);
+	return hash
 };
 /*tests*/
 (function(tests){
@@ -5887,6 +7461,7 @@ web.getYoutubeHash=function(url){
 "http://www.youtube.com/attribution_link?a=5X4P22YNTKU&amp;u=%2Fwatch%3Fv%3DT2NUk5AFImw%26feature%3Dshare"	:'T2NUk5AFImw',
 "https://www.youtube.com/watch?feature=player_embedded&amp;v=E-byfKGQkbA"									:'E-byfKGQkbA',
 "http://www.youtube.com/attribution_link?a=5Q59r0-mo4w&u=%2Fwatch%3Fv%3D4AbuSKtrDzU%26feature%3Dshare"		:'4AbuSKtrDzU',
+"https://www.youtube.com/watch?v=fii99coWGvc#t=1586"														:'fii99coWGvc', //good for time checking too	
 
 //Lasnv http://stackoverflow.com/questions/3452546/javascript-regex-how-to-get-youtube-video-id-from-url
 'http://www.youtube.com/watch?v=0zM3nApSvMg&feature=feedrec_grec_index'										:'0zM3nApSvMg',
@@ -6468,6 +8043,9 @@ web.scrollListener=function(elem,debounce,callback){
 	},debounce));
 }
 
+web.isTransferable=function(value){
+	return value instanceof  ArrayBuffer || value instanceof MessagePort
+}
 
 web.matrixTrim=function(matrix,inPlace){
 	if(!inPlace){throw 'not implemented'}
@@ -6483,8 +8061,6 @@ web.matrixTrim=function(matrix,inPlace){
 
 
 web.socket=true;
-
-web.worker=true;
 
 
 var args=[];
@@ -6556,7 +8132,7 @@ web.toBinary=function(number,padding,asArray) { // asArray should be 0||null||un
 
 //http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript
 web.GUID=function(format,source,callback){
-	format=format||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
+	format=format||/*web.numberToRadix(web.UID('GUID'),16)+*/'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
 	return format.replace(/[xy]/g, function(c) {
 		var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
 		return v.toString(16);
@@ -6565,14 +8141,19 @@ web.GUID=function(format,source,callback){
 var uids={
 
 }
-web.UID=function(from){
+web.UID=function(from,type){
+	type=type||'string' //string is default
 	if(!from){
 		from=''
 	}
 	if(!uids[from]){
 		uids[from]=0;
 	}
-	return from+'['+ (uids[from]++) +']'
+	if(type=='string'){
+		return from+'['+ (uids[from]++) +']'
+	}else if (type=='number'){
+		return uids[from]++
+	}
 
 }
 
@@ -6970,7 +8551,27 @@ web.preload=function(list){
 	return returnList
 }
 
-web.on=function(elem,event,handler,bool){
+web.on=function(elem,event,handler,bool,arg){
+	if(!web.isBoolean(bool)){
+		arg=bool
+		bool=arg
+	}
+	//if(event=='dragStart')
+	if(event=='longClick'){
+		(function(){
+			var pressTimer
+			$(elem).mouseup(function(){
+			  clearTimeout(pressTimer)
+			  // Clear timeout
+			  return false;
+			}).mousedown(function(){
+			  // Set timeout
+			  pressTimer = window.setTimeout(handler,arg||1000)
+			  return false; 
+			});
+		})()
+		return
+	}
 	if (elem.addEventListener) { // Modern
 		elem.addEventListener(event, handler, !!bool);
 	} else if (elem.attachEvent) { // Internet Explorer
@@ -6979,7 +8580,23 @@ web.on=function(elem,event,handler,bool){
 		elem["on" + event] = handler;
 	}
 };
-	
+//http://stackoverflow.com/questions/4127118/can-you-detect-dragging-in-jquery
+// var isDragging = false;
+// $("a")
+// .mousedown(function() {
+// 	$(window).mousemove(function() {
+// 		isDragging = true;
+// 		$(window).unbind("mousemove");
+// 	});
+// })
+// .mouseup(function() {
+// 	var wasDragging = isDragging;
+// 	isDragging = false;
+// 	$(window).unbind("mousemove");
+// 	if (!wasDragging) { //was clicking
+// 		$("#throbble").show();
+// 	}
+// });
 
 
 web.comparator = web.comparator || {}
@@ -7435,7 +9052,7 @@ web.fullScreen=function(onOff,callback){ //TODO callback should be called after 
 	if(web.isFunction(onOff)){
 		var tmp=onOff;
 		onOff=callback
-		callback=onoff
+		callback=tmp
 	}
 
 	if(!web.isValue(onOff)){ //toggle
@@ -7463,7 +9080,7 @@ web.fullScreen=function(onOff,callback){ //TODO callback should be called after 
 			document.msExitFullscreen();
 		}
 	}
-	return web.defer(function(){callback.call(elem,web.isFullScreen())})
+	return callback&&web.defer(function(){callback.call(elem,web.isFullScreen())})
 }
 
 
@@ -7486,8 +9103,13 @@ web.fullScreen=function(onOff,callback){ //TODO callback should be called after 
 //		}
 //	}
 //};
-
-
+var variableHash={}
+web.variable=function(v,value){
+	if(web.isValue(value)){
+		return variableHash[v]=value
+	}
+	return variableHash[v]
+}
 web.isFullScreen=function(){
 	if (document.fullscreenElement ||    // alternative standard method
 		document.webkitFullscreenElement ||
@@ -7512,73 +9134,81 @@ web.withinRange=function(value,min,max){
 }
 
 web.isAproximately=function(value,value2,tolerance){
-	return (value2-tolerance<value && value<value2+tolerance);
+	return (value >= value2-tolerance && value <= value2+tolerance)
+	//return (value2-tolerance<value && value<value2+tolerance);
 }
 
 //http://dracoblue.net/dev/linear-least-squares-in-javascript/
-web.slopeOf=function(values_x, values_y) {
-	if(!values_y){
-
+web.slope=function(array,xGetter,yGetter) { //values_x, values_y
+	//Nothing to do.
+	if (l === 0) {
+		return {m:undefined,b:undefined};
 	}
-	var sum_x = 0;
-	var sum_y = 0;
-	var sum_xy = 0;
-	var sum_xx = 0;
-	var count = 0;
-
 	/*
 	 * We'll use those variables for faster read/write access.
 	 */
-	var x = 0;
-	var y = 0;
-	var values_length = values_x.length;
+	var sum_x = 0
+		,sum_y = 0
+		,sum_xy = 0
+		,sum_xx = 0
+		,x = 0
+		,y = 0
+		,l = array.length
+		,m
+		,b;
 
-	if (values_length != values_y.length) {
-		throw new Error('The parameters values_x and values_y need to have same size!');
+
+	if(web.isString(xGetter)){
+		xGetter=_.partal(function(path,o){return web.get.call(o,path)},xGetter)
+	}else if(!xGetter.call){
+		xGetter=function(o){return o}
+	}
+	if(web.isString(yGetter)){
+		yGetter=_.partal(function(path,o){return web.get.call(o,path)},yGetter)
+	}else if(!yGetter.call){
+		yGetter=function(o){return o}
 	}
 
-	/*
-	 * Nothing to do.
-	 */
-	if (values_length === 0) {
-		return [ [], [] ];
-	}
 
-	/*
-	 * Calculate the sum for each of the parts necessary.
-	 */
-	for (var v = 0; v < values_length; v++) {
-		x = values_x[v];
-		y = values_y[v];
+
+	
+	// Calculate the sum for each of the parts necessary.
+	for (var i = 0; i < l; i++) {
+		x = xGetter(array[i]);
+		y = yGetter(array[i]);
 		sum_x += x;
 		sum_y += y;
 		sum_xx += x*x;
 		sum_xy += x*y;
-		count++;
 	}
 
-	/*
-	 * Calculate m and b for the formular:
-	 * y = x * m + b
-	 */
-	var m = (count*sum_xy - sum_x*sum_y) / (count*sum_xx - sum_x*sum_x);
-	var b = (sum_y/count) - (m*sum_x)/count;
+	
+	// Calculate m and b for the formular:
+	//y = x * m + b
+	return {
+			'm':(l*sum_xy - sum_x*sum_y) / (l*sum_xx - sum_x*sum_x)
+			,'b':(sum_y/l) - (m*sum_x)/l
+		}
+}
+web.bestFitLine=function(array,xGetter,yGetter,callbackConstructor){ //callback expects to return a constructed object
+	if(web.isString(xGetter)){
+		xGetter=_.partal(function(path,o){return web.get.call(o,path)},xGetter)
+	}else if(!xGetter.call){
+		xGetter=function(o){return o}
+	}
 
-	return {m:m,b:b}
-	// /*
-	//  * We will make the x and y result line now
-	//  */
-	// var result_values_x = [];
-	// var result_values_y = [];
+	var slope = web.slope(array,xGetter,yGetter)
+	//  We will make the x and y result line now
 
-	// for (var v = 0; v <; values_length; v++) {
-	//     x = values_x[v];
-	//     y = x * m + b;
-	//     result_values_x.push(x);
-	//     result_values_y.push(y);
-	// }
+	var results = [];
+	callback=callback||function(x,y){return {x:x,y:y}}
 
-	// return [result_values_x, result_values_y];
+	for (var v = 0,l=array.length; v <l; v++) {
+		x = xGetter(array[v]);
+		y = x * m + b;
+		results = callbackConstructor(x,y);
+	}
+	return results
 }
 
 web.distance=function(p1,p2,x,y){
@@ -7770,7 +9400,7 @@ web.setInterval=function(func, wait, times,callback){ //TODO request animation f
 	if(web.isString(wait)){
 		type=wait;
 		wait=2
-	}else if(web.isFuntion(wait)){
+	}else if(web.isFunction(wait)){
 		type='callback'
 		wait=2
 	}
@@ -8269,43 +9899,50 @@ web.free=function(obj,instance,obj2){
 
 
 var body=$('body');
-	web.orientationchange=function(handler){
-		handler= handler || (function(isPortrait,m) {
-			console.log('isPortrait=',isPortrait,'isMediaMatch',!!m)
-			body.toggleClass('orientation-landscape',!isPortrait);
-			body.toggleClass('orientation-portrait',isPortrait);
-		})
 
-	if(window.matchMedia){ //most reliable?
-			// Find matches
-			var mql = window.matchMedia("(orientation: portrait)");
+// 	web.orientationchange=function(){
+// 		web.depricated('web.orientationchange depricated use web.orientation')
+// 		web.orientation.apply(web,arguments)
+// 	}
+// 	var orientation;
+// 	web.orientation=function(handler){
+// 		if(handler==null){
+// 			return window.orientation
+// 		}
+
+// 	if(window.matchMedia){ //most reliable?
+// 			// Find matches
+// 			var mql =window.matchMedia("(orientation: portrait)");
+
+// 			handler(!mql.matches,mql);
+// 		// Add a media query change listener
+// 		mql.addListener(function(m){return handler(!m.matches,m)});
+// 	}else{
+
+// 		var fn = function() {
+// 				//THIS VAR IS NOT CONSISTANT ACROSS DEVICES!!
+// 		//Reason: http://www.matthewgifford.com/blog/2011/12/22/a-misconception-about-window-orientation/
+// 		 //alert(window.orientation); //0 = portrate -90 landscape right 90 landscape left
+// 		 var isLandscape=!((win.width()<win.height()))
+// 		 return handler(isLandscape);
+// 		}
+// 		fn();
 
 
 
-			handler(!!mql.matches,mql);
-		// Add a media query change listener
-		mql.addListener(function(m){return handler(!!m.matches,m)});
-	}else{
+// 		//Listen for orientation changes
+// 		win.on("orientationchange", fn);
+// 	}
 
-		var fn = function() {
-				//THIS VAR IS NOT CONSISTANT ACROSS DEVICES!!
-		//Reason: http://www.matthewgifford.com/blog/2011/12/22/a-misconception-about-window-orientation/
-		 //alert(window.orientation); //0 = portrate -90 landscape right 90 landscape left
-		 var isPortrait=(win.width()<win.height());
-		 return handler(isPortrait);
-		}
-		fn();
-
-
-
-		//Listen for orientation changes
-		win.on("orientationchange", fn);
-	}
-
-}
-web.orientationchange();
-//web.orientationchange(function(isPortrait){
- // if(body.hasClass('video-fill')&&!isPortrait){
+// }
+// web.orientationchange(function(isLandscape,m) {
+// 			console.log('isLandscape=',isLandscape,'isMediaMatch',!!m);
+// 			orientation=(isLandscape)?0:90;
+// 			body.toggleClass('orientation-landscape',!isLandscape);
+// 			body.toggleClass('orientation-portrait',isLandscape);
+// 		});
+//web.orientationchange(function(isLandscape){
+ // if(body.hasClass('video-fill')&&!isLandscape){
  //   
  // }
 //});
@@ -8348,7 +9985,7 @@ var setImmediate =web.setImmediate=(function() {
 	var timeouts = [];
 	var messageName = "zero-timeout-message";//TODO generate random message id(reduce collisions)
 	web.on(window,'message',handleMessage,true)
-   return setImmediate;
+	return setImmediate;
 
 
 	// Like setTimeout, but only takes a function argument.  There's
@@ -8430,12 +10067,15 @@ defer(function(){web.proxy('get','google.com',defer())}
 //http://stackoverflow.com/questions/2715447/how-can-i-programmatically-copy-all-of-the-style-attributes-from-one-dom-element
 web.copyStyle=function(elem1,elem2){
 	var completeStyle = "";
-	if ("getComputedStyle" in window)
-		completeStyle = window.getComputedStyle(elem1, null).cssText;
-	else
-	{
+	if (web.global.getComputedStyle){
+		completeStyle = web.global.getComputedStyle(elem1, null).cssText;
+	}else{
 		var elStyle = elem1.currentStyle;
-		for (var k in elStyle) { completeStyle += k + ":" + elStyle[k] + ";"; }
+		var keys=web.keys(elStyle)
+		for (var i=0,l=keys.length;i<l;i++){
+			k=keys[i]
+			completeStyle += k + ":" + elStyle[k] + ";";
+		}
 	}
 
 	elem2.style.cssText = completeStyle;
@@ -8513,14 +10153,43 @@ web.css=function(input,elem){
 
 }
 
-web.ratio=function(name,callback){
-	var elem;
-	if(web.isjQuery(name)){
-		elem=name
-	}else{
-		elem=$('input[type=radio][name='+name+']')
+
+
+web.radio=function(parent,callback){
+	//var children;
+	//if(web.isjQuery(name)){
+	//	children=name
+	//}else{
+	//	children=$('input[type=radio][name='+name+']')
+	//}
+	///*return*/ children.on('change',callback)
+	if(web.isString(parent)){
+			parent=$(parent)
 	}
-	return elem.on('change',callback)
+	var children;
+	if(parent.length<=0){
+		throw "web.radio got a jquery element with length 0"
+	}else if(parent.length==1){
+		children = parent.find('input:radio')
+	}else{
+		children=parent
+	}
+
+	children.on('change',callback)
+
+	return {
+		xess:function(set){
+			if(web.isValue(set)){
+				//children.prop('checked',false)
+				children.filter("[value="+set+"]").prop('checked',true).change() //http://stackoverflow.com/questions/15081335/js-checked-vs-jquery-attrchecked-what-is-the-difference
+			}//else
+			return children.filter(':checked').val()
+		}
+		,reset:function(){
+			children.prop('checked',false)
+			return this
+		}
+	}
 }
 
 //http://stackoverflow.com/questions/9730612/get-element-css-property-width-height-value-as-it-was-set-in-percent-em-px-et
@@ -8655,7 +10324,8 @@ web.buttonGroup=function(objMap){
 
 }
 
-	
+return web
+}//init end
 
 return web;
 })(this.web,this,/*environment flags*/
@@ -8666,7 +10336,7 @@ return web;
 			&& typeof window == 'undefined'
 			/*check if supports jsCommon*/
 			&& typeof module !== 'undefined' && module.exports
-		   ){
+			){
 			this.interpreter = 'v8'; //maybe
 			this.platform = "nodejs"; //maybe
 		}else{
@@ -8679,15 +10349,12 @@ return web;
 
 	})/*undefined*/);
 
-//Custom Stuff
-web.setSettings({
-	"google.analytics.trackingID":'UA-38066788-1'
-	,"stores":['lmdb'] //only accepts one right now. but will accept any "leveldown" compatable API to plug into levelup api!
-})
+
+
 
 //now export it if we are using commonjS
-if(web.isJSCommons()){
-	module.exports=web.web||web; //TODO figure out why web is being ecapuslated in another object
+if(typeof module !== 'undefined' && module.exports){ //web.isJSCommons()){
+	module.exports=web() //web.web||web; //TODO figure out why web is being ecapuslated in another object
 }
 
 

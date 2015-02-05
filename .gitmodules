@@ -34,3 +34,6 @@
 [submodule "plugins/video/dependencies/mediaelement"]
 	path = plugins/video/dependencies/mediaelement
 	url = https://github.com/johndyer/mediaelement.git
+[submodule "dependencies/kd-tree-javascript"]
+	path = dependencies/kd-tree-javascript
+	url = https://github.com/ubilabs/kd-tree-javascript.git
