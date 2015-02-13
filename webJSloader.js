@@ -474,7 +474,7 @@
 				,'//cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.min.js'
 					:'./dependencies/backbone/backbone-min.js'
 				//,'//cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.js'
-				//	:'./dependencies/backbone/backbone.js'
+					:'./dependencies/backbone/backbone.js'
 				//+'#data backend libraries\n'
 				//+'#TODO wait for DOM ready before loading this one,./dependencies/PapaParse/papaparse.min.js\n'
 				,'./dependencies/ua-parser-js/src/ua-parser.min.js':0
@@ -493,7 +493,7 @@
 		,{} //serverOptions
 		,function(){
 			console.log('starting web.js')
-			web().settings({})
+			web.settings({})
 		}
 	)
 

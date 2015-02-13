@@ -219,7 +219,13 @@ html.full-view, html.full-view body{
 		box-shadow: none;
 	}
 	a.disabled {
-		text-decoration:line-through
+		text-decoration:line-through;
+
+	}
+
+	.btn.disabled, .btn[disabled]{
+		cursor:default;
+		pointer-events:auto;
 	}
 
 /* a.disabled::after{
@@ -476,5 +482,20 @@ html.full-view, html.full-view body{
 
 .web-highlighter{
 	background-color:yellow;
+}
+
+
+/*http://demosthenes.info/blog/744/Make-SVG-Responsive*/
+.svg-responsive {
+	display: inline-block;
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom:0;
+	right:0;
+}
+
+.glyphicon-blank:after {
+	content: "\00a0";
 }
 
