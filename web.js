@@ -2599,6 +2599,8 @@ this.web=(function(web,global,environmentFlags,undefined){
 					}
 				}
 
+
+	//TODO?
 	//http://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
 	//http://ryanve.com/lab/dimensions/
 		// web.dimensions=function(item){
@@ -3287,6 +3289,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 	//TODO add R-trees //http://stackoverflow.com/questions/4326332/could-anyone-tell-me-whats-the-difference-between-kd-tree-and-r-tree
 	//NOTE: Up to 1000 points or so brute force searching is the fastest method for answering any query, so for small data sets it is probably better to not use a kdtree or any data structure in the first place.
 	//https://github.com/mikolalysenko/static-kdtree
+	//https://github.com/mikolalysenko/static-kdtree/blob/master/bench/node-0.10-results.md#results-for-node-01026
 	web.searchTree=function(dimensions,optimizations,comparator){ //comparator =funciton(a,b,dimension){return a[dimension]>b[dimension]}
 		if(web.isString(optimizations)){
 			optimizations=optimizations.split(',')
@@ -3665,6 +3668,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 		web.setTimeout=function(time,fn){
 			//if(!(this instanceof web.setTimeout)){return new web.setTimeout(time,fn)}
+			if(!web.isNumber(time)){
+				return requestAnimationFrame(time||fn)
+			}
 			return setTimeout(fn,time)
 		}
 		web.clearTimeout=function(id){
@@ -3676,6 +3682,34 @@ this.web=(function(web,global,environmentFlags,undefined){
 			// 	//TODO
 			// }else{
 			// }
+		}
+		//http://stackoverflow.com/questions/19000109/javascript-cant-adjust-framerate-requestanimationframe
+		web.AnimationFrameInterval=function(fps,fn){
+			var to,af,callback
+			if(web.isFunction(fps)){
+				fn=fps
+				fps=null
+			}
+
+			if(fps==null){
+				callback=function(){
+					requestAnimationFrame(function(){
+						requestAnimationFrame(callback)
+						fn()
+					})
+				}
+			}else{
+				callback=function(){
+					to=setTimeout(function(){
+						af=requestAnimationFrame(callback);
+						fn()
+					}, 1000 / fps);
+				}
+			}
+			return function(){
+				clearTimeout(to)
+				cancelAnimationFrame(af)
+			}
 		}
 
 		function Traverser (collection,callback,bind,e){
@@ -4898,6 +4932,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 			return notice
 		}
 
+		//TODO use this instead??? http://stackoverflow.com/questions/4326845/how-can-i-determine-the-direction-of-a-jquery-scroll-event 
 		web.flicker = function(elem,callback){
 			console.warn('UNTESTED')
 			var reset= function(){
@@ -5324,6 +5359,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 			return callback;
 		}
 
+		//https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection
 		web.collisionRectangle=function(rect1,rect2,difference){ //http://stackoverflow.com/questions/12066870/how-to-check-if-an-element-is-overlapping-other-elements
 			if(difference){
 				return
@@ -5371,7 +5407,25 @@ this.web=(function(web,global,environmentFlags,undefined){
 			);
 		}
 
-		web.collisionCircle=function(){
+		//TODO
+		//https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection
+		web.collisionCircle=function(circle1,circle2){
+			// var circle1 = {radius: 20, x: 5, y: 5};
+			// var circle2 = {radius: 12, x: 10, y: 5};
+
+			var dx = (circle1.x + circle1.radius) - (circle2.x + circle2.radius);
+			var dy = (circle1.y + circle1.radius) - (circle2.y + circle2.radius);
+			var distance = Math.sqrt(dx * dx + dy * dy);
+
+			return (distance < circle1.radius + circle2.radius);
+		}
+
+		web.collisionCircleToRectangle=function(circle,rectangle){
+
+		}
+
+		//https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection
+		web.seperatingAxisCollision=web.pollygonCollision=function(){
 
 		}
 
@@ -9529,6 +9583,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 
+		//TODO add fullscreen event
+		web.onFullScreenChange=function(){
+			//http://stackoverflow.com/questions/9621499/fullscreen-api-which-events-are-fired
+		}
 
 		/***********************
 		web.fullscren
@@ -9536,7 +9594,6 @@ this.web=(function(web,global,environmentFlags,undefined){
 		Optomized. Does not set property until you call it once :-D
 		**************************/
 		//SEE https://developer.mozilla.org/en-US/docs/Web/Guide/API/DOM/Using_full_screen_mode
-		//
 		web.fullScreen=function(onOff,callback){ //TODO callback should be called after recieving mozfullscreenerror etc
 			var elem = setScope(this,document.documentElement)
 			if(web.isjQuery(elem)){
@@ -10549,9 +10606,13 @@ this.web=(function(web,global,environmentFlags,undefined){
 					return b
 				}
 
-				var scope=(this===web||this===web.global)?undefined:this
-					,callback=(function(){func.apply(scope,args)})
-					,args=Array.prototype.slice.call(arguments, 1);
+				var scope=(this===web||this===web.global)?undefined:this;
+				var callback
+				if(scope||arguments.length>1){
+					callback=(function(){func.apply(scope,Array.prototype.slice.call(arguments, 1))})
+				}else{
+					callback=func
+				}
 
 				if(web.isNodeJS()){
 					return setTimeout(callback,0);
