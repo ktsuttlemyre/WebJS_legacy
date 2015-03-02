@@ -3398,7 +3398,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 					}
 					return _;
 				}else if(type== 'function'){
-					throw 'I don\'t even'
+					throw 'I don\'t even' //return _.valueOf()
 				}else if(type!='string'){
 					throw "I don't know what to do if first arugment isn't a string!"
 				}
@@ -4982,6 +4982,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		web.node=function(nodeName,inner,style){
 
 		}
+		//div.blockrain-game-holder[style="position:relative;width:100%;height:100%"]
 		window.t="html\n"+
 		"	head\n"+
 		"	body\n"+
@@ -5142,6 +5143,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				face.sessionCallback=function(callback){
 					var e;
 					if(face.session){
+						web.defer(callback)
 						return
 					}
 					if(!web.isFunction(callback)){
@@ -8652,7 +8654,11 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 		//http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript
 		web.GUID=function(format,source,callback){
-			format=format||/*web.numberToRadix(web.UID('GUID'),16)+*/'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
+			if(web.isNumber(format)){
+				format=Array(format+1).join('x')
+			}else{
+				format=format||/*web.numberToRadix(web.UID('GUID'),16)+*/'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
+			}
 			return format.replace(/[xy]/g, function(c) {
 				var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
 				return v.toString(16);
