@@ -1746,7 +1746,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 			url = undefined
 		}
 
-		web.baseURL=web.url(null,'BASE')
+		web.baseURL=location.protocol + "//" + location.hostname + (location.port && ":" + location.port) + "/"; //web.url(null,'BASE')
 		web.base=function(){
 			return web.url(web.baseURL)
 		}
