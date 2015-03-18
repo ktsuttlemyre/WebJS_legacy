@@ -881,8 +881,12 @@ this.web=(function(web,global,environmentFlags,undefined){
 			parent=window.parent||window.opener||window.top //||o.self
 			return (parent==window.self)?undefined:parent
 		}
+		var isChromecast;
 		web.isChromecast=function(){
-			return web.contains(window.navigator.userAgent,'CrKey')
+			if(isChromecast!=undefined){
+				return isChromecast
+			}
+			return isChromecast = web.contains(window.navigator.userAgent,'CrKey')
 		}
 		web.isWindow=function( obj ) {
 			if(obj!==undefined){
@@ -940,6 +944,28 @@ this.web=(function(web,global,environmentFlags,undefined){
 		web.isString=function(obj){
 			return typeof obj == 'string';
 		}
+		web.toString=function(obj){ //http://stackoverflow.com/questions/3945202/whats-the-difference-between-stringvalue-vs-value-tostring
+			//http://www.hiteshagrawal.com/javascript/convert-xml-document-to-string-in-javascript/
+			//handle xml
+			if(web.instanceOf(obj,window.Document) && !(web.instanceOf(obj,window.HTMLDocument)) && !(web.instanceOf(obj,window.SVGDocument))){ //https://developer.mozilla.org/en-US/docs/Web/Guide/Parsing_and_serializing_XML
+				//Parsing = https://developer.mozilla.org/en-US/docs/Web/API/DOMParser
+				var xmlDoc,parser;
+				if (window.ActiveXObject) { //http://www.hiteshagrawal.com/javascript/convert-xml-document-to-string-in-javascript/
+					//for IE
+					xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
+					xmlDoc.async="false";
+					xmlDoc.loadXML(obj);
+					return xmlDoc.xml;
+				} else if (document.implementation && document.implementation.createDocument) {
+					//for Mozila
+					parser=new DOMParser();
+					xmlDoc=parser.parseFromString(obj,"text/xml");
+					return (new XMLSerializer()).serializeToString(xmlDoc);;
+				}
+			}
+
+			return obj && (obj.toString)?obj.toString():String(obj)
+		}
 		web.isStringObject=function(value){
 			return value && typeof value == 'object' && type(value) == 'String';
 		}
@@ -960,32 +986,34 @@ this.web=(function(web,global,environmentFlags,undefined){
 		//http://stackoverflow.com/users/36866/some
 		//http://stackoverflow.com/questions/384286/javascript-isdom-how-do-you-check-if-a-javascript-object-is-a-dom-object
 		//Returns true if it is a DOM node
-		web.isNode=function(o){
-		  return (
-			typeof Node === "object" ? o instanceof Node : 
-			o && typeof o === "object" && typeof o.nodeType === "number" && typeof o.nodeName==="string"
-		  );
-		}
+		web.isNode=(typeof Node === "object")
+			?function(o){
+				return o instanceof Node
+			}
+			:function(o){ 
+				return o && typeof o === "object" && typeof o.nodeType === "number" && typeof o.nodeName==="string"
+			};
 
-		//Returns true if it is a DOM element    
-		web.isElement=function(o){
-		  return (
-			typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
-			o && typeof o === "object" && o !== null && o.nodeType === 1 && typeof o.nodeName==="string"
-		);
-		}
+		//Returns true if it is a DOM element
+		web.isElement=(typeof HTMLElement === "object")
+			?function(o){
+				return o instanceof HTMLElement //DOM2
+			}
+			:function(o){
+				return web.isNode() && o.nodeType === 1
+			};
 
 		var isFunction= web.isFunction= function(value) {
 			return typeof value == 'function';
 		}
 
 		// detect native method in object not same scope of isHostObject
-		  //https://github.com/dperini/nwevents/blob/ac33e52c1ed1c1c3a1bb1612384ca5b2f7a9b3ef/src/nwmatcher.js#L41
+		//https://github.com/dperini/nwevents/blob/ac33e52c1ed1c1c3a1bb1612384ca5b2f7a9b3ef/src/nwmatcher.js#L41
 		web.isNativeFunction = function(fn) {
 			return typeof fn =='function' &&
-			  // IE/W3C browsers will return [native code]
-			  // Safari 2.0.x and older will return [function]
-			  (/\{\s*\[native code[^\]]*\]\s*\}|^\[function\]$/).test(fn);
+				// IE/W3C browsers will return [native code]
+				// Safari 2.0.x and older will return [function]
+				(/\{\s*\[native code[^\]]*\]\s*\}|^\[function\]$/).test(fn);
 			}
 
 		//http://stackoverflow.com/questions/596467/how-do-i-convert-a-number-to-an-integer-in-javascript
@@ -1000,7 +1028,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 
-
+		$('.butter').append($('a.thing'))
 
 		//TODO cache will definately help
 		web.isArrayHash=function(obj,level){
@@ -1056,15 +1084,16 @@ this.web=(function(web,global,environmentFlags,undefined){
 		// nodes have a numeric length property, and may need to be excluded 
 		// with an additional o.nodeType != 3 test.
 		web.isArrayLike=function(o) {
-			if (o &&                                // o is not null, undefined, etc.
-				typeof o === "object" &&            // o is an object
-				isFinite(o.length) &&               // o.length is a finite number
-				o.length >= 0 &&                    // o.length is non-negative
-				o.length===Math.floor(o.length) &&  // o.length is an integer
-				o.length < 4294967296)              // o.length < 2^32
-				return true;                        // Then o is array-like
-			else
-				return false;                       // Otherwise it is not
+			if (o &&								// o is not null, undefined, etc.
+				typeof o === "object" &&			// o is an object
+				isFinite(o.length) &&				// o.length is a finite number
+				o.length >= 0 &&					// o.length is non-negative
+				o.length===Math.floor(o.length) &&	// o.length is an integer
+				o.length < 4294967296){				// o.length < 2^32
+				return true;						// Then o is array-like
+			}else{
+				return false;						// Otherwise it is not
+			}
 		}
 
 		web.duckType=function(obj,compare,threshold){
@@ -1286,6 +1315,12 @@ this.web=(function(web,global,environmentFlags,undefined){
 			//todo faster implementatoins
 			//http://blog.stevenlevithan.com/archives/faster-trim-javascript
 			//http://yesudeep.wordpress.com/2009/07/31/even-faster-string-prototype-trim-implementation-in-javascript/
+			if(web.isArray(trim)){
+				for(var i=0,l=str.length;i<l;i++){
+					str[i]=str[i].trim()
+				}
+				return str;
+			}
 			return str.trim()
 
 		}
@@ -1455,11 +1490,31 @@ this.web=(function(web,global,environmentFlags,undefined){
 		*/
 		//currently only returns object with ? and # 
 
-
+		web.baseURL=web.url(null,'BASE')
+		web.base=function(){
+			return web.url(web.baseURL)a
+		}
 		web.url=function(url,cmd1,cmd2){
+			if(!(this instanceof web.url)){return new web.url(url,cmd1,cmd2)}
+
 			url=url||web.global.location.href
-			if(web.isType(url)=='Location'){
-				url=url.href
+
+			//handle file (file drop to native)
+			if(web.instanceOf(url,fd.File)){
+				url=url.nativeFile
+			}
+			//handle native (browser) file
+			if(web.instanceOf(url,window.File)){
+				if(cmd1){ //todo figure out what this should be called. just take anything as true
+					return URL.createObjectURL(url)
+				}else{
+					return web.toDataURI(url)
+				}
+			}
+
+			if(!web.isString(url)){ //if(type=='Location'){url=url.href}
+				url=url.href||url
+				url=url.src||url
 			}
 
 			// if(web.isObject(cmd1)){
@@ -1481,6 +1536,8 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 				}else if(cmd1=='SAMEORIGIN'){
 					return (web.url(url,'domain')==web.url(cmd2,'domain'))
+				}else if(cmd1=='BASE'){
+					return location.protocol + "//" + location.hostname + (location.port && ":" + location.port) + "/";
 				}
 			}
 			
@@ -1493,11 +1550,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 			url = /*web.unescapeHTML(*/ uri.toString() //) //idk if web.unescapeHTML should be a part of this?
 
 
-			var face=  {
-					url:url
-					,toString:function(){
-						return this.url
-					}
+			this.url=url
+			this.toString=function(){
+				return this.url
+			}
 								/*the browser does a simple trim left.
 									test http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
 									location.search
@@ -1505,7 +1561,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 									location.hash
 									"#dfs"#lkjsdf=9"
 									*/
-						,apply:function(part,data,replace){ //TODO implement replace
+			this.apply=function(part,data,replace){ //TODO implement replace
 							if(part===''){
 								throw 'not implmented'
 							}else if (part=="//"){
@@ -1529,17 +1585,34 @@ this.web=(function(web,global,environmentFlags,undefined){
 							}
 							return this
 						}
-						,replace:function(part,data){
+			this.replace=function(part,data){
 							return this.apply(part,data,true)
 						}
-						,remove:function(part){
+			this.remove=function(part){
 							return this.apply(part,'',true)
 						}
-					}
+			this.request=function(type,callback){ //TODO add options
+				if(web.isFunction(type)){
+					callback=type
+					type='GET'
+				}
+				type=type.toUpperCase()
+				if(type=='GET'){
+					return $.get(this.url.toString(),callback)
+				}else if(type=='POST'){
+					return $.post(this.url.toString())
+				}else if(type=='PUT'){
+					throw 'Not implemented'
+					return 
+				}else if(type=='DELETE'){
+					throw 'Not implemented'
+					return 
+				}
+			}
 
-			face['?']=queryStringParser(web.deepTrimRight(web.trimLeft(url,'?'),'#'))
-			face['#?']=queryStringParser(web.trimLeft(url,'#'))
-			face['//']=web.url(url,'domain')
+			this['?']=queryStringParser(web.deepTrimRight(web.trimLeft(url,'?'),'#'))
+			this['#?']=queryStringParser(web.trimLeft(url,'#'))
+			this['//']=web.url(url,'domain')
 
 			if(uri['//']=='youtube.com'||uri['//']=='youtu.be'){
 				uri.slug=web.getYoutubeHash(url.toString())
@@ -1547,8 +1620,6 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 
 			url = undefined
-
-			return face
 		}
 
 
@@ -2662,7 +2733,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 		//experimental target=_background is supported
 		web.window=function(url,options){
-			var win,html,cmd,session=web.GUID();
+			var win,html,cmd,session=web.UUID();
 
 
 			options=options||{}
@@ -2681,17 +2752,17 @@ this.web=(function(web,global,environmentFlags,undefined){
 				html=url.outerHTML()
 				url=undefined
 			}else{
-				if(url.toString){
+				//if(url.toString){
 				//if(web.isString(url)||url instanceof Location){
-					url=url.toString().trim()
+					url=web.toString(url).trim()
 					if(web.startsWith(url,'<')){ //TODO support this
 						//TODO figure out what type of data it is
 						html=url
 						url=undefined
 					}
-				}else{
-					throw 'url must provide a toString function'
-				}
+				//}else{
+				//	throw 'url must provide a toString function'
+				//}
 			}
 
 
@@ -2881,6 +2952,33 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 
 
+//Official web.message strings schema
+//starting string
+//http://jsperf.com/msgpack-vs-bjson/4
+
+//Char1
+// Encoding
+//0x00 javascript String
+//0x01 base64
+
+//Char2 
+// internal format
+// internal format is
+// 0x00 JSON
+// 0x01 MsgPack
+// 0x02 BJSON
+// 0x03 ProtoBuff
+// 0x04 csv
+// 0x05 urlencode
+// 0x07 coffeepack
+// 0x08 web.js
+// 0x09 
+// 0x10 
+// 0x11 
+// 0x12 
+
+//schema
+
 
 
 	/*
@@ -2905,11 +3003,12 @@ this.web=(function(web,global,environmentFlags,undefined){
 			//TODO console code http://www.codeovertones.com/2011/08/how-to-debug-webworker-threads.html
 			//TODO error code http://www.codeovertones.com/2011/08/how-to-debug-webworker-threads.html
 	web.worker=function(url,options){
-		var face=(function(cmd,cmd2){
+		var face=(function(cmd,a,b,c,d,e,f,g,h,i,j){
 			//TODO injection code
 			if(cmd == 'inject'){
-				worker.postMessage({cmd:cmd,arguments:cmd2})
+				worker.postMessage({cmd:cmd,arguments:web.toArray(arguments,1)})
 			}
+			submit(cmd,a,b,c,d,e,f,g,h,i,j)
 		})
 			,api,worker,blob,code = ''
 			,callbacks={}
@@ -3906,6 +4005,35 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 		}
 
+		//http://stackoverflow.com/questions/12168909/blob-from-dataurl
+		//inspiration from devnull69 and xenophon566
+		web.dataURLTo=function(dataURI, structure, mime) {
+			var ab,ia;
+			if(!web.isString(structure)) {
+				if(web.instanceOf(structure,Uint8Array)){
+					ia=structure
+					structure='Uint8Array'
+				}else if(web.instanceOf(structure,Blob)){
+					structure='Blob'
+				}
+			}
+
+			mime=mime||dataURI.substr(dataURI.indexOf(':')+1,Math.min(dataURI.indexOf(','),dataURI.indexOf(';')))
+			var binary = atob(dataURI.substr(dataURI.indexOf(',') + 1))
+
+			 // write the bytes of the string to an ArrayBuffer
+			//ab = ab || new ArrayBuffer(binary.length);
+			ia = ia || new Uint8Array(ab || binary.length);
+			for (var i = 0,l=binary.length; i < l; i++) {
+				ia[i] = binary.charCodeAt(i);
+			}
+			if(structure=='uInt8Array'){
+				return ia
+			}
+			return new Blob([ia], {type: mime});
+		}
+
+
 		//TODO
 		//http://www.techmcq.com/article/Converting-an-image-into-data-URI-using-JavaScript-FileReader/61
 		//http://www.iandevlin.com/blog/2012/09/html5/html5-media-and-data-uri
@@ -4262,34 +4390,6 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 
-
-
-
-		//http://stackoverflow.com/questions/2153979/chrome-extension-how-to-save-a-file-on-disk
-		/**
-		 * Converts the Data Image URI to a Blob.
-		 *
-		 * @param {string} dataURI base64 data image URI.
-		 * @param {string} mimetype the image mimetype.
-		 */
-		//http://stackoverflow.com/questions/2153979/chrome-extension-how-to-save-a-file-on-disk
-		var dataURIToBlob = function(dataURI, mimetype) {
-		  var BASE64_MARKER = ';base64,';
-		  var base64Index = dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
-		  var base64 = dataURI.substring(base64Index);
-		  var raw = window.atob(base64);
-		  var rawLength = raw.length;
-		  var uInt8Array = new Uint8Array(rawLength);
-
-		  for (var i = 0; i < rawLength; ++i) {
-			uInt8Array[i] = raw.charCodeAt(i);
-		  }
-
-		  var bb = new this.BlobBuilder();
-		  bb.append(uInt8Array.buffer);
-		  return bb.getBlob(mimetype);
-		};
-
 		web.download=function(input,name,option){ //option used to create instead of click
 			var ext='',blob;
 			var url = window.webkitURL || window.URL || window.mozURL || window.msURL;
@@ -4301,7 +4401,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				blob = new Blob([input], {type:'text/plain'});
 			}else if(web.isImage(input)){ //detect canvas or image
 				ext='jpg'
-				blob=dataURIToBlob(data.active, 'jpg'); //jpg is mimetype... for now //TODO figure this out http://stackoverflow.com/questions/2153979/chrome-extension-how-to-save-a-file-on-disk
+				blob=web.dataURLTo(data.active, 'blob', 'jpg'); //jpg is mimetype... for now //TODO figure this out http://stackoverflow.com/questions/2153979/chrome-extension-how-to-save-a-file-on-disk
 			} 
 
 			//Step 2 make link
@@ -4338,6 +4438,338 @@ this.web=(function(web,global,environmentFlags,undefined){
 			,model:'bin'
 			,message:'text'
 		}
+
+
+// //var remoteURL=new URI().fragment("#connectTo="+web.GUID().replace('-',''));
+// var remoteURL=web.connection(web.url()['?']['connectTo'],function(myID){})
+
+
+web.connection=function(connectTo,options,callback){ //not fully tested
+	if(web.isFunction(options)){
+		callback=options
+		options={reliable:true}
+	}
+	//support websockets,webrtc 
+	var face = function(){
+
+	}
+	var peerID=null //web.UUID('xxxxxxxx')
+	var peer = new Peer(peerID,{key:'5q5oypvkzbk2o6r'});
+	if(callback){
+		//var fn = 
+		peer.on('open',function(id){face.id=peerID||id;callback.call(face,'open')})
+		peer.on('connection',function(connection){face.connection=connection;callback.call(face,'connection')})
+		peer.on('call',_.bind(callback,face))
+		peer.on('close',_.bind(callback,face))
+		peer.on('disconnected',_.bind(callback,face))
+		peer.on('error',_.bind(callback,face))
+	}
+	if(connectTo){
+		face.connection= peer.connect(connectTo,options);
+	}
+
+
+	face.toString=function(){return web.url().apply('?',{'connectTo':peerID}).toString() }
+	return face
+}
+
+//Message schema
+//ping
+//latency
+//value
+//uuid
+//messageID
+//timestamp
+//toUser
+//toDomain
+
+
+var File=(function(){
+	// ________________
+	// FileConverter.js
+	var FileConverter = {
+		ArrayBufferToDataURL: function(buffer,mime, callback) {
+			window.BlobBuilder = window.MozBlobBuilder || window.WebKitBlobBuilder || window.BlobBuilder;
+
+			// getting blob from array-buffer
+			var blob = new Blob([buffer],{type:mime});
+
+			// reading file as binary-string
+			var fileReader = new FileReader();
+			fileReader.onload = function(e) {
+				callback(e.target.result);
+			};
+			fileReader.readAsDataURL(blob);
+		},
+		DataURLToBlob: function(dataURL, callback) {
+			var binary = atob(dataURL.substr(dataURL.indexOf(',') + 1)),
+				i = binary.length,
+				view = new Uint8Array(i);
+
+			while (i--){
+				view[i] = binary.charCodeAt(i);
+			}
+			var blob = new Blob([view])
+			callback && callback(blob);
+			return blob
+		}
+	};
+
+
+	function merge(mergein, mergeto) {
+		if (!mergein) mergein = { };
+		if (!mergeto) return mergein;
+
+		for (var item in mergeto) {
+			mergein[item] = mergeto[item];
+		}
+		return mergein;
+	}
+
+	return {
+		Send: function(config) {
+			var file = config.file;
+			var socket = config.channel;
+			var index=-1
+
+			var chunkSize = config.chunkSize || 40 * 1000; // 64k max sctp limit (AFAIK!)
+			var sliceId = 0;
+			var cacheSize = chunkSize;
+
+			var chunksPerSlice = Math.floor(Math.min(100000000, cacheSize) / chunkSize);
+			var sliceSize = chunksPerSlice * chunkSize;
+			var maxChunks = Math.ceil(file.size / chunkSize);
+
+			// uuid is used to uniquely identify sending instance
+			var uuid = (Math.random() * new Date().getTime()).toString(36).toUpperCase().replace( /\./g , '-');
+
+			socket.send({
+				uuid: uuid,
+				maxChunks: maxChunks,
+				size: file.size,
+				name: file.name,
+				lastModifiedDate: file.lastModifiedDate,
+				type: file.type,
+				index:index,
+				start: true
+			}, config.extra);
+
+			file.maxChunks = maxChunks;
+			file.uuid = uuid;
+			if (config.onBegin){config.onBegin(file);}
+
+			var blob, reader = new FileReader();
+			reader.onloadend = function(evt) {
+				if (evt.target.readyState == FileReader.DONE) {
+					console.log('read stuff')
+					addChunks(file.name, evt.target.result, function() {
+						sliceId++;
+						if ((sliceId + 1) * sliceSize < file.size) {
+							blob = file.slice(sliceId * sliceSize, (sliceId + 1) * sliceSize);
+							reader.readAsArrayBuffer(blob);
+						} else if (sliceId * sliceSize < file.size) {
+							console.log('reading more stuff')
+							blob = file.slice(sliceId * sliceSize, file.size);
+							reader.readAsArrayBuffer(blob);
+						}  else {
+							socket.send({
+								uuid: uuid,
+								maxChunks: maxChunks,
+								size: file.size,
+								name: file.name,
+								lastModifiedDate: file.lastModifiedDate,
+								type: file.type,
+								index:index+1,
+								end: true
+							}, config.extra);
+
+							file.url = URL.createObjectURL(file);
+							if (config.onEnd) config.onEnd(file);
+						}
+					});
+				}
+			};
+
+			blob = file.slice(sliceId * sliceSize, (sliceId + 1) * sliceSize);
+			reader.readAsArrayBuffer(blob);
+
+			var numOfChunksInSlice;
+			var currentPosition = 0;
+			var hasEntireFile;
+			var chunks = [];
+
+			function addChunks(fileName, binarySlice, callback) {
+				numOfChunksInSlice = Math.ceil(binarySlice.byteLength / chunkSize);
+				for (var i = 0; i < numOfChunksInSlice; i++) {
+					index++
+					var start = i * chunkSize;
+					chunks[currentPosition] = binarySlice.slice(start, Math.min(start + chunkSize, binarySlice.byteLength));
+
+					FileConverter.ArrayBufferToDataURL(chunks[currentPosition], file.type,function(str) {
+						console.log('sending chunk')
+						socket.send({
+							uuid: uuid,
+							value: str,
+							currentPosition: currentPosition,
+							index:index,
+							maxChunks: maxChunks
+						}, config.extra);
+					});
+
+					currentPosition++;
+				}
+
+				if (config.onProgress) {
+					config.onProgress({
+						currentPosition: currentPosition,
+						maxChunks: maxChunks,
+						uuid: uuid
+					});
+				}
+
+				if (currentPosition == maxChunks) {
+					hasEntireFile = true;
+				}
+
+				if (config.interval == 0 || typeof config.interval == 'undefined'){
+					callback();
+				}else{
+					setTimeout(callback, config.interval);
+				}
+			}
+		},
+
+		Receiver: function(config) {
+			var packets = {};
+
+			function receive(chunk) {
+				if (chunk.start && !packets[chunk.uuid]) {
+					packets[chunk.uuid] = [];
+					config.onBegin && config.onBegin(chunk);
+				}
+
+				if (!chunk.end && chunk.value){
+					packets[chunk.uuid].push(chunk.value);
+				}
+				if (chunk.end) {
+					var _packets = packets[chunk.uuid];
+					var finalArray = [], length = _packets.length;
+
+					for (var i = 0; i < length; i++) {
+						if (_packets[i]) {
+							FileConverter.DataURLToBlob(_packets[i], function(buffer) {
+								finalArray.push(buffer);
+							});
+						}
+					}
+
+					var blob = new Blob(finalArray, { type: chunk.type });
+					blob = merge(blob, chunk);
+					blob.url = URL.createObjectURL(blob);
+					blob.uuid = chunk.uuid;
+
+					!blob.size && console.error('Something went wrong. Blob Size is 0.');
+
+					config.onEnd && config.onEnd(blob);
+				}
+
+				if (chunk.value && config.onProgress){
+					config.onProgress(chunk);
+				}
+			}
+
+			return {
+				receive: receive
+			};
+		},
+		SaveToDisk: function(fileUrl, fileName) {
+			var hyperlink = document.createElement('a');
+			hyperlink.href = fileUrl;
+			hyperlink.target = '_blank';
+			hyperlink.download = fileName || fileUrl;
+
+			var mouseEvent = new MouseEvent('click', {
+				view: window,
+				bubbles: true,
+				cancelable: true
+			});
+
+			hyperlink.dispatchEvent(mouseEvent);
+			(window.URL || window.webkitURL).revokeObjectURL(hyperlink.href);
+		}
+	};
+})()
+
+
+var audioOnlyTypes = ['audio/mp4;codecs="mp4a.40.2"', 'audio/webm;codecs="vorbis"'];
+var videoOnlyTypes = ['video/mp4;codecs="avc1.4D4001"', 'video/webm;codecs="vp8"'];
+var audioVideoTypes = ['video/mp4;codecs="avc1.4D4001,mp4a.40.2"', 'video/webm;codecs="vp8,vorbis"'];
+
+var videoCodecs={
+	'mp4':'avc1.4D4001'
+	,'webm':'vp8'
+	,'mp2t':'avc1.42E01E' //,mp4a.40.2
+}
+var audioCodecs={
+	'mp4':'mp4a.40.2'
+	,'webm':'vorbis'
+}
+//http://w3c-test.org/media-source/mediasource-addsourcebuffer.html
+web.mimeToCodecString=function(mime,forceReplace){
+	if(web.contains(mime,';')){
+		if(forceReplace){
+			return web.mimeToCodecString(mime.split(';')[0])
+		}else{
+			return mime
+		}
+	}
+	var split=mime.split('/')
+
+	if(split[0]=='video'){
+		return mime+';codecs="'+videoCodecs[split[1]]+','+audioCodecs[split[1]]+'"'
+	}else if(split[0]=='audio'){
+		return mime+';codecs="'+audioCodecs[split[1]]+'"'
+	}else{
+		throw mime+' type not supported'
+	}
+}
+
+web.sendFile=function(session,file){
+	debugger
+	var send = function(){
+		debugger
+			File.Send({
+				file: file,
+				channel: session, //anything with send command???
+				interval: 1, //one makes it async
+				chunkSize: 1000, // 1000 for RTP; or 16k for SCTP
+							// chrome's sending limit is 64k; firefox' receiving limit is 16k!
+			})
+		}
+	if(web.isString(session)){
+		session=peer.connect(session,{reliable:true})
+	}else if(session instanceof DataConnection){
+		if(session.open){
+			send()
+		}else{
+			session.on("connection",send)
+		}
+	}
+}
+
+web.recieveFile=function(session,onBegin,onProgress,onEnd){
+	var obj;
+	if(web.isObject(onBegin)){
+		obj=onBegin
+		onBegin=undefined
+	}else if(web.isFunction(onBegin),web.isFunction(onProgress),web.isFunction(onEnd)){
+		obj={onBegin:onBegin,onProgress:onProgress,onEnd:onEnd}
+	}
+	var fleReceiver = new File.Receiver(obj);
+	peer.onmessage = function (data) {
+		fleReceiver.receive(data);
+	};
+}
 
 
 		//http://stackoverflow.com/questions/1829774/jquery-simulating-a-click-on-a-input-type-file-doesnt-work-in-firefox
@@ -4378,7 +4810,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 
-			var guid = web.GUID() //TODO find a way that I don't have to use this
+			var guid = web.UUID() //TODO find a way that I don't have to use this
 			var fileDropHTML=$('<fieldset id="'+guid+'"class="fd-zone media well well-sm click-though" >'+
 			  '<span class="glyphicon glyphicon-file pull-left" style="font-size:5em"></span><div class="media-body" style="align:left"><b> Input: </b><br>Drop, paste or'+
 			  '<div><iframe src="javascript:false" name="fd_992" id="fd_992" style="display: none;"></iframe><form method="post" enctype="multipart/form-data" target="fd_992" style="position: relative;"><input type="hidden" name="fd-callback"><input id="fileDropInput" type="file" name="fd-file" class=" fd-file" multiple="multiple" style="height:35px;line-height: 1.42857143;font-family: Lucida Grande,Lucida Sans,Arial,sans-serif; font-size: 1em;"></form></div><p><button id="fileDropDisplayButton" type="button" class="btn btn-default" onclick="document.getElementById(\'fileDropInput\').click()">select</button></p></div>'+
@@ -4737,22 +5169,28 @@ this.web=(function(web,global,environmentFlags,undefined){
 			
 		}
 		var containsBank={} //TODO ensure this does not get too big!
-		web.contains=function(str,word,caseInsensitive){
+		web.contains=function(str,word,caseInsensitive){ //
+			if(!str){
+				return false
+			}
 			if(caseInsensitive){
 				if(web.isString(word)){
 					var bank = containsBank[word]
-					if(!bank){
+					if(!bank){ //Using reg-ex because http://jsperf.com/case-sensitive-regex-vs-case-insensitive-regex/3
 						word = containsBank[word]=new RegExp(word,'i')
 					}else{
 						word=bank
 					}
 				}
-				return str.search(word)>=0
+				return word.test(str) //str.search(word)>=0   //http://jsperf.com/regexp-test-vs-match-m5/4
 			}
-			return (String(str).indexOf(word)>=0)
+			if(!web.isString(str)){
+				str = web.toString(str)	
+			}
+			return (str.indexOf(word)>=0)
 		}
 		web.equalsWord=function(str,word,caseInsensitive){
-			if(str.length==word.length){
+			if(str.length==word.length){ //Using reg-ex because http://jsperf.com/case-sensitive-regex-vs-case-insensitive-regex/3
 				return web.contains(str,word,caseInsensitive)
 			}
 		}
@@ -5823,6 +6261,23 @@ this.web=(function(web,global,environmentFlags,undefined){
 			//Any other object	"object"
 		}
 
+		web.isInstance=web.instanceOf=function(obj,equals,deep){
+			if(deep){
+				console.warn('we do not support use of deep flag on web.isInstance anymore')
+			}
+			if(obj&&equals){
+		//DO NOT RELY ON TESTING .prototype.constructor
+				//See:https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
+				//use prototype for it is not-writable, not-enumerable and not-configurable
+				//see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/prototype
+				//var yes=(deep)?obj instanceof equals:Object.getPrototypeOf(obj) == equals.prototype 
+				var yes=obj instanceof equals;
+				return (yes)?equals:undefined
+				//TODO isChild could go here maybe???!!!! //|| isChild(Object.getPrototypeOf(obj),equals)
+			}
+			return false
+		}
+
 		/*[ This will take an object and convert it to a normalized string type]
 		 * @param  {[type]} obj [description]
 		 * @return {[type]}     [description]
@@ -5833,16 +6288,11 @@ this.web=(function(web,global,environmentFlags,undefined){
 		 //http://jsperf.com/afaaasdfjhdsf
 		 var typeCacheA=[]
 		 var typeCacheB=[]
+
 		 var type=web.isType=function(obj,equals,deep){ 
 			var equalsType=typeof equals;
 			if(equalsType=='function'){
-
-				//DO NOT RELY ON TESTING .prototype.constructor
-				//See:https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
-				//use prototype for it is not-writable, not-enumerable and not-configurable
-				//see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/prototype
-				return (deep)?obj instanceof equals:Object.getPrototypeOf(obj) == equals.prototype 
-				//TODO isChild could go here maybe???!!!! //|| isChild(Object.getPrototypeOf(obj),equals)
+				return web.isInstance(obj,equals,deep)
 			}
 
 			//Step1 typeof is the single fastest!
@@ -6109,14 +6559,20 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 			var obj=setScope(this,undefined)
 			if(web.isValue(obj)){
-				var resp
-				if(web.isNumber(key)){//Handle array indexes and even negitive ones
+				if (obj instanceof web.url){
+					return obj.request('GET',callback)
+				}
+
+				var resp,type=web.isType(obj)
+				if(type=="Location"){
+					return $.get(obj.toString(),callback)
+				}else if(type=='Number')){//Handle array indexes and even negitive ones
 					if(key<0){
 						resp=obj[obj.length+key]
 					}else{
 						resp=obj[key]
 					}
-				}else{
+				}else{ //get from javascript Obj
 					var parts = key.split('.')
 					resp = obj || window;
 					for (var i = 0; i < parts.length; i += 1) {
@@ -7311,12 +7767,42 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 		}
 
+		//http://stackoverflow.com/questions/986937/how-can-i-get-the-browsers-scrollbar-sizes
+		web.scrollbarWidth=function() { //TODO use dummy div?
+			var inner = document.createElement('p');
+			inner.style.width = "100%";
+			inner.style.height = "200px";
+
+			var outer = document.createElement('div');
+			outer.style.position = "absolute";
+			outer.style.top = "0px";
+			outer.style.left = "0px";
+			outer.style.visibility = "hidden";
+			outer.style.width = "200px";
+			outer.style.height = "150px";
+			outer.style.overflow = "hidden";
+			outer.appendChild(inner);
+
+			document.body.appendChild(outer);
+			var w1 = inner.offsetWidth;
+			outer.style.overflow = 'scroll';
+			var w2 = inner.offsetWidth;
+			if (w1 == w2) w2 = outer.clientWidth;
+
+			document.body.removeChild(outer);
+
+			return (w1 - w2);
+		};
+
 				/**
 		 * Returns a random integer between min (inclusive) and max (inclusive)
 		 * Using Math.round() will give you a non-uniform distribution!
 		 * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random
 		 */
 		web.randomInt=function (min, max) {
+			if(max.length){
+				max=max.length-1;
+			}
 			return Math.floor(Math.random() * (max - min + 1)) + min;
 		}
 				//Original inspiration
@@ -7479,6 +7965,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 			if(typeof keys=='string'){
 				keys = keys.split(',')
 			}else if(keys==null||typeof keys=='number'){ //assume obj is array like so make it array
+				if(keys>0&&index2==null){
+					index2=keys
+					keys=undefined
+				}
 				return Array.prototype.slice.call(obj, keys||0,index2||undefined);
 			}
 			
@@ -7495,6 +7985,12 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}else{
 				throw 'not implemented'
 			}
+		}
+
+		var splitTrimCache={}
+		web.splitTrim=function(string,delimiter){
+			var regEx=splitTrimCache[delimiter]||new RegExp('\s*'+delimiter+'\s*',g)
+			return string.split(regEx)
 		}
 
 		web.lineStartingWith=function(lines,word){
@@ -7914,6 +8410,63 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 
 
+//http://html5multimedia.com/code/ch9/video-canvas-screenshot.html
+		// web.captureImageCanvasCTX=captureImageCanvas.getContext('2d');
+		// web.captureImage=function(target,options,callback){
+		// 	web.isVideoElement(target){
+		// 		if(!web.captureImageCanvasCTX){
+		// 			var canvas = document.createElement('canvas');
+		// 			canvas.width = options.width||640;
+		// 			canvas.height = options.height||480;
+		// 			//draw image to canvas. scale to target dimensions
+		// 			captureImageCanvasCTX.drawImage(video, 0, 0, canvas.width, canvas.height);
+		// 			//convert to desired file format
+		// 			return canvas.toDataURL('image/jpeg'); // can also use 'image/png'
+		// 		}
+		// 	}
+		// }
+
+		//https://www.msu.edu/~weinjare/scrubber.html
+		web.scrubber=function(video,scrubber,callback){
+			if(web.isFunction(options)){
+				callback=options
+				options={}
+			}
+			scrubber = $("<div class='web-scrubber'>"+"</div>")[0]
+
+			var	preview = $("<div />")[0],
+				videoClone;
+			if(video.cloneNode){
+				videoClone=video.cloneNode(true)
+			}else{
+				videoClone=$(video).clone()[0]
+			}
+			preview.appendChild(videoClone);
+			videoClone.removeAttribute("controls");
+			scrubber.addEventListener("mousemove", function(e) {
+				var x = e.clientX;
+				var r = s.getBoundingClientRect();
+				var p = (x - r.left) / r.width;
+				var previewWidth = 48 * (video.videoWidth / video.videoHeight);
+				preview.style.left = Math.max(0, (Math.min(p * video.videoWidth - (previewWidth / 2), video.videoWidth - previewWidth))) + "px";
+				videoClone.currentTime = p * videoClone.duration;
+			}, false);
+			scrubber.addEventListener("mouseenter", function() { //show preview over scrubber
+				preview.hidden = false;
+			}, false);
+			scrubber.addEventListener("mouseleave", function() { //hide preview over scrubber
+				preview.hidden = true;
+			}, false);
+			scrubber.addEventListener("click", function() { //seek to time in viewable video
+				video.currentTime = videoClone.currentTime;
+			}, false);
+
+
+			var face={
+
+			}
+			return scrubber
+		}
 
 
 		web.screenshot=function(targetElement,type,callback){
@@ -8653,17 +9206,22 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 		//http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript
-		web.GUID=function(format,source,callback){
+		web.UUID=function(format,source,callback){ //TODO use performant and cryptographically random  number
 			if(web.isNumber(format)){
 				format=Array(format+1).join('x')
 			}else{
 				format=format||/*web.numberToRadix(web.UID('GUID'),16)+*/'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
 			}
+
+			var d = new Date().getTime();
 			return format.replace(/[xy]/g, function(c) {
-				var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
-				return v.toString(16);
+				var r = (d + Math.random()*16)%16 | 0;
+				d = Math.floor(d/16);
+				return (c=='x' ? r : (r&0x3|0x8)).toString(16);
 			});
 		}
+
+
 		var uids={
 
 		}
@@ -8789,6 +9347,109 @@ this.web=(function(web,global,environmentFlags,undefined){
 			if(req.cookie){return req.cookie;}
 			else if(req.headers.cookie){
 				return ""
+			}
+		}
+
+
+		var soString=function(obj,constructors,delims,tabs){
+			var string='',type = web.isType(obj);
+			if(type == "Object"){
+				tabs++
+				_.forEach(obj,function(value,key){
+					string+=delims.entry+delims.assign.repeat(tabs)+key+delims.assign+soString(value,constructors,delims,tabs)
+				})
+			}else if(type=="Array"){
+				_.forEach(obj,function(value,key){
+					string+=delims.array+soString(value,constructors,delims,0)
+				})
+				string+=delims.array
+			}else if(type=="String"){
+				return obj
+			}else{ //if(type=="Number"||type=="Boolean"||type=="Function"){
+				obj=web.toString(obj)
+				string+=constructors[type]+obj+constructors[type]
+			}
+			return string
+		}
+
+		web.soString=function(obj,constructors,delims){
+			var string = '',tabs;
+			if(!constructors){
+				constructors={
+					'Number':'&'
+					,'Boolean':'^'
+					//'':'Date'
+				}
+			}
+
+			delims=delims||{}
+			
+			if(!delims.entry){//entry
+				delims.entry = '\n' //String.fromCharCode(0x07) //bell
+			}
+			if(!delims.assign){//key n value
+				delims.assign = '\t' //web.delimiter
+			}
+			if(!delims.array){//array
+				delims.array= String.fromCharCode(0x7F) //delete
+			}
+			if(!delims.pointer){ //pointer
+				delims.pointer='*'//TODO
+			}
+			if(!delims.construct){//constructor
+				delims.construct='*' //String.fromCharCode(0x00)
+			}
+			if(!delims.func){//function
+				delims.func='*' //String.fromCharCode(0x00)
+			}
+			tabs=(tabs!=null)?tabs:-1
+			// if(web.isString(obj)){
+			// 	string = obj
+			// }else{
+			// 	string=JSON.stringify(obj)
+			// }
+			// debugger
+			// string = string.replace(/\{"([^\\"]*?)"/g,function(match,p1,p2){ //|":"|","|":[
+			// 	debugger
+			// 	if(match=='{"'){
+			// 		return del1.repeat(tabs++)
+			// 	}
+			// 	if(match=='":"'){
+			// 		return del1
+			// 	}
+			// 	if(match=='","'){
+			// 		return del2
+			// 	}
+			// 	if(match==':['){
+			// 		return del3
+			// 	}
+			// })
+			var keyList="entry assign array pointer construct func"
+			string+=String.fromCharCode(0x00) //char that tells version
+			string+=delims.entry+delims.assign+delims.array+delims.pointer+delims.construct+delims.func; //char list (first char is delimiter for meta data too)
+			string+=delims.entry //delimiter for special char list
+			_.forEach(delims,function(value,key){
+				if(web.contains(keyList,key)){return}
+				string+=value+key+value //assign characters to constructors
+			})
+			string+=delims.entry
+
+			string+=soString(obj,constructors,delims,tabs)
+
+			return string
+
+
+
+		}
+		web.unString=function(data){ //can use call syntax
+			var obj=setScope(this,undefined)
+			var code=data.charAt(0)
+
+			if(code==0){
+				var endPartitionDelims=web.indexOf(data,data.charAt(1),2,1)
+				var delims = data.slice(1,endPartitionDelims)
+				var constructors = data.slice(endPartitionDelims+1,web.indexOf(data,data.charAt(1),endPartitionDelims+1))
+				//var startOfData=web.indexOf(data,data.charAt(1),2,3) //position of delimiter
 			}
 		}
 
@@ -8950,8 +9611,41 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 		web.responsiveRatio.ranOnce=false;
 
-
-		web.ms={}
+		//https://gist.github.com/paulirish/5438650
+		web.ms=function(){
+			// @license http://opensource.org/licenses/MIT
+			// copyright Paul Irish 2015
+			 
+			 
+			// Date.now() is supported everywhere except IE8. For IE8 we use the Date.now polyfill
+			//   github.com/Financial-Times/polyfill-service/blob/master/polyfills/Date.now/polyfill.js
+			// as Safari 6 doesn't have support for NavigationTiming, we use a Date.now() timestamp for relative values
+			 
+			// if you want values similar to what you'd get with real perf.now, place this towards the head of the page
+			// but in reality, you're just getting the delta between now() calls, so it's not terribly important where it's placed
+			 
+			  if ("performance" in window == false) {
+			      window.performance = {};
+			  }
+			  
+			  Date.now = (Date.now || function () {  // thanks IE8
+				  return new Date().getTime();
+			  });
+			 
+			  if ("now" in window.performance == false){
+			    
+			    var nowOffset = Date.now();
+			    
+			    if (performance.timing && performance.timing.navigationStart){
+			      nowOffset = performance.timing.navigationStart
+			    }
+			 
+			    window.performance.now = function now(){
+			      return Date.now() - nowOffset;
+			    }
+			  }
+		}
+		//web.ms()
 		web.ms.days=function(days){
 			return days*86400000;
 		}
@@ -9078,26 +9772,47 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 
 		web.on=function(elem,event,handler,bool,arg){
+			if(web.isString(elem)){
+				arg=bool
+				bool=handler
+				handler=event
+				event=elem
+				elem=undefined
+			}
+
+			
+
 			if(!web.isBoolean(bool)){
 				arg=bool
 				bool=arg
 			}
+
+			// if(web.contains(event,'||')){
+			// 	var events = event.split('||')
+			// 	function (onclick) {
+			// 		this.bind("touchstart", function (e) { onclick.call(this, e); e.stopPropagation(); e.preventDefault(); });
+			// 		this.bind("click", function (e) { onclick.call(this, e); });   //substitute mousedown event for exact same result as touchstart         
+			// 		return this;
+			// 	};
+			// }
 			//if(event=='dragStart')
 			if(event=='longClick'){
+				elem=$( (elem||document) );
 				(function(){
 					var pressTimer
 					$(elem).mouseup(function(){
-					  clearTimeout(pressTimer)
-					  // Clear timeout
-					  return false;
+						clearTimeout(pressTimer)
+						// Clear timeout
+						return false;
 					}).mousedown(function(){
-					  // Set timeout
-					  pressTimer = window.setTimeout(handler,arg||1000)
-					  return false; 
+						// Set timeout
+						pressTimer = window.setTimeout(handler,arg||1000)
+						return false; 
 					});
 				})()
 				return
 			}else if(event =='scrollDown'){ //TODO implmente this
+				elem=$( (elem||document) )
 				var lastScrollTop = 0, delta = 5;
 				$(window).scroll(function(event){
 				   var st = $(this).scrollTop();
@@ -9194,16 +9909,38 @@ this.web=(function(web,global,environmentFlags,undefined){
 			return array
 		}
 
-		web.sort=function(array,comparator,arg1){
+		web.sort=function(array,comparator,a,b,c,d,e,f,g){
 			if(!comparator){
 				comparator=web.comparator.numerical
 			}else if(web.isString(comparator)){
 				if(comparator=='natural'){
-					return web.naturalSort(array,arg1)
+					return web.naturalSort(array,a,b,c,d,e,f,g)
 				}
 			}
 			return array.sort(comparator)
 		}
+		web.sorter=function(type,getter,decending){
+			var comparator
+			if(type=='numerical'){
+				//var desending = (comparator.charAt(0)==">")?true:false;
+				//var expression = comparator.substr(1,comparator.indexOf("("))
+				//var getter = comparator.substr(comparator.indexOf("(")+1,comparator.indexOf(")"))
+				// if(comparator=='natural'){ //todo fix this in other code parts and make it asending&decinging/expression compatable
+				// 	return web.naturalSort(array,a,b,c,d,e,f,g)
+				// }
+				if(decending){
+					comparator=function(a, b) {return web.get.call(b,getter) - web.get.call(a,getter) }
+				}else{
+					comparator=function(a, b) {return web.get.call(a,getter) - web.get.call(b,getter) }
+				}
+			}
+			//comparator=comparator||web.comparator.numerical
+			return comparator
+		}
+
+
+
+
 
 
 		/*use to turn swipe history on or off for different browers n environments.
@@ -9830,7 +10567,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 		web.inputText=function(callback){
 			var parent
-			var id=web.GUID();
+			var id=web.UUID();
 			if(web.isString(callback)){
 				var path=callback
 				callback=function(e,data){
@@ -9912,14 +10649,22 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 		//Supports regexp
 		//http://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr
-		web.indexOf = function(str,regex, startpos) {
-			if(regex instanceof RegExp){
-				var indexOf = str.substring(startpos || 0).search(regex);
-				return (indexOf >= 0) ? (indexOf + (startpos || 0)) : indexOf;
+		web.indexOf= function(str,regex,startpos,nth) {
+			var ans;
+			while(nth){
+				debugger
+				startpos=(ans)?ans+1:(startpos||0);
+				if(regex instanceof RegExp){
+					var indexOf = str.substring(startpos).search(regex);
+					ans=(indexOf >= 0) ? (indexOf + (startpos)) : indexOf;
+				}else{
+					ans=str.indexOf(regex,startpos)
+				}
+				nth--
 			}
-			return str.lastIndexOf(regex,startpos)
+			return ans
 		}
-		web.lastIndexOf = function(str,regex, startpos) {
+		web.lastIndexOf= function(str,regex, startpos) {
 			if(regex instanceof RegExp){
 				regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : ""));
 				if(typeof (startpos) == "undefined") {
@@ -10427,6 +11172,15 @@ this.web=(function(web,global,environmentFlags,undefined){
 		var recycledObjects={}
 
 		web.free=function(obj,instance,obj2){
+			if(!obj){
+				return
+			}
+			if(web.isString(obj)){
+				if(web.startsWith(obj,'blob:')){
+					return URL.revokeObjectURL(obj)
+				}
+				return
+			}
 			obj.clear&&obj.clear()
 			obj.reset&&obj.reset()
 			if(instance==null){
@@ -10615,7 +11369,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				var scope=(this===web||this===web.global)?undefined:this;
 				var callback
 				if(scope||arguments.length>1){
-					callback=(function(){func.apply(scope,Array.prototype.slice.call(arguments, 1))})
+					callback=[func,scope,Array.prototype.slice.call(arguments, 1)] //(function(){func.apply(scope,Array.prototype.slice.call(arguments, 1))})
 				}else{
 					callback=func
 				}
@@ -10630,7 +11384,12 @@ this.web=(function(web,global,environmentFlags,undefined){
 				if (event.source == web.global && event.data == messageName) {
 					event.stopPropagation();
 					if (timeouts.length > 0) {
-						timeouts.shift()();
+						var args=timeouts.shift();
+						if(args.call){
+							args()
+						}else{
+							args[0].apply(args[1],args[2])
+						}
 					}
 				}
 			}
