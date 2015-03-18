@@ -937,6 +937,133 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 
+ 		/*jquery's type operations extracted for use before jquery is loaded*/
+		var class2type = {
+			/*"[object Boolean]": "Boolean",
+			"[object Number]": "Number",
+			"[object String]": "String",
+			"[object Function]": "Function",
+			"[object Array]": "Array",
+			"[object Date]": "Date",
+			"[object RegExp]": "Regexp",
+			"[object Object]": "Object",
+			"[object Undefined]":"Undefined",
+			"[object Null]":"Null"*/
+
+			//typeof keys
+			'undefined':'Undefined'
+			//typeof null= 'object' SKIP THIS handle null differently
+			,'boolean':'Boolean'
+			,'number':'Number'
+			,'string':'String'
+			,'symbol':'Symbol' //EMAScript6
+			//Host object (provided by the JS environment)	Implementation-dependent
+			,'function':'Function'//Function object (implements [[Call]] in ECMA-262 terms)	"function"
+			//Any other object	"object"
+		}
+
+		web.isInstance=web.instanceOf=function(obj,equals,deep){
+			if(deep){
+				console.warn('we do not support use of deep flag on web.isInstance anymore')
+			}
+			if(obj&&equals){
+		//DO NOT RELY ON TESTING .prototype.constructor
+				//See:https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
+				//use prototype for it is not-writable, not-enumerable and not-configurable
+				//see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/prototype
+				//var yes=(deep)?obj instanceof equals:Object.getPrototypeOf(obj) == equals.prototype 
+				var yes=obj instanceof equals;
+				return (yes)?equals:undefined
+				//TODO isChild could go here maybe???!!!! //|| isChild(Object.getPrototypeOf(obj),equals)
+			}
+			return false
+		}
+
+		/*[ This will take an object and convert it to a normalized string type]
+		 * @param  {[type]} obj [description]
+		 * @return {[type]}     [description]
+		 * @equals is a string or function constructor
+		 */
+		 //performance http://jsperf.com/checking-previously-typed-object
+		 //another performance of string vs hash lookup
+		 //http://jsperf.com/afaaasdfjhdsf
+		 var typeCacheA=[]
+		 var typeCacheB=[]
+
+		 var type=web.isType=function(obj,equals,deep){ 
+			var equalsType=typeof equals;
+			if(equalsType=='function'){
+				return web.isInstance(obj,equals,deep)
+			}
+
+			//Step1 typeof is the single fastest!
+			var x=typeof obj;
+			if(x!='object'){
+				//string manipulation is faster than hash lookup return (equals)?class2type[x]==equals:class2type[x];
+				if(equals){
+					return class2type[x]==equals; // return x.charAt(0).toUpperCase() + x.slice(1)==equals
+				}else{
+					return class2type[x] //return x.charAt(0).toUpperCase() + x.slice(1)
+				}
+			}
+			//Here and below it has to be an object
+			//console.log('web.isType: type did not give conclusive')
+			
+			//was it null?
+			if(!obj){ //do not put this any higher because it will only work after you check with 'typeof'
+				//it is also silly to put it higher when it will only rule out 1 (uncommon) outcome
+				//ps... this check is super dope fast
+				return (equals)?'Null'==equals:'Null'
+			} 
+			//console.log('web.isType: not null')
+			//http://jsperf.com/array-isarray-vs-instanceof-array/5
+			if(obj.concat === dummyArray.concat){ //or obj instanceof Array){fastest //or Array.isArray(obj) //or Object.getPrototypeOf(obj) == Array.prototype
+				//Note: I use the above as a quick check to see if it is an array.
+				//positive ID means we exit faster, negitive ID means it will have to be identified further below.
+				//if it is from another frame then it will be identified in the final lines of this function
+				if(obj instanceof Array){ //Array.isArray(obj){ //we did a dirty fast check but now confirm
+					return (equals)?'Array'==equals:'Array'
+				}
+			}
+
+			//idk if this test is reliable
+			//if(Object.getPrototypeOf(obj)===Object.prototype){
+			//	return (equals)?'Object'==equals:'Object'
+			//}
+			
+			//TODO test this!!!!!!!@@@@@
+			//if(Object.getPrototypeOf(obj)==Object.prototype){
+			//	return (equals)?'Object'==equals:'Object'
+			//}
+			//console.log('web.isType: not array')
+		/* 	var l = typeCacheA.length;
+			while(l--) {
+			  if(obj===typeCacheA[l]){
+				return typeCacheB[l]
+			  }
+			}
+
+			if(typeCacheA.length>=10){
+				typeCacheA.shift()&&typeCacheB.shift();
+			}*/
+
+			//below here is the slowest step!
+			var type = Object.prototype.toString.call(obj);
+			//using slice is faster than hash lookup 
+			//http://jsperf.com/afaaasdfjhdsf
+			if(equals){
+				//hash lookup slower than string manipulation return ( class2type[type] || (class2type[type]=type.slice(8,-1)) )==equals;
+				return type.slice(8,-1)==equals
+			}
+			//hash lookup slower than string manipulation return class2type[type] || (class2type[type]=type.slice(8,-1));
+			return type.slice(8,-1)
+		 }
+		 var isType=type;
+
+		web.hasInterface=function(obj,inter){
+
+		}
+
 
 		web.isBoolean=function(obj){
 			return typeof obj == 'boolean';
@@ -1490,10 +1617,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		*/
 		//currently only returns object with ? and # 
 
-		web.baseURL=web.url(null,'BASE')
-		web.base=function(){
-			return web.url(web.baseURL)a
-		}
+
 		web.url=function(url,cmd1,cmd2){
 			if(!(this instanceof web.url)){return new web.url(url,cmd1,cmd2)}
 
@@ -1622,7 +1746,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 			url = undefined
 		}
 
-
+		web.baseURL=web.url(null,'BASE')
+		web.base=function(){
+			return web.url(web.baseURL)
+		}
 
 		web.Object=web.Object||{};
 		web.Object.putAdd=function(obj,key,value){
@@ -6236,132 +6363,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 			return false
 		}
-		/*jquery's type operations extracted for use before jquery is loaded*/
-		var class2type = {
-			/*"[object Boolean]": "Boolean",
-			"[object Number]": "Number",
-			"[object String]": "String",
-			"[object Function]": "Function",
-			"[object Array]": "Array",
-			"[object Date]": "Date",
-			"[object RegExp]": "Regexp",
-			"[object Object]": "Object",
-			"[object Undefined]":"Undefined",
-			"[object Null]":"Null"*/
 
-			//typeof keys
-			'undefined':'Undefined'
-			//typeof null= 'object' SKIP THIS handle null differently
-			,'boolean':'Boolean'
-			,'number':'Number'
-			,'string':'String'
-			,'symbol':'Symbol' //EMAScript6
-			//Host object (provided by the JS environment)	Implementation-dependent
-			,'function':'Function'//Function object (implements [[Call]] in ECMA-262 terms)	"function"
-			//Any other object	"object"
-		}
-
-		web.isInstance=web.instanceOf=function(obj,equals,deep){
-			if(deep){
-				console.warn('we do not support use of deep flag on web.isInstance anymore')
-			}
-			if(obj&&equals){
-		//DO NOT RELY ON TESTING .prototype.constructor
-				//See:https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
-				//use prototype for it is not-writable, not-enumerable and not-configurable
-				//see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/prototype
-				//var yes=(deep)?obj instanceof equals:Object.getPrototypeOf(obj) == equals.prototype 
-				var yes=obj instanceof equals;
-				return (yes)?equals:undefined
-				//TODO isChild could go here maybe???!!!! //|| isChild(Object.getPrototypeOf(obj),equals)
-			}
-			return false
-		}
-
-		/*[ This will take an object and convert it to a normalized string type]
-		 * @param  {[type]} obj [description]
-		 * @return {[type]}     [description]
-		 * @equals is a string or function constructor
-		 */
-		 //performance http://jsperf.com/checking-previously-typed-object
-		 //another performance of string vs hash lookup
-		 //http://jsperf.com/afaaasdfjhdsf
-		 var typeCacheA=[]
-		 var typeCacheB=[]
-
-		 var type=web.isType=function(obj,equals,deep){ 
-			var equalsType=typeof equals;
-			if(equalsType=='function'){
-				return web.isInstance(obj,equals,deep)
-			}
-
-			//Step1 typeof is the single fastest!
-			var x=typeof obj;
-			if(x!='object'){
-				//string manipulation is faster than hash lookup return (equals)?class2type[x]==equals:class2type[x];
-				if(equals){
-					return class2type[x]==equals; // return x.charAt(0).toUpperCase() + x.slice(1)==equals
-				}else{
-					return class2type[x] //return x.charAt(0).toUpperCase() + x.slice(1)
-				}
-			}
-			//Here and below it has to be an object
-			//console.log('web.isType: type did not give conclusive')
-			
-			//was it null?
-			if(!obj){ //do not put this any higher because it will only work after you check with 'typeof'
-				//it is also silly to put it higher when it will only rule out 1 (uncommon) outcome
-				//ps... this check is super dope fast
-				return (equals)?'Null'==equals:'Null'
-			} 
-			//console.log('web.isType: not null')
-			//http://jsperf.com/array-isarray-vs-instanceof-array/5
-			if(obj.concat === dummyArray.concat){ //or obj instanceof Array){fastest //or Array.isArray(obj) //or Object.getPrototypeOf(obj) == Array.prototype
-				//Note: I use the above as a quick check to see if it is an array.
-				//positive ID means we exit faster, negitive ID means it will have to be identified further below.
-				//if it is from another frame then it will be identified in the final lines of this function
-				if(obj instanceof Array){ //Array.isArray(obj){ //we did a dirty fast check but now confirm
-					return (equals)?'Array'==equals:'Array'
-				}
-			}
-
-			//idk if this test is reliable
-			//if(Object.getPrototypeOf(obj)===Object.prototype){
-			//	return (equals)?'Object'==equals:'Object'
-			//}
-			
-			//TODO test this!!!!!!!@@@@@
-			//if(Object.getPrototypeOf(obj)==Object.prototype){
-			//	return (equals)?'Object'==equals:'Object'
-			//}
-			//console.log('web.isType: not array')
-		/* 	var l = typeCacheA.length;
-			while(l--) {
-			  if(obj===typeCacheA[l]){
-				return typeCacheB[l]
-			  }
-			}
-
-			if(typeCacheA.length>=10){
-				typeCacheA.shift()&&typeCacheB.shift();
-			}*/
-
-			//below here is the slowest step!
-			var type = Object.prototype.toString.call(obj);
-			//using slice is faster than hash lookup 
-			//http://jsperf.com/afaaasdfjhdsf
-			if(equals){
-				//hash lookup slower than string manipulation return ( class2type[type] || (class2type[type]=type.slice(8,-1)) )==equals;
-				return type.slice(8,-1)==equals
-			}
-			//hash lookup slower than string manipulation return class2type[type] || (class2type[type]=type.slice(8,-1));
-			return type.slice(8,-1)
-		 }
-		 var isType=type;
-
-		web.hasInterface=function(obj,inter){
-
-		}
 
 		//if true returns absolute url, if false returns false
 		web.isURL=function(url){
@@ -6566,7 +6568,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				var resp,type=web.isType(obj)
 				if(type=="Location"){
 					return $.get(obj.toString(),callback)
-				}else if(type=='Number')){//Handle array indexes and even negitive ones
+				}else if(type=='Number'){//Handle array indexes and even negitive ones
 					if(key<0){
 						resp=obj[obj.length+key]
 					}else{
