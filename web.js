@@ -2624,7 +2624,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}else{
 				pos.change.offset()
 			}
-			pos.position=(type||'absolute')s
+			pos.position=(type||'absolute')
 			hoistToBody && change.appendTo('body');
 			return change.css(pos);
 		}
