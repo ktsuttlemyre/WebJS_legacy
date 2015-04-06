@@ -1113,7 +1113,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		//http://stackoverflow.com/users/36866/some
 		//http://stackoverflow.com/questions/384286/javascript-isdom-how-do-you-check-if-a-javascript-object-is-a-dom-object
 		//Returns true if it is a DOM node
-		web.isNode=(typeof Node === "object")
+		web.isNode=(typeof web.global.Node != "undefined")
 			?function(o){
 				return o instanceof Node
 			}
@@ -1122,7 +1122,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 			};
 
 		//Returns true if it is a DOM element
-		web.isElement=(typeof HTMLElement === "object")
+		web.isElement=(typeof web.global.HTMLElement != "undefined")
 			?function(o){
 				return o instanceof HTMLElement //DOM2
 			}
@@ -1724,7 +1724,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				if(type=='GET'){
 					return $.get(this.url.toString(),callback)
 				}else if(type=='POST'){
-					return $.post(this.url.toString())
+					return $.post(this.url.toString(),callback)
 				}else if(type=='PUT'){
 					throw 'Not implemented'
 					return 
@@ -2616,11 +2616,17 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 		}
 
-		web.convertPosition=function(id,type,hoistToBody){//id can be selector, dom element or jquery (dependency = jquery)
+		web.convertPosition=function(id,type,relativeTo,hoistToBody){//id can be selector, dom element or jquery (dependency = jquery)
 			var change=$(id)
-				,pos=change.position();
-			hoistToBody&&change.appendTo('body');
-			return change.css({top: pos.top, left: pos.left, position: (type||'absolute')});
+				,pos;
+			if(relativeTo == 'parent'){
+				pos=change.position()
+			}else{
+				pos.change.offset()
+			}
+			pos.position=(type||'absolute')s
+			hoistToBody && change.appendTo('body');
+			return change.css(pos);
 		}
 
 		//original Inspiration http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
@@ -6349,7 +6355,36 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		}
 		//Test alert(camelCase('FOo BarBA-_fo_under'));
 
+		//http://stackoverflow.com/questions/1053902/how-to-convert-a-title-to-a-url-slug-in-jquery
+		web.slugify=function(str,options){
+			var tmp;
+			if(!web.isObject(options)){
+				if(options=='lower'||options=='upper'){
+					tmp=options
+					options={}
+					options.setCase=tmp
+				}
+			}
+			str = str.replace(/^\s+|\s+$/g, ''); // trim
+			if(options.setCase=='lower'){
+				str = str.toLowerCase();
+			}else if(options.setCase=='upper'){
+				str = str.toUpperCase();
+			}
 
+			// remove accents, swap ñ for n, etc
+			var from = "ãàáäâẽèéëêìíïîõòóöôùúüûñç·/_,:;";
+			var to   = "aaaaaeeeeeiiiiooooouuuunc------";
+			for (var i=0, l=from.length ; i<l ; i++) {
+				str = str.replace(new RegExp(from.charAt(i), 'g'), to.charAt(i));
+			}
+
+			str = str.replace(/[^a-z0-9 -]/g, '') // remove invalid chars
+			.replace(/\s+/g, '-') // collapse whitespace and replace by -
+			.replace(/-+/g, '-'); // collapse dashes
+
+			return str;
+		}
 
 		var isChild=function(obj,constructor){
 			//DO NOT RELY ON TESTING .prototype.constructor
@@ -6797,6 +6832,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		var dummyDivCSS={'position': 'absolute', 'float': 'left', 'white-space': 'nowrap', 'visibility': 'hidden','padding':0,'margin':0} //{'visibility':'hidden','position':'absolute','bottom':(window.innerHeight+window.innerWidth)*1000,'right':(window.innerHeight+window.innerWidth)*1000}
 		var dummyDiv=$('<div></div>').css(dummyDivCSS)
 		var resetDummyDiv=function(){
+			dummyDiv.empty()
 			dummyDiv.removeAttr("style").css(dummyDivCSS)
 		}
 		$(function(){$('body').append(dummyDiv)})
@@ -10645,8 +10681,14 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 		}
 
-		web.isBetween=function(x,lower,upper){
-			return (lower < x && x < upper);
+		web.isBetween=function(x,lower,upper,comparator){
+			if(comparator){ //follows these rules //https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
+				// If compareFunction(a, b) is less than 0, i.e. a comes first.
+				// If compareFunction(a, b) is greater than 0, sort b to a lower index than a.
+				return (comparator(x,lower)>0 && comparator(x,upper)<0)
+			}else{
+				return (lower < x && x < upper);
+			}
 		}
 
 		//Supports regexp
@@ -11667,8 +11709,19 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				stream.removeAllListeners();
 				})
 		};
-
-
+//http://stackoverflow.com/questions/24482814/json-object-array-inside-array-find-and-replace-in-javascript
+web.replace=function(object, value, replacevalue, deep){ //DEV note: slow search
+	var keys = web.keys(object);
+	for(var i=0,l=keys.length;i<l;i++){
+		if(deep && web.isCollection(object[x])){
+			web.replace(object[x], value, replacevalue,deep);
+		}
+		if(object[x] === value){
+			object[x] = replacevalue;
+			// break; // uncomment to stop after first replacement
+		}
+	}
+}
 
 /*
 * Replace all SVG images with inline SVG
@@ -11714,17 +11767,66 @@ web.importSVG=function(url,callback){
 	svgs.each(function(){web.importSVG(this, web.afterNTimes(svgs,callback,svgs) )})
 }
 
-		web.buttonGroup=function(objMap){
-			web.forEach(objMap,function(obj,i){
-				var button=$('<button type="button" class="btn btn-default"/>')
-				web.forEach(obj,function(obj,j){
-					if(web.isFunction(obj)){
-						button.click(obj)
-					}else if(web.isString(obj)){
+web.options=function(options,defaults){
+	if(!options){
+		return defaults
+	}
+	var keys = web.keys(defaults)
+	if(!keys.length){
+		return defaults
+	}
+	for(var i=0,l=keys.length;i<l;i++){
+		if(options[keys[i]]===undefined){
+			options[keys[i]]=defaults[keys[i]]
+		}
+	}
+	return options
+}
 
-					}
-				})
+		web.buttonGroup=function(objMap,options){
+			options=web.options(options,{drop:'down'})
+
+			var root = $('<div class="btn-group '+(options.drop=='up')?'dropup':'dropdown'+'" />')
+
+			_.forEach(objMap,function(obj,i){
+				var button;
+				if(web.isString(i)){
+					button = $('<button type="button" class="btn btn-default">'+i+'</button>')
+				}else{
+					throw 'error with format'
+				}
+				root.append(button)
+				if(web.isCollection(obj)){
+					root.append($('<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">'
+									+'<span class="caret"></span>'
+									+'<span class="sr-only">Toggle Dropdown</span>'
+								+'</button>'))
+					var ul = $('<ul class="dropdown-menu" role="menu" />')
+					root.append(ul)
+					var selection
+
+					//TODO replace with web.forEach
+					var skip=false,k;
+					_.forEach(obj,function(str,j){
+						if(skip){skip=false;return}
+						skip=true;
+						var fn=obj[j+1]
+
+						if(!str){ //empty string
+							button.click(fn)
+							return
+						}
+						if(web.isString(str)){
+							selection= $('<li><a>'+str+'</a></li>').click(fn)
+						}else{
+							throw 'error with format'
+						}
+						ul.append(selection)
+					})
+				}
+
 			})
+	return root
 
 		}
 
