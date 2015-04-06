@@ -11786,8 +11786,9 @@ web.options=function(options,defaults){
 		web.buttonGroup=function(objMap,options){
 			options=web.options(options,{drop:'down'})
 
-			var root = $('<div class="btn-group '+(options.drop=='up')?'dropup':'dropdown'+'" />')
+			var root = $('<div class="btn-group '+((options.drop=='up')?'dropup':'dropdown')+'" />')
 
+		
 			_.forEach(objMap,function(obj,i){
 				var button;
 				if(web.isString(i)){
