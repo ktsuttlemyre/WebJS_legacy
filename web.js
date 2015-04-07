@@ -6597,6 +6597,16 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			var obj=setScope(this,undefined)
 			if(web.isValue(obj)){
 				if (obj instanceof web.url){
+
+					if(web.isFunction(key)){
+						callback=key
+						key=undefined
+					}else if(web.isObject(key)){
+						obj=obj.apply('?',key)
+						key=undefined
+					}else{
+						throw 'web.get called with unhandled key type'
+					}
 					return obj.request('GET',callback)
 				}
 
@@ -11781,6 +11791,27 @@ web.options=function(options,defaults){
 		}
 	}
 	return options
+}
+
+web.devTools=function(){
+
+}
+var responsiveTimestamp;
+web.devTools.responsive=function(off){
+	web.defer(web.devTools.responsive)
+	var graph=true
+	if(off){
+		return
+	}
+	var time=Date.now()
+	if(!responsiveTimestamp){
+		responsiveTimestamp=Date.now()
+		console.info('starting responsive test')
+		return
+	}
+	//if(graph){ //todo make graph graphical
+		console.info('delta block time',time-responsiveTimestamp)
+	//}
 }
 
 		web.buttonGroup=function(objMap,options){
