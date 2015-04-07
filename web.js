@@ -6643,6 +6643,9 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				return value && JSON.parse(value);
 			}
 		}
+		web.request=function(url,options,callback){
+			obj.request('GET',callback)
+		}
 
 		web.take=function(array,from,to){
 
@@ -8049,43 +8052,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 			return -1
 		}
-		web.partition=function(lines,condition,comparator){
-			var partitions=[],caret=0,fn;
-			if(_.isArray(condition)){
-				comparator=comparator||function(x,x1){return x==x1}
-				fn=function(input){
-					if(comparator(input,condition[0])){
-						condition.shift()
-						return true;
-					}
-					return false;
-					}
-			}else if(typeof condition=='object'){
-				if(!comparator){ //exact match then
-					fn=function(input){
-						if(condition[input]){
-							return true;
-						}
-						return false;
-						}
-					}else{
-						throw 'implement this'
-					}
-			}else{
-				fn=condition
-			}
-			for(var i=0,l=lines.length;i<l;i++){
-				if(fn(lines[i])){
-					if(caret==i){continue}
-					partitions.push(lines.slice(caret,i))
-					caret=i;
-				}
-			}
-			if(caret!=lines.length){
-				partitions.push(lines.slice(caret))
-			}
-			return partitions
-		}
+	
 
 
 		//http://stackoverflow.com/questions/1144783/replacing-all-occurrences-of-a-string-in-javascript
@@ -8442,16 +8409,88 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 
 		web.splitOnNth=function(string,characters,index,flags){
-			var reg=web.splitOnNth.bank[characters+index+flags]
-			if(!reg){
-				var characters=web.encodeRegExp(characters)
-				var arr = Array.apply(null,Array(index));
-				arr.map(function(x,i){return characters});
-				reg=web.splitOnNth.bank=new RegExp('/'+arr.join('.+?')+'(.+)?/',flags)
-			}
-			return string.split(reg)[1]
+			web.depricated('use web.divideOn')
+			return web.divideOn(string,characters,index,flags)
 		}
-		web.splitOnNth.bank={}
+		web.divideOn=function(string,characters,index,flags){
+			if(index==null){
+				index=1
+			}
+			if(web.isString(characters)){
+				var i;
+				if(index>0){
+					i=0
+					while(index--){
+						i = string.indexOf(characters,i+1);
+					}
+				}else{
+					i=string.length;
+					while(index++){
+						i = string.lastIndexOf(characters,i-1);
+					}
+				}
+				if(i<0){
+					return [string]
+				}
+				return [string.slice(0,i), string.slice(i+1)];
+			}else if(web.isNumber(characters)){
+				return [string.slice(0,characters), string.slice(characters+1)];
+			}else if(web.isType(characters,'RegExp')){
+				alert('to implment')
+				// var reg=web.divideOn.bank[characters+index+flags]
+				// if(!reg){
+				// 	var chars=web.encodeRegExp(characters)
+				// 	var arr = Array.apply(null,Array(index));
+				// 	arr.map(function(x,i){return chars});
+				// 	reg=web.divideOn.bank[characters+index+flags]=new RegExp('/'+arr.join('.+?')+'(.+)?/',flags)
+				// }
+				//return string.split(reg)[1]
+			}
+		}
+		web.divideOn.bank={}
+
+
+		web.partition=function(lines,condition,comparator){
+			var partitions=[],caret=0,fn;
+			if(_.isArray(condition)){
+				comparator=comparator||function(x,x1){return x==x1}
+				fn=function(input){
+					if(comparator(input,condition[0])){
+						condition.shift()
+						return true;
+					}
+					return false;
+					}
+			}else if(typeof condition=='object'){
+				if(!comparator){ //exact match then
+					fn=function(input){
+						if(condition[input]){
+							return true;
+						}
+						return false;
+						}
+					}else{
+						throw 'implement this'
+					}
+			}else{
+				fn=condition
+			}
+			if(web.isArray(lines)){
+				for(var i=0,l=lines.length;i<l;i++){
+					if(fn(lines[i])){
+						if(caret==i){continue}
+						partitions.push(lines.slice(caret,i))
+						caret=i;
+					}
+				}
+				if(caret!=lines.length){
+					partitions.push(lines.slice(caret))
+				}
+				return partitions
+			}else{
+				throw 'not implmented'
+			}
+		}
 
 		web.removeWhitespace=function(str,trim){
 			return ((trim)?str.trim():str).split(web.RegExp.concurrentWhitespace)
