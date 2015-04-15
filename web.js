@@ -1372,6 +1372,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 						}
 				}
 			})
+			//webWrapper.prototype=new jQuery();
 
 
 
@@ -1619,37 +1620,23 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 		web.url=function(url,cmd1,cmd2){
-			if(!(this instanceof web.url)){return new web.url(url,cmd1,cmd2)}
-
-			url=url||web.global.location.href
-
 			//handle file (file drop to native)
 			if(web.instanceOf(url,fd.File)){
 				url=url.nativeFile
 			}
-			//handle native (browser) file
-			if(web.instanceOf(url,window.File)){
-				if(cmd1){ //todo figure out what this should be called. just take anything as true
-					return URL.createObjectURL(url)
-				}else{
-					return web.toDataURI(url)
+
+
+			if(cmd1){
+				cmd1=cmd1.toUpperCase && cmd1.toUpperCase()
+				//handle native (browser) file
+				if(web.instanceOf(url,window.File)||web.instanceOf(url,window.Blob)){
+					if(web.startsWith(cmd1,'data',true)){ //todo figure out what this should be called. just take anything as true
+						return web.toDataURI(url)
+					}else{
+						return URL.createObjectURL(url)
+					}
 				}
-			}
 
-			if(!web.isString(url)){ //if(type=='Location'){url=url.href}
-				url=url.href||url
-				url=url.src||url
-			}
-
-			// if(web.isObject(cmd1)){
-			// 		url.addSearch(queryData);
-			// 	if(web.isObject(cmd2)){
-			// 		url.addFragment(hashData);
-			// 	}
-			// }
-
-			if(cmd1&&cmd1.toUpperCase){
-				cmd1=cmd1.toUpperCase()
 
 				if(cmd1=='DOMAIN'){
 					//http://stackoverflow.com/questions/8498592/extract-root-domain-name-from-string
@@ -1662,9 +1649,38 @@ this.web=(function(web,global,environmentFlags,undefined){
 					return (web.url(url,'domain')==web.url(cmd2,'domain'))
 				}else if(cmd1=='BASE'){
 					return location.protocol + "//" + location.hostname + (location.port && ":" + location.port) + "/";
+				}else if(web.startsWith(cmd1,'data')){
+					if(web.isURL(url)){
+						return web.toDataURI('<html><meta http-equiv="Refresh" content="0; url='+url+'"></html>','text/html')
+					}else{
+						web.toDataURI(url)
+					}
 				}
 			}
 			
+
+			if(!(this instanceof web.url)){return new web.url(url,cmd1,cmd2)}
+
+			url=url||web.global.location.href
+
+			if(!web.isString(url)){ //if(type=='Location'){url=url.href}
+				this.resource=url
+
+				url=this.resource.href
+				url=this.resource.src||url
+
+				if(!url){
+					throw 'error creating url'
+				}
+			}
+
+			// if(web.isObject(cmd1)){
+			// 		url.addSearch(queryData);
+			// 	if(web.isObject(cmd2)){
+			// 		url.addFragment(hashData);
+			// 	}
+			// }
+
 
 			var uri = new URI(url)
 
@@ -1675,9 +1691,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 			this.url=url
-			this.toString=function(){
-				return this.url
-			}
+
 								/*the browser does a simple trim left.
 									test http://127.0.0.1:1234/IDMetabolite.html?ggks=6h=%22s#dfs"#lkjsdf=9
 									location.search
@@ -1744,6 +1758,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 
 			url = undefined
+		}
+		web.url.prototype.toString=function(){
+			return this.url
 		}
 
 		web.baseURL=location.protocol + "//" + location.hostname + (location.port && ":" + location.port) + "/"; //web.url(null,'BASE')
@@ -4177,44 +4194,64 @@ this.web=(function(web,global,environmentFlags,undefined){
 			var type = web.isType(input);
 
 			if(type=='ArrayBuffer'||type=='String'){
-				return 'data:'+mimeType+';charset=utf-8;base64,'+web.toBase64(input)
+				var ans = 'data:'+mimeType+';charset=utf-8;base64,'+web.toBase64(input)
+				callback && web.defer(callback,ans)
+				return ans
+			}else if(type=='String' && web.isBlobURL(input)){
+				var xhr = new XMLHttpRequest();
+				xhr.responseType = 'blob';
+
+				xhr.onload = function() {
+					var recoveredBlob = xhr.response;
+					var reader = new FileReader;
+
+					reader.onload = function() {
+						callback(reader.result)
+					};
+
+					reader.readAsDataURL(recoveredBlob);
+				};
+
+				xhr.open('GET', input, !!callback);//callback is converted to boolean to make sync async call
+				xhr.send(null); //http://stackoverflow.com/questions/15123839/why-do-we-pass-null-to-xmlhttprequest-send
+				return null
 			}
 
-		//TODO use url above to decipher below code
-		function fileSelected(evt) {
-			var files = evt.target.files;
-			var type = '';
-			var fr = new FileReader();
-			fr.onload = function(event){
-				//TODO the below code should probably be in a callback
-				callback.call(f,event)
-				if(type.indexOf("image") == 0){ //fileContent is a blank div to show preview
-					var fileContent=document.getElementById('fileContent')
-					fileContent.innerHTML = "&lt;img src='" + event.target.result + "' /&gt;";
-					fileContent.innerHTML += "&lt;br/&gt;";
-					var d = event.target.result;
-					d = d.replace("data:;","data:" + type + ";");
-					fileContent.innerHTML += "&lt;strong&gt;Data URI: &lt;/strong&gt;" + d;
+			//TODO use url above to decipher below code
+			function fileSelected(evt) {
+				var files = evt.target.files;
+				var type = '';
+				var fr = new FileReader();
+				fr.onload = function(event){
+					//TODO the below code should probably be in a callback
+					callback.call(f,event)
+					if(type.indexOf("image") == 0){ //fileContent is a blank div to show preview
+						var fileContent=document.getElementById('fileContent')
+						fileContent.innerHTML = "&lt;img src='" + event.target.result + "' /&gt;";
+						fileContent.innerHTML += "&lt;br/&gt;";
+						var d = event.target.result;
+						d = d.replace("data:;","data:" + type + ";");
+						fileContent.innerHTML += "&lt;strong&gt;Data URI: &lt;/strong&gt;" + d;
+					}
 				}
-			}
+				
+				for (var i = 0, f; f = files[i]; i++) {
+					
+					//Gives name of file : f.name
+					//Gives type of file : f.type e.g. text/plain or image/png etc
+					//Gives size of file : f.size (in bytes)
+					//Gives last modified date : f.lastModifiedDate
+					
+					var fileCopy = f.slice(0, f.size); //i.e. read entire file, as reading half image file doesn't solve any purpose
+					
+					type = f.type;
+					if(f.type.indexOf("image") == 0)
+						fr.readAsDataURL(fileCopy); //on successful read, fr.onload function will be called and that will populate the result in fileContent container
+					}
+				}
 			
-			for (var i = 0, f; f = files[i]; i++) {
-			  
-			  //Gives name of file : f.name
-			  //Gives type of file : f.type e.g. text/plain or image/png etc
-			  //Gives size of file : f.size (in bytes)
-			  //Gives last modified date : f.lastModifiedDate
-			  
-			  var fileCopy = f.slice(0, f.size); //i.e. read entire file, as reading half image file doesn't solve any purpose
-			  
-			  type = f.type;
-			if(f.type.indexOf("image") == 0)
-				fr.readAsDataURL(fileCopy); //on successful read, fr.onload function will be called and that will populate the result in fileContent container
-			}
-		  }
-		  
-		  //attach change event of file control
-		  document.getElementById('files').addEventListener('change', fileSelected, false);
+			//attach change event of file control
+			document.getElementById('files').addEventListener('change', fileSelected, false);
 
 
 		}
@@ -5162,6 +5199,28 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 		//TODO SOON do something like this web.image('ban','dataURI',32)
 
+		web.help=function(fn){ //TODO implmente this whole thing
+			var str = web.trimLeft(fn.toString(),'{'); //remove the first part because it reformats when the browser interpretes the fn
+			var searchIndex = web.toSource().indexOf(str) //get in the ball bark then expand the range
+			if(searchIndex!=-1){
+				var highRange=searchIndex+str.length
+				var lowRange=web.toSource().toString().lastIndexOf('}',searchIndex)+1 //TODO find a better indicator for beginning
+
+				return web.toSource().substring(lowRange,highRange)
+			}else{
+				throw 'do an ajax request to get the source'
+			}
+
+		}
+
+		web.alert=function(message /*arguments*/){ //TODO allow user to click on object to recall them in console
+			if(arguments.length>1){
+				message = '['+web.toArray(arguments).join(', ')+']'
+			}
+			web.notify('Alert',message)
+		}
+
+
 
 		//Apple console api
 		//https://developer.apple.com/library/ios/documentation/AppleApplications/Conceptual/Safari_Developer_Guide/Console/Console.html
@@ -5328,7 +5387,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 		}
 
-		web.startsWith=function(str,prefix,caseInsensitive){
+		var startsWith=function(str,prefix,caseInsensitive){ //note calling this externally helps prevent recursive array searching on prefix
 			if(str&&prefix){
 				if(caseInsensitive){
 					str=str.toLowerCase()
@@ -5339,9 +5398,20 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				}
 				return str.slice(0, prefix.length) == prefix; //does chop string but shouldnt iterate though whole string
 			}
+		}
+		web.startsWith=function(str,prefix,caseInsensitive){
+			if(web.isArray(prefix)){
+				for(var i=0,l=prefix.length;i<l;i++){
+					if(startsWith(str,prefix[i],caseInsensitive)){
+						return true
+					}
+				}
+				return false
+			}
+			return startsWith(str,prefix,caseInsensitive)
 		};
 
-		web.endsWith=function(str,suffix,caseInsensitive) {
+		var endsWith=function(str,suffix,caseInsensitive){ //note calling this externally helps prevent recursive array searching on prefix
 			if(str&&suffix){
 				if(caseInsensitive){
 					str=str.toLowerCase()
@@ -5353,6 +5423,18 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				//return str.slice(0, prefix.length) == prefix;
 				return str.indexOf(suffix, str.length - suffix.length) !== -1; //does not chop up string. should be faster
 			}
+		}
+
+		web.endsWith=function(str,suffix,caseInsensitive) {
+			if(web.isArray(suffix)){
+				for(var i=0,l=suffix.length;i<l;i++){
+					if(startsWith(str,suffix[i],caseInsensitive)){
+						return true
+					}
+				}
+				return false
+			}
+			return endsWith(str,suffix,caseInsensitive)
 		};
 
 		web.caseInsensitive=function(w,w2){
@@ -6421,6 +6503,12 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		web.isRelativeURL=function(url){
 			return isURL(web.toAbsoluteURL(url))
 
+		}
+		web.isDataURL=function(url){
+			return web.startsWith(url,'data:',true)
+		}
+		web.isBlobURL=function(url){
+			return web.startsWith(url,'blob:',true)
 		}
 
 		//http://stackoverflow.com/questions/6941533/get-protocol-domain-and-port-from-url
@@ -8043,6 +8131,97 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			var regEx=splitTrimCache[delimiter]||new RegExp('\s*'+delimiter+'\s*',g)
 			return string.split(regEx)
 		}
+		web.whitespaceSplit=function(str,noTrim){ //TODO support no trim
+			return str.match(/\S+/g);
+		}
+
+		web.splitOnNth=function(string,characters,index,flags){
+			web.depricated('use web.divideOn')
+			return web.divideOn(string,characters,index,flags)
+		}
+		web.divideOn=function(string,characters,index,flags){
+			if(index==null){
+				index=1
+			}
+			if(web.isString(characters)){
+				var i;
+				if(index>0){
+					i=0
+					while(index--){
+						i = string.indexOf(characters,i+1);
+					}
+				}else{
+					i=string.length;
+					while(index++){
+						i = string.lastIndexOf(characters,i-1);
+					}
+				}
+				if(i<0){
+					return [string]
+				}
+				return [string.slice(0,i), string.slice(i+1)];
+			}else if(web.isNumber(characters)){
+				return [string.slice(0,characters), string.slice(characters+1)];
+			}else if(web.isType(characters,'RegExp')){
+				alert('to implment')
+				// var reg=web.divideOn.bank[characters+index+flags]
+				// if(!reg){
+				// 	var chars=web.encodeRegExp(characters)
+				// 	var arr = Array.apply(null,Array(index));
+				// 	arr.map(function(x,i){return chars});
+				// 	reg=web.divideOn.bank[characters+index+flags]=new RegExp('/'+arr.join('.+?')+'(.+)?/',flags)
+				// }
+				//return string.split(reg)[1]
+			}
+		}
+		web.divideOn.bank={}
+
+
+		web.partition=function(lines,condition,comparator){
+			var partitions=[],caret=0,fn;
+			if(_.isArray(condition)){
+				comparator=comparator||function(x,x1){return x==x1}
+				fn=function(input){
+					if(comparator(input,condition[0])){
+						condition.shift()
+						return true;
+					}
+					return false;
+					}
+			}else if(typeof condition=='object'){
+				if(!comparator){ //exact match then
+					fn=function(input){
+						if(condition[input]){
+							return true;
+						}
+						return false;
+						}
+					}else{
+						throw 'implement this'
+					}
+			}else{
+				fn=condition
+			}
+			if(web.isArray(lines)){
+				for(var i=0,l=lines.length;i<l;i++){
+					if(fn(lines[i])){
+						if(caret==i){continue}
+						partitions.push(lines.slice(caret,i))
+						caret=i;
+					}
+				}
+				if(caret!=lines.length){
+					partitions.push(lines.slice(caret))
+				}
+				return partitions
+			}else{
+				throw 'not implmented'
+			}
+		}
+
+		web.removeWhitespace=function(str,trim){
+			return ((trim)?str.trim():str).split(web.RegExp.concurrentWhitespace)
+		}
 
 		web.lineStartingWith=function(lines,word){
 			for(var i=0,l=lines.length;i<l;i++){
@@ -8408,93 +8587,6 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		}
 
 
-		web.splitOnNth=function(string,characters,index,flags){
-			web.depricated('use web.divideOn')
-			return web.divideOn(string,characters,index,flags)
-		}
-		web.divideOn=function(string,characters,index,flags){
-			if(index==null){
-				index=1
-			}
-			if(web.isString(characters)){
-				var i;
-				if(index>0){
-					i=0
-					while(index--){
-						i = string.indexOf(characters,i+1);
-					}
-				}else{
-					i=string.length;
-					while(index++){
-						i = string.lastIndexOf(characters,i-1);
-					}
-				}
-				if(i<0){
-					return [string]
-				}
-				return [string.slice(0,i), string.slice(i+1)];
-			}else if(web.isNumber(characters)){
-				return [string.slice(0,characters), string.slice(characters+1)];
-			}else if(web.isType(characters,'RegExp')){
-				alert('to implment')
-				// var reg=web.divideOn.bank[characters+index+flags]
-				// if(!reg){
-				// 	var chars=web.encodeRegExp(characters)
-				// 	var arr = Array.apply(null,Array(index));
-				// 	arr.map(function(x,i){return chars});
-				// 	reg=web.divideOn.bank[characters+index+flags]=new RegExp('/'+arr.join('.+?')+'(.+)?/',flags)
-				// }
-				//return string.split(reg)[1]
-			}
-		}
-		web.divideOn.bank={}
-
-
-		web.partition=function(lines,condition,comparator){
-			var partitions=[],caret=0,fn;
-			if(_.isArray(condition)){
-				comparator=comparator||function(x,x1){return x==x1}
-				fn=function(input){
-					if(comparator(input,condition[0])){
-						condition.shift()
-						return true;
-					}
-					return false;
-					}
-			}else if(typeof condition=='object'){
-				if(!comparator){ //exact match then
-					fn=function(input){
-						if(condition[input]){
-							return true;
-						}
-						return false;
-						}
-					}else{
-						throw 'implement this'
-					}
-			}else{
-				fn=condition
-			}
-			if(web.isArray(lines)){
-				for(var i=0,l=lines.length;i<l;i++){
-					if(fn(lines[i])){
-						if(caret==i){continue}
-						partitions.push(lines.slice(caret,i))
-						caret=i;
-					}
-				}
-				if(caret!=lines.length){
-					partitions.push(lines.slice(caret))
-				}
-				return partitions
-			}else{
-				throw 'not implmented'
-			}
-		}
-
-		web.removeWhitespace=function(str,trim){
-			return ((trim)?str.trim():str).split(web.RegExp.concurrentWhitespace)
-		}
 
 
 //http://html5multimedia.com/code/ch9/video-canvas-screenshot.html
@@ -10999,12 +11091,24 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				,DOMNodeRemovedFromDocument:true
 				,DOMSubtreeModified:true}
 
+		var transitionEventEnd=''
+
+
 		//reference for events 
 		//https://developer.mozilla.org/en-US/docs/Web/Events
 		//note: passing document to a paste will be different than omiting it. If you want to attach to document then just omit
 		web.onEvent=/*web.on=*/function(eventName,element,callback,arg0){
-			var pluginName=(eventName.indexOf('.')>=0)
-			var parentHasFocus;
+			if(web.contains(eventName,' ')){
+				eventName=eventName.split(' ')
+				for(var i=0,l=eventName.lenght;i<l;i++){
+					eventName[i]=web.onEvent(eventName[i],element,callback,arg0)
+				}
+				return eventName
+			}
+			var hooked=false
+				,pluginName=(eventName.indexOf('.')>=0)
+				,parentHasFocus;
+
 			if(pluginName){
 				pluginName= eventName.split('.')
 				eventName=pluginName.shift()
@@ -11023,6 +11127,28 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 					web.editSelection(arg0,true)
 					}
 				}
+			}else if(eventName=='transitionEnd'){
+				/* From Modernizr */
+				if(!transitionEventEnd){
+					var t
+						,el = document.createElement('fakeelement')
+						,transitions = [
+							/*'transition':*/ 'transitionend',
+							/*'OTransition':*/ 'oTransitionEnd',
+							/*'MozTransition':*/ 'transitionend',
+							/*'WebkitTransition':*/'webkitTransitionEnd'
+						];
+
+					for(var i=0, l=transitions.length;i<l;i++){
+						if( el.style[t] !== undefined ){
+							transitionEventEnd=transitions[t];
+							break;
+						}
+					}
+				}
+
+				/* Listen for a transition! */
+				transitionEventEnd && element.addEventListener(transitionEventEnd, callback);
 			}else if(eventName=='paste'){
 				//inspiration
 					//http://labs.nereo.com/slick.html
@@ -11094,6 +11220,16 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}else{
 				element.on(eventName+'.'+pluginName,callback);
 			}
+
+			//TODO ensure this check code works properly
+			// if(!hooked){
+			//	//http://stackoverflow.com/questions/5411026/list-of-css-vendor-prefixes
+			// 	if(eventName.test(/^(-(ms|moz|o|xv|atsc|wap|webkit|khtml|apple|ah|hp|ro|rim|tc)|(mso|prince))-/)){
+			// 		console.warn('you do not need to use prefix event names for '+eventName+' please change this in the javascript code!')
+			// 		return web.onEvent(eventName,element,callback,arg0)
+			// 	}
+			// 	console.warn('This event was not hooked'+eventName)
+			// }
 			return callback; //in case we modified it
 
 		}
@@ -11433,30 +11569,34 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			// no time argument (always zero) and no arguments (you have to
 			// use a closure).
 			function setImmediate(func){
-				if(func==null){ //create defer object if called with no arguments!
-					var queue=[]
-					var end = false;
-					var next=function(){apply(queue.shift(),arguments)}
+				if(func==null ){ //create defer object if called with no arguments! //this object is used directly to defer stuff
+					//if(arguments.length==0){
+						var queue=[]
+						var end = false;
+						var next=function(){apply(queue.shift(),arguments)}
 
-					var b = function(arg){
-						if(end){
-							throw new Error('NO NO NO!') //for debugging, this will never be thrown unless there is a logical error
+						var b = function(arg){
+							if(end){
+								throw new Error('NO NO NO!') //for debugging, this will never be thrown unless there is a logical error
+							}
+							if(arg===undefined){
+								return next
+							}else if(web.isFunction(arg)){
+								queue.push.apply(queue,arguments)
+							}else if(arg===b){
+								//end
+								end=true;
+							}else{
+								throw new Error('defered as an object got an object it can\'t handle',arg)
+							}
+							return b
 						}
-						if(arg===undefined){
-							return next
-						}else if(web.isFunction(arg)){
-							queue.push.apply(queue,arguments)
-						}else if(arg===b){
-							//end
-							end=true;
-						}else{
-							throw new Error('defered as an object got an object it can\'t handle',arg)
-						}
+						web.defer.call(b,b,b)
+
 						return b
-					}
-					web.defer.call(b,b,b)
-
-					return b
+					//}else{
+					//	return undefined
+					//}
 				}
 
 				var scope=(this===web||this===web.global)?undefined:this;
