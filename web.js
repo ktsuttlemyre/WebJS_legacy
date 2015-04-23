@@ -1090,6 +1090,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 					return (new XMLSerializer()).serializeToString(xmlDoc);;
 				}
 			}
+			if(web.isCollection(obj)){
+				return JSON.stringify(obj)
+			}
 
 			return obj && (obj.toString)?obj.toString():String(obj)
 		}
@@ -9193,6 +9196,23 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		//http://www.techrepublic.com/article/detect-foreign-language-support-using-javascript/
 		web.language=function(){
 			return web.global.navigator && web.global.navigator.language || 'en'
+		}
+
+
+
+		web.pend=function(callback){
+			//if(!(this instanceof web.pend)){return new web.pend(queue)}
+			var pend = []
+			return function(item){
+				if(cmd){
+					pend.push(item)
+				}else{
+					pend.pop()
+				}
+				if(!pend.length){
+					callback && callback()
+				}
+			}
 		}
 
 		web.csv=web.csv||{};
