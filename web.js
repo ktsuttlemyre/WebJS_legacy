@@ -9204,7 +9204,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			//if(!(this instanceof web.pend)){return new web.pend(queue)}
 			var pend = []
 			return function(item){
-				if(cmd){
+				if(item){
 					pend.push(item)
 				}else{
 					pend.pop()
