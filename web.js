@@ -9210,7 +9210,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 					pend.pop()
 				}
 				if(!pend.length){
-					callback && callback()
+					web.defer(callback)
 				}
 			}
 		}
