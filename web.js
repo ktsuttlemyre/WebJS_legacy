@@ -1,7 +1,20 @@
 "use strict"
 var g=function(){return this}
+//TODO jailed for untrusted code
+//https://github.com/asvd/jailed
 
 
+/*Notes for oligo:
+capture screenshots http://html2canvas.hertzen.com/examples.html
+gravity animation https://github.com/iamralpht/gravitas.js
+animation https://github.com/daneden/animate.css
+using this https://github.com/dwarcher/reboundgen
+*/
+
+
+//future data format? https://developer.mozilla.org/en-US/docs/JXON#const_compatibility
+
+//HOW to subclass jquery http://james.padolsey.com/javascript/subclassing-jquery/
 
 /*
 different types of js files
@@ -73,6 +86,69 @@ if (!(function f() {}).name) {
 /*************************
 end pollyfills
 *************************/
+
+/************************
+	Great circle
+************************/
+//https://github.com/mwgg/GreatCircle
+var GreatCircle = {
+
+    validateRadius: function(unit) {
+        var r = {'KM': 6371.009, 'MI': 3958.761, 'NM': 3440.070, 'YD': 6967420, 'FT': 20902260};
+        if ( unit in r ) return r[unit];
+        else return unit;
+    },
+
+    distance: function(lat1, lon1, lat2, lon2, unit) {
+        if ( unit === undefined ) unit = 'KM';
+        var r = this.validateRadius(unit); 
+        lat1 *= Math.PI / 180;
+        lon1 *= Math.PI / 180;
+        lat2 *= Math.PI / 180;
+        lon2 *= Math.PI / 180;
+        var lonDelta = lon2 - lon1;
+        var a = Math.pow(Math.cos(lat2) * Math.sin(lonDelta) , 2) + Math.pow(Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lonDelta) , 2);
+        var b = Math.sin(lat1) * Math.sin(lat2) + Math.cos(lat1) * Math.cos(lat2) * Math.cos(lonDelta);
+        var angle = Math.atan2(Math.sqrt(a) , b);
+        
+        return angle * r;
+    },
+    
+    bearing: function(lat1, lon1, lat2, lon2) {
+        lat1 *= Math.PI / 180;
+        lon1 *= Math.PI / 180;
+        lat2 *= Math.PI / 180;
+        lon2 *= Math.PI / 180;
+        var lonDelta = lon2 - lon1;
+        var y = Math.sin(lonDelta) * Math.cos(lat2);
+        var x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lonDelta);
+        var brng = Math.atan2(y, x);
+        brng = brng * (180 / Math.PI);
+        
+        if ( brng < 0 ) { brng += 360; }
+        
+        return brng;
+    },
+    
+    destination: function(lat1, lon1, brng, dt, unit) {
+        if ( unit === undefined ) unit = 'KM';
+        var r = this.validateRadius(unit);
+        lat1 *= Math.PI / 180;
+        lon1 *= Math.PI / 180;
+        var lat3 = Math.asin(Math.sin(lat1) * Math.cos(dt / r) + Math.cos(lat1) * Math.sin(dt / r) * Math.cos( brng * Math.PI / 180 ));
+        var lon3 = lon1 + Math.atan2(Math.sin( brng * Math.PI / 180 ) * Math.sin(dt / r) * Math.cos(lat1) , Math.cos(dt / r) - Math.sin(lat1) * Math.sin(lat3));
+        
+        return {
+            'LAT': lat3 * 180 / Math.PI,
+            'LON': lon3 * 180 / Math.PI
+        };
+    }
+
+};
+
+/************************
+	jQuery additions
+************************/
 
 		(function($) {
 			$.fn.disabled = function(bool){
@@ -590,14 +666,14 @@ this.web=(function(web,global,environmentFlags,undefined){
 			script.onload = function(){
 				clearTimeout(timeOut)
 				if(checks){
-					var obj = web.get.call(self,checks)
+					var obj = (web.call)?checks():web.get.call(web.global,checks)
 					if(obj){
 						loaded=true
 						callback(obj)
 					}else{
 						web.raise('error checking',callback,obj)
 					}
-				}else{
+				}else{ //assume it worked...
 					loaded=true
 					callback(obj)
 				}
@@ -739,7 +815,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 		web.cancel=web.raise
 		web.depricated=function(reason,fn){
-			console.error('This function is depricated for reason:',reason,fn)
+			console.warn('This function is depricated for reason:',reason,fn)
 		}
 		web.warning=null;
 		web.event=null;
@@ -797,7 +873,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 					new RegExp("([^?=&]+)(=([^&]*))?", "g"),
 					function($0, $1, $2, $3) { 
 						if(q[$1]){
-							q[$1].append(decodeURIComponent($3));
+							q[$1].push(decodeURIComponent($3));
 						}else{
 							q[$1]=[decodeURIComponent($3)]; 
 						}
@@ -897,6 +973,28 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 			return !(web.isPopup() || web.isIframe()) //http://stackoverflow.com/questions/10240398/check-whether-a-window-is-popup-or-not
 		}
+
+		$(window).on("blur focus", function(e) {
+			var value= e.type=='focus';
+			if(!value){
+				nativeTimeout(function(){web.isActive.value=true},1)
+				//web.setTimeout(function(){web.isActive.value=false},100)
+				web.isActive.value=null
+				return
+			}
+			web.isActive.value=value
+			//if(value!=web.isActive.value){
+			//}
+		})
+		web.isActive=function(handler){
+			return (document.visiblityState=='visible') || web.isActive.value
+		}
+		web.isActive.value=document.visiblityState=='visible';
+
+		web.setUnpausableTimeout=function(fn,time){
+
+		}
+
 		web.isWorker=function(obj){
 			if(obj!==undefined){
 				return (obj instanceof Worker)
@@ -906,14 +1004,23 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 			return (typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope)
 		}
+		//http://stackoverflow.com/questions/9404793/check-if-same-origin-policy-applies
+		web.isSameOrigin=function(url){
+			var loc = window.location,
+				a = document.createElement('a');
+
+			a.href = url;
+
+			return a.hostname == loc.hostname &&
+				a.port == loc.port &&
+				a.protocol == loc.protocol;
+		}
+
 		web.isPopup=function(o){
-			if(o!==undefined){
-				return (Object.prototype.toString.call(o)=="[object global]" && !(o instanceof Window));
-			}//'inside a pop-up window or target=_blank window'
-			if(arguments.length){
-				return false
+			if(o===undefined){
+				return !!window.opener //http://stackoverflow.com/questions/10240398/check-whether-a-window-is-popup-or-not
 			}
-			return !!window.opener //http://stackoverflow.com/questions/10240398/check-whether-a-window-is-popup-or-not
+			return (Object.prototype.toString.call(o)=="[object global]" && !(o instanceof Window)); //'inside a pop-up window or target=_blank window'
 		}
 		web.isIframe=function(o){
 			if(o!==undefined){
@@ -1071,7 +1178,13 @@ this.web=(function(web,global,environmentFlags,undefined){
 		web.isString=function(obj){
 			return typeof obj == 'string';
 		}
-		web.toString=function(obj){ //http://stackoverflow.com/questions/3945202/whats-the-difference-between-stringvalue-vs-value-tostring
+		web.toString=function(obj,override){ //http://stackoverflow.com/questions/3945202/whats-the-difference-between-stringvalue-vs-value-tostring
+			if(!obj){
+				return String(obj)
+			}
+			if(!override && obj.toString!==Object.prototype.toString){
+				return obj.toString()
+			}
 			//http://www.hiteshagrawal.com/javascript/convert-xml-document-to-string-in-javascript/
 			//handle xml
 			if(web.instanceOf(obj,window.Document) && !(web.instanceOf(obj,window.HTMLDocument)) && !(web.instanceOf(obj,window.SVGDocument))){ //https://developer.mozilla.org/en-US/docs/Web/Guide/Parsing_and_serializing_XML
@@ -1183,10 +1296,13 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 		}
 		web.isNumber=function(o){
-			return typeof o=='number'
+			return typeof o=='number';
 		}
 		web.isNumeric=function(o){
-			return !isNaN(o)
+			return !isNaN(o);
+		}
+		web.toNumber=function(o){
+			return parseFloat(o);
 		}
 		web.isjQuery=function(o){
 			return (o instanceof jQuery)
@@ -1416,7 +1532,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				// })
 			}
 		}
-		web.trimRight=function(str,word,keep,deep){
+		web.trimRight=function(str,word,keep,deep){ //TODO make deep not boolean but rather number. so we can choose to cut at the 4th instance of a character etc
 			if(!word){
 				//todo faster implementation for long strings
 				return str.replace(web.RegExp.trailingWhitespace, '');
@@ -1526,7 +1642,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				,function($0, $1, $2, $3) { 
 					if(q[$1]){
 						if(web.isArray(q[$1])){
-							q[$1].append(decodeURIComponent($3));
+							q[$1].push(decodeURIComponent($3));
 						}else{
 							q[$1]=[q[$1],decodeURIComponent($3)]
 						}
@@ -1644,6 +1760,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				if(cmd1=='DOMAIN'){
 					//http://stackoverflow.com/questions/8498592/extract-root-domain-name-from-string
 					url = web.toAbsoluteURL(url)
+					url=url.toString()
 					var matches = url.match(/^https?\:\/\/([^\/?#]+)(?:[\/?#]|$)/i);
 					return (matches && matches[1])||new URI(url).domain();  // domain will be null if no match is found
 				}else if(cmd1=='PROTOCOL'){
@@ -1651,7 +1768,8 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}else if(cmd1=='SAMEORIGIN'){
 					return (web.url(url,'domain')==web.url(cmd2,'domain'))
 				}else if(cmd1=='BASE'){
-					return location.protocol + "//" + location.hostname + (location.port && ":" + location.port) + "/";
+					console.warn('base no longer has trailing /')
+					return location.protocol + "//" + location.hostname + (location.port && ":" + location.port);
 				}else if(web.startsWith(cmd1,'data')){
 					if(web.isURL(url)){
 						return web.toDataURI('<html><meta http-equiv="Refresh" content="0; url='+url+'"></html>','text/html')
@@ -1755,6 +1873,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 			this['#?']=queryStringParser(web.trimLeft(url,'#'))
 			this['//']=web.url(url,'domain')
 
+
 			if(uri['//']=='youtube.com'||uri['//']=='youtu.be'){
 				uri.slug=web.getYoutubeHash(url.toString())
 				return uri
@@ -1763,9 +1882,11 @@ this.web=(function(web,global,environmentFlags,undefined){
 			url = undefined
 		}
 		web.url.prototype.toString=function(){
-			return this.url
+			return this.url.toString()
 		}
-
+		web.url.prototype.valueOf=function(){
+			return this.url.toString()
+		}
 		web.baseURL=location.protocol + "//" + location.hostname + (location.port && ":" + location.port) + "/"; //web.url(null,'BASE')
 		web.base=function(){
 			return web.url(web.baseURL)
@@ -1961,7 +2082,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 					height = (height<options.minHeight)?options.minHeight:height
 
 					settings.rowHeight=height||100
-					window.grid=grid = new Slick.Grid(elem, dataView, columns, settings);
+					grid = new Slick.Grid(elem, dataView, columns, settings);
 					grid.setSelectionModel(new Slick.RowSelectionModel());
 
 					elem.find(".slick-header").css("height","0px").css('display','none')
@@ -2173,20 +2294,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 					$(window).off('.'+uid)
 				}
 				,click:function(fn){
-					if(grid){
-						grid.onClick.subscribe(function(e,args){
-							var elem=$(e.target).closest('a, .slick-cell')//traverse up the dom until you find an anchor,consume-click,or end at div.slick-cell
-							var data = this.getDataItem(args.row)
-							//grid.setSelectedRows([args.row]);
-							if(web.isArray(data)){
-								data=data[args.cell]
-							}
-							fn && fn.call(elem,e,args,data)
-							});
-					}else{
-						deferedActions.push(_.bind(face.click,face,fn))
-					}
-					return face
+					return face.on('click',fn)
 				}
 				,setID:function(){ //TODO
 
@@ -2325,7 +2433,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 					}
 				}
 				,getLength:function(){
-					return dataView.getLength()
+					return (dataView)?dataView.getLength():0;
 				}
 				,loadMore:function(){
 					if(vertical){
@@ -2339,6 +2447,28 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}
 				,setBackdrop:function(backdrop){
 					return elem.append(backdrop)
+				}
+				,on:function(event,fn){
+					if(grid){
+						if(event=='scroll'){
+							grid.onScroll.subscribe(fn)
+						}else if(event=='click'){
+							grid.onClick.subscribe(function(e,args){
+								var elem=$(e.target).closest('a, .slick-cell')//traverse up the dom until you find an anchor,consume-click,or end at div.slick-cell
+								var data = this.getDataItem(args.row)
+								//grid.setSelectedRows([args.row]);
+								if(web.isArray(data)){
+									data=data[args.cell]
+								}
+								fn && fn.call(elem,e,args,data)
+							});
+						}
+					}else{
+						deferedActions.push(_.bind(face.on,face,event,fn))
+					}
+					return face
+				},off:function(event,fn){
+
 				}
 
 				//,"0":elem
@@ -2616,24 +2746,36 @@ this.web=(function(web,global,environmentFlags,undefined){
 		web.position=function(elem,relativeTo){
 			elem=$(elem)
 			var position=elem.css('position')
-				,x,y,offset=elem.offset()
+				,offset=elem.offset()
+			offset.x=offset.left;
+			offset.y=offset.top;
+			delete offset.top;
+			delete offset.left;
+
 			if(position=='fixed'){
 				if(elem.parent()[0]==web.body){
 					offset.y-=parseFloat($.css('top'))
 				}else{
-					var offset=elem.offset()
 					offset.y-=$(document).scrollTop()
 				}
 			}
-			if(relativeTo==web.document){
-				return offset
-			}else if(relativeTo==web.viewPort){
+			if(web.isString(relativeTo)){
+				relativeTo=web.global[relativeTo]||$()
+			}
+
+			if(relativeTo===web.document){
+				//do nothing
+			}else if(relativeTo===web.viewPort){
 				var offset=elem.offset()
 				offset.y=offset.y-$(document).scrollTop()
 				return offset
-			}else if(relativeTo==web.screen){
+			}else if(relativeTo===window.screen){
+				offset.x=(window.screenX||window.screenLeft)+(offset.x - qWindow.scrollLeft());
+				offset.y=(window.screenY||window.screenTop)+(offset.y - qWindow.scrollTop());
+			}else if(relativeTo instanceof Window){
 
 			}
+			return offset
 		}
 
 		web.convertPosition=function(id,type,relativeTo,hoistToBody){//id can be selector, dom element or jquery (dependency = jquery)
@@ -2698,6 +2840,25 @@ this.web=(function(web,global,environmentFlags,undefined){
 			
 			var elem = (elem)?$(elem):qWindow;
 			elem.trigger('resize','reflow') //.resize() //forces reflow of page
+			web.defer(callback)
+		}
+
+		web.hardReflow=function(elem,callback){
+			if(web.isFunction(elem)){
+				callback=elem
+				elem=undefined
+			}
+
+			//if(web.isjQuery(elem)){
+			elem=$(elem)[0]
+			elem=elem||$('html')[0]
+			
+			elem.style.display='none';
+			web.tmp=elem.offsetHeight; // no need to store this anywhere, the reference is enough
+			//note the above may be removed if put though closure compiler so i assign it to tmp
+			qWindow.trigger('resize','reflow')
+			elem.style.display='';
+			//elem.trigger('resize','reflow') //.resize() //forces reflow of page
 			web.defer(callback)
 		}
 
@@ -2823,6 +2984,13 @@ this.web=(function(web,global,environmentFlags,undefined){
 					}
 				}
 
+		web.shape=function(obj,relativeTo){
+			origin=origin||window.screen
+			if(web.isString(origin)){
+				
+			}
+		}
+
 
 	//TODO?
 	//http://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
@@ -2885,30 +3053,66 @@ this.web=(function(web,global,environmentFlags,undefined){
 		//web.window('google.com')
 
 		//experimental target=_background is supported
-		web.window=function(url,options){
+
+
+		//options defaults = a bounding box if other options are not set
+		web.window=function(url,options,callback){
+			if(!(this instanceof web.window)) {return new web.window(url,options,callback)}
 			var win,html,cmd,session=web.UUID();
-
-
-			options=options||{}
-			if(web.isString(options)){
-				var tmp = options
-				options={}
-				options.target=tmp;
+			if(web.isFunction(options)){
+				callback=options
+				options=null;
 			}
+
+			if(web.isObject(url)){
+				if(web.isObject(options)){
+					$.extend(true,url,options)
+				}else{
+					options=url;
+					url=null
+				}
+
+			}
+
+			//if syntax was url,target then correct it
+			if(web.isString(options)){
+				options={target:options}
+			}
+
+			//set options as object if not
+			options=options||{}
+			var defaults=options.defaults||{}
+			if(web.isjQuery(defaults)){
+				var offset = web.position(defaults,window.screen)
+				offset.width=defaults.width();
+				offset.height=defaults.height();
+				defaults=offset
+			}
+
 			options.target=options.target||'_blank'
-			cmd = (options.cmd||'').trim() || 'scrollbars=yes'
+			var width=(options.width||defaults.width)
+				,height = (options.height||defaults.height)
+				,reference = window //TODO use this in calc
+				,origin='top left' //TODO use this in calc
+				,Y=options.y||options.Y||options.vertical||options.top||defaults.y||defaults.Y||defaults.vertical||defaults.top
+				,X=options.x||options.X||options.horizontal||options.left||defaults.x||defaults.X||defaults.horizontal||defaults.left
+
 
 			url = url ||'about:blank'
-			if(web.isjQuery(url)){
-				options.width=url.width()
-				options.height=url.height()
+			if(web.isjQuery(url)){ //if it is a jquery objet then get it's position and set it
+				width=options.width||url.width()
+				height=options.height||url.height()
+				var offset = web.position(url,window.screen)
+				X=X||offset.x
+				Y=Y||offset.y
+
 				html=url.outerHTML()
 				url=undefined
 			}else{
 				//if(url.toString){
 				//if(web.isString(url)||url instanceof Location){
 					url=web.toString(url).trim()
-					if(web.startsWith(url,'<')){ //TODO support this
+					if(web.startsWith(url,'<')){ //TODO support using html as url
 						//TODO figure out what type of data it is
 						html=url
 						url=undefined
@@ -2918,39 +3122,55 @@ this.web=(function(web,global,environmentFlags,undefined){
 				//}
 			}
 
+			width=width||defaults.width
+			height=height||defaults.height
 
-			if(!options.location){
-				cmd+=',location=no'
-			}
-			if(options.width){
-				cmd+=', width='+options.width
-			}
-			if(options.height){
-				cmd+=', height='+options.height
-			}
-
-
-			var top,left;
-
+			
 			//center calculations for dual monitors http://stackoverflow.com/questions/4068373/center-a-popup-window-on-screen
-			if(options.horizontal){
-				if(options.horizontal=="center"){ //NOTE: devtools window area causes this to be off
+			
+			if(web.isString(X)){
+				if(web.caseInsensitive(X,'center')||web.caseInsensitive(X,'middle')){ //NOTE: devtools window area causes this to be off
 					// Fixes dual-screen position
 					var dualScreenLeft = (options.position=="absolute")?window.screen.width:(window.screenLeft || screen.left || 0);
 					var width = (options.position=="absolute")?screen.width: (window.outerWidth || document.documentElement.clientWidth ||document.body.clientWidth);
-					left = ((width / 2) - (options.width / 2)) + dualScreenLeft;
+					X = ((width / 2) - (options.width / 2)) + dualScreenLeft;
+				}else if(web.caseInsensitive(X,'left')){
+					X=0
+				}else if(web.caseInsensitive(X,'right')){
+					X=web.maxZIndex
 				}
-				cmd+=', left='+left
 			}
-			if(options.vertical){
-				if(options.vertical=="center"){ //NOTE: devtools window area causes this to be off
+			
+
+			if(web.isString(Y)){
+				if(web.caseInsensitive(Y,'center')||web.caseInsensitive(Y,'middle')){ //NOTE: devtools window area causes this to be off
 					var dualScreenTop = (options.position=="absolute")?window.screen.height:(window.screenTop || screen.top || 0)
 					var height = (options.position=="absolute")?screen.height: (window.outerHeight || document.documentElement.clientHeight ||document.body.clientHeight);
-					top = ((height / 2) - (options.height / 2)) + dualScreenTop;
+					Y = ((height / 2) - (options.height / 2)) + dualScreenTop;
+				}else if(web.caseInsensitive(Y,'top')){
+					Y=0
+				}else if(web.caseInsensitive(Y,'bottom')){
+					Y=web.maxZIndex
 				}
-				cmd+=', top='+top 
 			}
 
+			
+			cmd = (options.cmd||'').trim() || 'scrollbars=yes' //default command //TODO see if i should keep options.cmd as an input
+			if(!options.location){
+				cmd+=',location=no'
+			}
+			if(width!=null){
+				cmd+=', width='+ width
+			}
+			if(height!=null){
+				cmd+=', height='+ height
+			}
+			if(X!=null){
+				cmd+=', left='+X
+			}
+			if(Y!=null){
+				cmd+=', top='+Y
+			}
 
 			var callbacks
 				,submit=(function(/*arguments*/){ //first arg is fn name, second is targetOrigin, rest are applied to fn in worker
@@ -3048,28 +3268,42 @@ this.web=(function(web,global,environmentFlags,undefined){
 				win.document.close()
 			}
 
-			var face=(function(cmd,cmd2){
-				if(cmd==null&&cmd2==null){
-					return win
-				}
-				//TODO injection code
-				if(cmd == 'inject'){
-					win.postMessage({"cmd":cmd,"arguments":cmd2,"session":session})
-				}else{
-					win[cmd]()
-				}
-			})
-			face.isClosed=function(){
-				return win.closed
-			}
-			face.focus=function(){
-				return win.focus()
-			}
 
-			if(!win){
-				web.notify('Oops','You have popups blocked!')
-				return
+			//two checks for popups blocked
+			//syncronus
+
+			if(!win
+				|| win.closed
+				|| win.closed===undefined
+				|| win.outerHeight <=0
+				|| win.outerWidth <= 0
+				) {
+				web.defer.call(this,function(){
+					this.error = web.error='Popups blocked'
+					callback.call(this)
+					web.error=null
+				})
+				return null
 			}
+			//async check for popups blocked
+			$(win).load(function(){//http://stackoverflow.com/questions/668286/detect-blocked-popup-in-chrome
+				if(!this.error){  //if error is already thrown then dont care
+					if(!win
+						|| win.closed
+						|| win.closed===undefined
+						|| win.outerHeight <=0
+						|| win.outerWidth <= 0
+						) {
+							this.error = web.error='Popups blocked'
+							callback.call(this)
+							web.error=null
+					}else{
+						callback.call(this) //sucess
+					}
+				}
+			});
+
+
 			win.focus(); //might not be nessissary
 			
 			var callbacks={}
@@ -3100,8 +3334,55 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}
 			},false)
 			win.addEventListener('error', function(e){console.error('Web.js error in web.window',e)}, false);
+		}
 
-			return face
+
+		web.window.call=(function(cmd,cmd2){
+			if(cmd==null&&cmd2==null){
+				return win
+			}
+			//TODO injection code
+			if(cmd == 'inject'){
+				this.win.postMessage({"cmd":cmd,"arguments":cmd2,"session":session})
+			}else{
+				this.winwin[cmd]()
+			}
+		})
+		web.window.isClosed=function(){
+			return this.win.closed
+		}
+		web.window.focus=function(options){
+			if(options){
+				if(open.x!=null || open.y!=null){
+					this.move(open.x,open.y)
+				}
+				if(open.width!=null || open.height!=null){
+					this.resize(open.width,open.height)
+				}
+			}
+			return win.focus()
+		}
+		web.window.close=function(){
+			return this.win.close()
+		}
+		web.window.isFocused=function(){
+			return this.win.document.hasFocus()
+		}
+		web.window.move=function(apply,x,y){
+			if(apply==true){
+				this.win.moveBy(x,y)
+			}else{
+				this.win.moveTo(apply,x)
+			}
+			return this
+		}
+		web.window.resize=function(apply,width,height){
+		if(apply==true){
+				this.win.resizeBy(width,height)
+			}else{
+				this.win.resizeTo(apply,width)
+			}
+			return this
 		}
 
 
@@ -3155,6 +3436,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 	//object key of '' == initialization
 			//TODO console code http://www.codeovertones.com/2011/08/how-to-debug-webworker-threads.html
 			//TODO error code http://www.codeovertones.com/2011/08/how-to-debug-webworker-threads.html
+	//http://www.html5rocks.com/en/tutorials/workers/basics/
 	web.worker=function(url,options){
 		var face=(function(cmd,a,b,c,d,e,f,g,h,i,j){
 			//TODO injection code
@@ -3301,10 +3583,22 @@ this.web=(function(web,global,environmentFlags,undefined){
 	//worker.close()
 
 
-	web.api=function(obj,cmd2){
-		obj=obj||web
-		var thing;
+	web.updateUI=function(name,arg1){
+		var elem = $('[data-roguedj='+name+']')
+		if(elem.is(':checkbox')){
+			elem.attr("checked", arg1);
+			
+			var parent = elem.parent()//if it is a bootstrap toggle button then
+			if(parent.hasClass('active')){
+				parent.toggleClass('active',arg1)
+			}
+		}
+	}
 
+	web.api=function(prefix,cmd2){
+		var obj=web.global[prefix]||web
+		var thing;
+		debugger
 		// if(web.isString(obj)){
 		// 	if(web.endsWith(obj,'.js')){ //support file.bookmark.js and file.doc.js etc?
 		// 		thing=web.worker(obj,functions)
@@ -3316,35 +3610,97 @@ this.web=(function(web,global,environmentFlags,undefined){
 		// 	obj=thing()
 		// }
 
-		self.addEventListener('message', function(e) {
-			//+"obj.event=e;\n"
-			//+"var obj={callback:function(evnt){obj.postMessage(evnt)}}
-			if(web.isValue(e.origin)){ //is ''
-				if(e.origin!=''){ //TODO look at trusted origins here
-				}
-			}
-			var source =e.target||e.originalTarget||e.srcElement
-			if(source!=self){
-				return
-			}
-			if(!web.isObject(e.data) && !e.data.session && e.data.session!=session){
-				return
-			}
-			//+'if(source!=obj.){' //TODO find how to check owner in webworker
-			//+'	return'
-			//+'}'
-			var data = (web.put)?(web.put.call(obj,e.data.fn||'')).apply(/*obj||*/ obj,e.data.arguments):obj[e.data.fn].apply(/*obj||*/ obj,e.data.arguments)
-			var o={
-				"data":data
-				,"jobID":e.data.jobID
-				,"arguments":e.data.arguments
-				,"fn":e.data.fn
-			};
-			if(o.data===undefined){return};
-				obj.postMessage(o);
-		}, false);
+		//listen and control any interface elements with data-API
 
-		return thing || obj
+		/*bind all checkboxes to RogueAPI*/
+		$('[data-'+prefix.toLowerCase()+']').change(function(){
+			var elem=$(this)
+			var method = elem.data('roguedj')
+			var value = elem.is(':checked')
+			if(method && RogueDJ[method]){
+				window[prefix][method](value)
+			}
+			//self.postmessage({command:'web.updateUI',arguments:[method,value]})
+		})
+
+
+		//listen for other tabs that my be talking to us
+		//http://html5demos.com/storage-events
+		//window.addEventListener
+		web.listen('tabs', function(message,reply) { //TODO use web.onevent
+			api(message,reply)
+		});
+
+		// //listen for post messages
+		// self.addEventListener('message', function(e) {
+		// 	var data=e.data
+
+		// 	//+"obj.event=e;\n"
+		// 	//+"var obj={callback:function(evnt){obj.postMessage(evnt)}}
+		// 	if(web.isValue(e.origin)){ //is ''
+		// 		if(e.origin!=''){ //TODO look at trusted origins here
+
+		// 		}else{
+		// 			alert('empty string origin message from postmessage')
+		// 		}
+		// 	}
+
+		// 	// e.data is the string sent by the origin with postMessage.
+		// 	if(data){
+		// 		if(!web.isString(data)){
+		// 			data=data.message
+		// 		}
+		// 		if(web.startsWith(data,prefix)){
+		// 			data = web.trimLeft(data,prefix)
+		// 			var ans = web.expression.call(obj,data)
+		// 			if(ans instanceof web.async){
+		// 				ans.callback(function(ans){e.source.postMessage(ans,e.origin)})
+		// 			}else{
+		// 				e.source.postMessage(ans, e.origin);
+		// 			}
+		// 		}else{
+		// 			return
+		// 		}
+		// 	}
+
+		// 	//var source =e.target||e.originalTarget||e.srcElement
+		// 	//if(source!=self){
+		// 	//	return
+		// 	//}
+
+		// 	//if(!web.isObject(e.data) && !e.data.session && e.data.session!=session){
+		// 	//	return
+		// 	//}
+		// 	//+'if(source!=obj.){' //TODO find how to check owner in webworker
+		// 	//+'	return'
+		// 	//+'}'
+			
+		// 	//var data = (web.put)?(web.put.call(obj,e.data.fn||'')).apply(/*obj||*/ obj,e.data.arguments):obj[e.data.fn].apply(/*obj||*/ obj,e.data.arguments)
+		// 	//var o={
+		// 	//	"data":data
+		// 	//	,"jobID":e.data.jobID
+		// 	//	,"arguments":e.data.arguments
+		// 	//	,"fn":e.data.fn
+		// 	//};
+		// 	//if(o.data===undefined){return};
+		// 	//obj.postMessage(o);
+
+		// }, false);
+		console.log(prefix+' api available')
+
+		function api(message,reply){
+			var method = message
+			if(web.startsWith(message,prefix)){
+				method= web.trimLeft(message,'.')
+			}
+			web.expression.call(prefix,method,function(ans){
+				if(ans==null){
+
+				}
+				reply && web.post(reply,web.toString(ans)) //TODO ensure that the postmessage back to the originating tab when tab broadcast is sent out
+			})
+		}
+		return api
 	}
 
 	web.average=function(array,getter){
@@ -3918,7 +4274,68 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}
 			}
 		}
-		web.setTimeout=function(time,fn){
+
+		window.setTimeoutQueue=[], window.setIntervalQueue=[];
+		var nativeTimeout=( (Window&&Window.prototype)||window ).setTimeout;
+		web.overrideSetTimeout=function(){
+			var sound = 'data:audio/wav;base64,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';
+			var audio = new Audio(sound); // create the HTML5 audio element
+			var now = Date.now()
+
+			audio.addEventListener('ended', function(){
+				now=Date.now()
+				while(setTimeoutQueue.length && setTimeoutQueue[0].time<now){
+					var entry = setTimeoutQueue.shift()
+					var fn = entry.fn;
+					if(fn){
+						if(fn.call){
+							fn()
+						}else{
+							new Function(fn)()
+						}
+					}	
+					if(entry.reoccure){
+						entry.time=entry.reoccure+now
+						setTimeoutQueue.push(entry)
+						setTimeoutQueue.sort(function(a, b) {
+							return a.time - b.time;
+						})
+					}
+				}
+				this.play()
+			}, false);
+			audio.muted=true
+			audio.play()
+			var id=0
+			window.setTimeout=function(fn,time){
+				time=time||1
+				time=Date.now()+time
+				setTimeoutQueue.push({fn:fn,time:time,id:id})
+				setTimeoutQueue.sort(function(a, b) {
+						return a.time - b.time;
+					})
+				return id++
+			}
+			window.clearTimeout=window.clearInterval= function(id){
+				for(var i = 0; i < setTimeoutQueue.length; i++) {
+				    if(setTimeoutQueue[i].id == id) {
+				        setTimeoutQueue.splice(i, 1);
+				        break;
+				    }
+				}
+			}
+			window.setInterval=function(fn,reoccure /*arguments*/){
+				reoccure=reoccure||1
+				var time=Date.now()+reoccure
+				setTimeoutQueue.push({fn:fn,time:time,id:id,reoccure:reoccure})
+				setTimeoutQueue.sort(function(a, b) {
+						return a.time - b.time;
+					})
+				return id++
+			}
+
+		}
+		web.setTimeout=function(time,fn){ //TODO change this to use webworker timeout   http://stackoverflow.com/questions/5927284/how-can-i-make-setinterval-also-work-when-a-tab-is-inactive-in-chrome
 			//if(!(this instanceof web.setTimeout)){return new web.setTimeout(time,fn)}
 			if(!web.isNumber(time)){
 				return requestAnimationFrame(time||fn)
@@ -5391,7 +5808,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		}
 
 		var startsWith=function(str,prefix,caseInsensitive){ //note calling this externally helps prevent recursive array searching on prefix
-			if(str&&prefix){
+			if(str&&prefix&&web.isString(str)){
 				if(caseInsensitive){
 					str=str.toLowerCase()
 					prefix=prefix.toLowerCase();
@@ -5402,7 +5819,8 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				return str.slice(0, prefix.length) == prefix; //does chop string but shouldnt iterate though whole string
 			}
 		}
-		web.startsWith=function(str,prefix,caseInsensitive){
+		web.startsWith=function(str,prefix,caseInsensitive,ignoreWhitespace){
+			str=(ignoreWhitespace)?str.trim():str;
 			if(web.isArray(prefix)){
 				for(var i=0,l=prefix.length;i<l;i++){
 					if(startsWith(str,prefix[i],caseInsensitive)){
@@ -5428,10 +5846,11 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 		}
 
-		web.endsWith=function(str,suffix,caseInsensitive) {
+		web.endsWith=function(str,suffix,caseInsensitive,ignoreWhitespace) {
+			str=(ignoreWhitespace)?str.trim():str;
 			if(web.isArray(suffix)){
 				for(var i=0,l=suffix.length;i<l;i++){
-					if(startsWith(str,suffix[i],caseInsensitive)){
+					if(endsWith(str,suffix[i],caseInsensitive)){
 						return true
 					}
 				}
@@ -5496,6 +5915,25 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		*/
 		}
 
+		//http://stackoverflow.com/questions/28478185/remove-html5-notification-permissions
+		web.desktopNotificationsAllowed=function(request){
+			var permission=Notification.permission  === 'granted'
+			if(!permission && request && !web.get.call(localStorage,'web.settings.dontAskForDesktopNotificaitonsAllowed')){
+				if(web.isFunction(request)){
+					Notification.requestPermission(request)
+				}else{
+					Notification.requestPermission(function(permission){
+						//permission = granted, denied or default
+						console.log('Web.js got '+permission+' for desktop Notifications')
+					})
+				}
+			}
+
+			return permission
+		}
+
+
+
 
 		if(typeof PNotify!='undefined'){
 			PNotify.prototype.options.styling = "fontawesome";
@@ -5534,10 +5972,61 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				options=undefined
 			}
 
-
 			if(message instanceof jQuery){
 				message = message.html()
 			}
+
+
+			if(options==null){
+				options={}
+			}else if(web.isNumber(options)){
+				options={timeOut:options}
+			}else if(web.isFunction(options)){
+				throw 'implement'
+			}else if(web.isString(options)){
+				//if web.url(options)){
+				//}else{ //assume image
+				//}
+				options={icon:options}
+			}
+			
+
+			
+			if(options.timeOut===true||options.timeOut==null){
+				options.timeOut=5000
+			}
+			options.icon=options.icon||web.images.bug
+
+			if(web.desktopNotificationsAllowed(true)){ //see if it is allowed with a prompt
+				var Notification = window.Notification || window.mozNotification || window.webkitNotification;
+
+				var instance = new Notification(
+					title, {
+						body: message,
+						icon: options.icon
+					}
+				);
+
+				instance.onclick = function () {
+					// Something to do
+				};
+				instance.onerror = function () {
+					// Something to do
+				};
+				instance.onshow = function () {
+					// Something to do
+				};
+				instance.onclose = function () {
+					// Something to do
+				};
+
+				if(options.timeOut){
+					setTimeout(function(){instance.close()},options.timeOut)
+				}
+
+				return instance;
+			}
+
 			var notice = new PNotify({
 				title:title,
 				text: message,
@@ -5585,6 +6074,11 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				return false;
 			});
 
+
+			if(options.timeOut){
+				setTimeout(function(){notice.close()},options.timeOut)
+			}
+
 			return notice
 		}
 
@@ -5631,6 +6125,9 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			if(web.isFunction(options)){
 				callback=options
 				options=undefined
+			}
+			if(web.isNumber(options)){
+				options={timer:options}
 			}
 			return web.prompt(title,message,$.extend(true,{prompt:false},options),callback)
 		}
@@ -5744,7 +6241,6 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 
 
-		var isChromeCastSenderAPILoaded=false
 		web.chromeCast=function(applicationID,statusCallback,disconnectCallback){
 
 			if(web.isFunction(applicationID)){
@@ -5766,9 +6262,13 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 
 			var initChromeCast = function(face){
+				console.info('________')
+				console.dir(face)
+				console.info('________')
+				debugger
 				face.applicationID=face.applicationID||chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
 
-				if(face.applicationID=='youtube'){
+				if(web.caseInsensitive(face.applicationID,'youtube')){
 					face.applicationID='233637DE'
 				}
 
@@ -5874,44 +6374,106 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			face.session=null
 			face.applicationID=applicationID
 			face.statusCallback=statusCallback
-			face.connect=function(){console.log('connecting');chrome.cast.initialize(face.apiConfig, function(){}/*face.sessionCallback*/, function(e){web.raise(e,face.statusCallback,face)})}
+			face.connect=function(){
+				console.log('connecting');
+				chrome.cast.initialize(face.apiConfig
+					,function(){}/*face.sessionCallback*/
+					,function(e){
+						web.raise(e,face.statusCallback,face)
+					})}
 
-			isChromeCastSenderAPILoaded=isChromeCastSenderAPILoaded || !!web.get.call(window,'chrome.cast.isAvailable');
+			
 			var scriptSrc='https://www.gstatic.com/cv/js/sender/v1/cast_sender.js'
-			if(!isChromeCastSenderAPILoaded){
+			if(!web.get.call(window,'chrome.cast')){
 				if(!web.loading(scriptSrc)){ //also check for scripts!!!
-					web.load(scriptSrc,'chrome.cast',function(){
-						if(web.error){
-							console.error('Could not load:',scriptSrc,'error',web.error)
-						}
-					})
+					web.load(scriptSrc) //,
+						//function(){ //check for loaded
+						// debugger
+						// return web.get.call(window,'chrome.cast.isAvailable')
+						// }
+						// ,function(){ // maybe check for chrome.cast object?
+						// if(web.error){
+						// 	console.error('Could not load:',scriptSrc,'error',web.error)
+						// }
+						//})
 				}
-				self['__onGCastApiAvailable'] = function(loaded, errorInfo) {
+
+				//https://developers.google.com/cast/docs/chrome_sender
+				self['__onGCastApiAvailable'] = function(loaded, errorInfo) {//when the API loads, or with errorInfo when load fails (e.g. when no extension is discovered).
+					face.hasExtention=loaded //loaded lets us know if the extention exists
+
 					if (loaded) {
-						isChromeCastSenderAPILoaded=true
 						//callbacks.hasExtention && callbacks.hasExtention(true)
-						face.hasExtention=true
 						initChromeCast(face)
-					}else{
-						face.hasExtention=false
-						//callbacks.hasExtention && callbacks.hasExtention(false)
-						//web.raise(errorInfo,callbacks.error,errorInfo,'loading api')
+						return
 					}
+
+					//callbacks.hasExtention && callbacks.hasExtention(false)
+					//web.raise(errorInfo,callbacks.error,errorInfo,'loading api')
+					
+					throw errorInfo
 				}
-			}else{
-				//face.hasExtention=true
+			}else{ //TODO this route has not been tested well
+				face.hasExtention=web.get.call(window,'chrome.cast.isAvailable')
 				initChromeCast(face)
 			}
 
 			return face
 			
 		}
+		web.isIsolatedWorld=function(){ //https://developer.chrome.com/extensions/api_index
+			return chrome.extension && chrome.i18n && chrome.runtime && chrome.storage && !chrome.webstore //TODO find other apis isolated world can not access
+		}
 
 
+		web.stayOnScreen=function(axis, mouse, range) {
+			var direction, scrollDir;
+			axis=axis.toUpperCase()
+			if(axis=='X'||axis=='WIDTH'){
+				axis='X'
+				direction='width'
+				scrollDir='scrollLeft'
+			}else{
+				axis='Y'
+				direction='height'
+				scrollDir='scrollTop'
+			}
+
+			if (mouse instanceof jQuery.Event || mouse instanceof Event ) {
+				mouse=mouse['client'+axis]
+			}
+
+			if(web.isjQuery(range)){
+				range=range[direction]()
+			}
+
+			var scroll = qWindow[scrollDir]()
+				,position = mouse + scroll;
+
+			// opening menu would pass the side of the page
+			if (mouse + range > qWindow[direction]() && range < mouse) 
+				position -= range;
+
+			return position
+		}
+
+
+		var isExtension;
+		web.isExtension=function(url){
+			url = url||location.href
+			if(isExtension==null){
+				isExtension=web.startsWith(url,'chrome-extension://');
+			}
+			return isExtension
+		}
+		web.getExtensionID=function(url){
+			url = url||location.href
+			return web.url(url)['//']
+		}
 		web.isExtensionInstalled=function(extensionId, page, callback) {
 			if(web.isFunction(page)){
 				callback=page;
-				page='' //crhome cast uses cast_sender.js
+				page='' //chrome cast uses cast_sender.js
 			}
 			var browser=uaparser.getBrowser().name
 			if(browser == "Chrome" || browser =="Chromium"){
@@ -6043,6 +6605,8 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			return {}
 		}
 		//tells if your object is completely in viewport. if jquery then it will return true if all elements are in the viewport
+		//http://stackoverflow.com/questions/123999/how-to-tell-if-a-dom-element-is-visible-in-the-current-viewport
+		//http://www.codechewing.com/library/dimension-and-offset-of-html-element-javascript/
 		web.isInViewport=function(el){ //http://stackoverflow.com/questions/123999/how-to-tell-if-a-dom-element-is-visible-in-the-current-viewport
 			//special bonus for those using jQuery
 			if (el instanceof jQuery) {
@@ -6354,6 +6918,56 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		web.button=function(text,action,parent){
 
 		}
+		web.form=function(form,arg1){
+			debugger
+			if(!web.form.init){
+				web.form.init=true
+				$(function(){
+					$("form").each(function() {
+						var form = this;
+						$(":input",this).change(function(){
+							console.warn(form,this)
+							web.form(form,this)
+						});
+
+						$(":button",this).click(function() {
+							web.form(form,this)
+						});
+					})
+				})
+			}
+			if(form==null && arg1==null){
+				return
+			}
+			var id;
+			if(web.isjQuery(form)){
+				form.each(function(){
+					web.form(this,arg1)
+				})
+				return
+			}else if(web.isString(form)){
+				form=form.split(/,\s*/); //remove comma and whitespace
+				if(form.length>1){
+					form.forEach(function(value){
+						web.form(value,arg1)
+					})
+					return
+				}
+				id=form[0] //allow it to pass
+			}else{
+				id = form.id
+			}
+
+			if(web.isFunction(arg1)){//it is a function, declare hanlder
+				web.form.handlers[id]=arg1
+			}else{
+				//var form =$(this).closest('form')   form.attr('id')||form,
+				var handler=web.form.handlers[id]
+				handler && handler.call(arg1,form)
+			}
+			return
+		}
+		web.form.handlers={}
 
 
 		web.extern=function(o){
@@ -6524,6 +7138,100 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 		}
 
+		//http://stackoverflow.com/questions/18666601/use-bootstrap-3-dropdown-menu-as-context-menu
+		web.contextMenu=function(contextMenu,callback){
+			var qBody=$("body"),qDocument=$(document)
+
+			if(!contextMenu && !callback){
+				contextMenu=$('#web-contextMenu')
+			}else if(contextMenu.trim().startsWith('<')){
+				//handle html
+			}
+			var handler = function(e){
+				contextMenu.hide();
+				qDocument.off('click',handler);
+				if(!$.contains(contextMenu[0],this)){ //TODO use an overlay to catch all clicks that are not the context menu
+					e.preventDefault()
+					e.stopImmediatePropagation()
+					e.stopPropagation()
+					return false
+				}
+			}
+			qDocument.on("contextmenu", function(e) {
+				console.info('Web.js: Hold ctrl while clicking to access the browser\'s context menu')
+				if(e.ctrlKey){return};
+				qDocument.on('click',handler)
+				contextMenu.css({
+					display: "block",
+					left: web.stayOnScreen('X',e,contextMenu), //e.pageX
+					top: web.stayOnScreen('Y',e,contextMenu), //e.pageY
+					zIndex:web.maxZIndex
+				});
+				return false;
+			});
+		}
+
+
+
+			web.namespace=function(name,delimiter,container,onError){
+				web.assign(name,container,onError)
+			}
+
+			//http://www.memonic.com/user/flavio/folder/javascript/id/1oYwe
+			/********************
+			 * example
+			 ********************
+			 * namespace("com.example.namespace").test = function(){
+			 * alert("In namespaced function.");
+			 *  };
+			 *
+			 *a modified version of Mark A. Ziesemer's namespace function.
+			 */
+			 web.assign = function(name,container,onError){
+							//normalize onError to lowercase unless it is a function
+							if(type(onError)=='String'){
+								onError=onError.toUpperCase();
+							}
+							var delimiter=delimiter || ".";
+
+							if(type(delimiter)!="String"){
+								onError=container,container=delimiter,delimiter=undefined;
+							}
+
+							var o = container || window;
+							if(!name){return o;}
+							var ns = (type(name)!="Array")?
+							web.toDataString(name).split(delimiter):
+							name;
+							switch(onError){ //all cases should be lowercase
+								case 'CREATE':
+								case undefined:
+									for(var i = 0, l = ns.length; i < l; i++){
+										o = o[ns[i]] = o[ns[i]] || {};
+									}
+									return o;
+								case 'ERROR':
+									for(var i = 0, l = ns.length; i < l; i++){
+										o = o[ns[i]];
+										if(!o){throw 'error when accessing '+name}
+									}
+									return o;
+								case 'NOCREATE':
+									onError={};
+									default:
+						}
+
+						for(var i = 0, l = ns.length; i < l; i++){
+							if(o[ns[i]]){
+								o=o[ns[i]];
+							}else{
+								return (onError=="TEST")?false:onError;
+							}
+						}
+
+						return (onError=="TEST")?true:o;
+					}
+
 		var webPutDeferedPrefix='web.put[Defered]='
 		//inspiration from http://stackoverflow.com/questions/13355278/javascript-how-to-convert-json-dot-string-into-object-reference
 		web.put=function(path,value,callback){ //path only supports dotNotation and now brakets! :-D
@@ -6677,18 +7385,103 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			return o;
 		};
 
+	//expressions are always asyncronous so we can send them to webworkers, server or other places if needed
+	//returns exception (if false everything is good, otherwise there will be an exception telling error)
+	web.expression=function(key,callback){ //todo http://jsep.from.so/
+		if(key==null){
+			return undefined
+		}
+		var obj=setScope(this,undefined)
+		if(web.isString(obj)){
+			obj=web.global[obj]
+		}
+
+		debugger
+		var regExp = /\(([^)]*?)\)/;
+		var matches = regExp.exec(key);
+		var path,args;
+		if(matches){
+			path=key.replace(matches[0],'')
+			args=matches[1]
+		}else{
+			path=key
+			args=undefined
+		}
+
+		console.log(obj,path)
+		var fn = web.get.call(obj,path,{check:function(obj,path,parent){return !web.isNativeFunction(obj)}});
+		if(web.isFunction(fn)){
+			//NOTE: if using _.bind(web.expression,window,'web.isPopup()') there is a chance that the callback could become a mouse or keyboard event if 
+			//the bounded function is used on a listener
+			callback&&web.defer(function(){callback(fn.apply(fn,web.toArguments(args)))})
+			return false
+		}else{
+			return 'Not a function'
+		}
+
+		//if(answer==web.async){ //this signifies an async function
+		//	answer.callback(callback)
+		//}
+		return answer
+	}
+
+web.namespace.storageEvents='web.api-message'
+web.listen=function(target,handler){
+	if(web.isArray(target)){
+		throw 'web.listen does not acceptarrays yet'
+	}else if(target=='tabs'){
+		web.onEvent('storage', function(e) { //TODO use web.onevent
+				var o=e.originalEvent||e
+				console.info('storage event',o)
+				if(web.startsWith(o.newValue,prefix)){
+					if (o.key == web.namespace.storageEvents && o.newValue!='') {//do not respond to empty string because it is a reset for the previous message
+						handler.call(e,o.newValue,o.srcElement)
+					}
+				}
+			});
+		}
+}
+
+
+web.post=function(target,message,reply){
+	var reply;
+	if(!web.post.handlingArray && web.isArray(target)){
+		web.post.handlingArray=true
+		reply=[]
+		for(var i=0,l=0;i<l;i++){
+			reply.push(web.post(target[i],message,reply))
+		}
+		web.post.handlingArray=false;
+	}else if(target=='tabs'){ //http://html5demos.com/storage-events
+		localStorage.setItem(web.namespace.storageEvents, message); //triggers storage event
+		localStorage.setItem(web.namespace.storageEvents, ''); //clear storage event so we can send more later
+	}else if(target.postMessage && web.isFunction(target.postMessage)){
+		target.postMessage(message)
+	}else{
+		throw 'Dont know how to post to '+target
+	}
+	return reply
+}
+web.post.handlingArray=false;
+
 		//becomes async when you give a callback
 		//only supports dot notation for now. no brackets
 		//todo support bracket notation
 		//inspiration http://stackoverflow.com/questions/14375753/parse-object-dot-notation-to-retrieve-a-value-of-an-object
-		web.get=function(key,callback){
+		web.get=function(key,options,callback){
 			if(key==null){
 				return undefined
 			}
 			var obj=setScope(this,undefined)
+
+			if(web.isFunction(options)){
+				callback=options
+				options=undefined
+			}
+
+			options=options||{}
 			if(web.isValue(obj)){
 				if (obj instanceof web.url){
-
 					if(web.isFunction(key)){
 						callback=key
 						key=undefined
@@ -6704,20 +7497,36 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				var resp,type=web.isType(obj)
 				if(type=="Location"){
 					return $.get(obj.toString(),callback)
-				}else if(type=='Number'){//Handle array indexes and even negitive ones
-					if(key<0){
-						resp=obj[obj.length+key]
-					}else{
-						resp=obj[key]
+				}else if(web.isArray(obj)){ //get from javascript array
+					
+					if(web.isNumber(key)){//Handle array indexes and even neg ones
+						if(key<0){
+							type=false; //set type to false so we know resp is handled
+							resp = obj[obj.length+key]
+						}else{
+							type=false; //set type to false so we know resp is handled
+							resp = obj[key]
+						}
+					}if(web.isArray(key)){
+						throw "not implmented"
 					}
-				}else{ //get from javascript Obj
-					var parts = key.split('.')
+				}
+
+				if(type){ //has resp been set?
+					//Default to obj is object and key typeof== string and split as needed
+					key = String(key)
+					var parts = key.split('.');
 					resp = obj || window;
+					var path=parts[0]
 					for (var i = 0; i < parts.length; i += 1) {
-						if (resp[parts[i]]) {
+						if(resp[parts[i]]){
+							if(options.check && !options.check(resp[parts[i]],path,obj)){
+									return undefined
+								}
 							resp = resp[parts[i]];
-						} else {
-						if (i >= parts.length - 1)
+							path+='.'+parts[i]
+						}else{
+						if(i >= parts.length - 1)
 							return undefined;
 						}
 					}
@@ -6798,66 +7607,6 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			return !!web.global.Worker;
 		}
 
-
-
-			web.namespace=function(name,delimiter,container,onError){
-				web.assign(name,container,onError)
-			}
-
-			//http://www.memonic.com/user/flavio/folder/javascript/id/1oYwe
-			/********************
-			 * example
-			 ********************
-			 * namespace("com.example.namespace").test = function(){
-			 * alert("In namespaced function.");
-			 *  };
-			 *
-			 *a modified version of Mark A. Ziesemer's namespace function.
-			 */
-			 web.assign = function(name,container,onError){
-							//normalize onError to lowercase unless it is a function
-							if(type(onError)=='String'){
-								onError=onError.toUpperCase();
-							}
-							var delimiter=delimiter || ".";
-
-							if(type(delimiter)!="String"){
-								onError=container,container=delimiter,delimiter=undefined;
-							}
-
-							var o = container || window;
-							if(!name){return o;}
-							var ns = (type(name)!="Array")?
-							web.toDataString(name).split(delimiter):
-							name;
-							switch(onError){ //all cases should be lowercase
-								case 'CREATE':
-								case undefined:
-									for(var i = 0, l = ns.length; i < l; i++){
-										o = o[ns[i]] = o[ns[i]] || {};
-									}
-									return o;
-								case 'ERROR':
-									for(var i = 0, l = ns.length; i < l; i++){
-										o = o[ns[i]];
-										if(!o){throw 'error when accessing '+name}
-									}
-									return o;
-								case 'NOCREATE':
-									onError={};
-									default:
-						}
-
-						for(var i = 0, l = ns.length; i < l; i++){
-							if(o[ns[i]]){
-								o=o[ns[i]];
-							}else{
-								return (onError=="TEST")?false:onError;
-							}
-						}
-
-						return (onError=="TEST")?true:o;
-					}
 
 
 
@@ -7214,7 +7963,6 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 							//var url = rawMatch.slice(rawMatch.indexOf(paren)+1,rawMatch.lastIndexOf(paren))
 							//rawMatch=rawMatch.replace(url,web.images.bug)
 							//rawMatch=web.replaceRange(rawMatch,rawMatch.indexOf(paren)+1,rawMatch.lastIndexOf(paren),web.images.bug)
-						 
 
 							return 'src="'+web.images.bug+'" onload="web.parseHTML.deferedImageLoad(this,\''+web.UID()+'\');" data-'+rawMatch
 							//return 'onerror="console.warn(\'^^^You may ignore the above GET error^^^\');this.src=web.images.bug;return true;" ' +rawMatch
@@ -7232,6 +7980,8 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				deferedImageLoadCache[id]=true;
 				return
 			}else{
+				//elem.removeEventListener('load')
+				elem.onload=null;
 				elem.src=elem.getAttribute('data-src');
 			}
 		}
@@ -7792,31 +8542,716 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		}
 
 
-		//DO NOT USE yet
-		web.keyboard=function(elem, keyCombo,callback){
-			elem=$(elem||window)
-
-			if(keyCombo=='search'){
-				elem.keydown(function(e){
-					if ( ((e.ctrlKey||e.metaKey) && e.keyCode===70 && !e.shiftKey) || e.keyCode===114){
-						callback(e)
-					}
-				});
-				return
+		var CLASS = function(path){
+			if(web.isNodeJS()){
+				return require('java')['import'](path); 
+			}else if(web.isRhino()){
+				//var pack=('Packages.'+path).split('.');
+				//var clazz = pack.pop()
+				var namespace=function(c,f,b){var e=c.split(f||"."),g=b||window,d,a;for(d=0,a=e.length;d<a;d++){g=g[e[d]]=g[e[d]]||{}}return g};
+				return namespace(path);
+			}else{
+				throw "exception"
 			}
-			var i=-1;
-			while(++i<keyCombo.length){
-				web.ascii(keyCombo[i])
+		}
+
+
+		web.create=web.new=function(constructor /*arguments*/){
+			if(!web.isString(constructor)){
+				//get constructor name and then go to recycledObjects to grab one
+				var name = constructor.name;
+				return recycledObjects[name].pop() || constructor.apply({},arguments);
 			}
 			
-			if(web.keyboard.shiftCharacters[key]){
+			if(constructor=='array'||constructor=='Array'||constructor=='[]'){
+				return (recycledObjects.array && recycledObjects.array.pop()) ||[]
+			}else if(constructor=='object'||constructor=='Object'||constructor=='{}'){
+				return (recycledObjects.object && recycledObjects.object.pop()) ||{}
+			}else{
+				return recycledObjects[constructor].pop()||{}
+			}		
+		}
+
+		var recycledObjects={}
+
+		web.free=function(obj,instance,obj2){
+			if(!obj){
+				return
+			}
+			if(web.isString(obj)){
+				if(web.startsWith(obj,'blob:')){
+					return URL.revokeObjectURL(obj)
+				}
+				return
+			}
+			obj.clear&&obj.clear()
+			obj.reset&&obj.reset()
+			if(instance==null){
+				if(web.isArray(obj)){
+					if(recursive){
+						for(var i=0,l=obj.length;i<l;i++){
+
+						}
+					}else{
+						obj.length=0
+					}
+				}else if(web.isObject(obj)){ //it is an obj
+					if(recursive){
+						web.extendMapList(recycledObjects,'object',obj)
+					}
+				}else{
+					web.warn('freed an object that was unhandled is ',obj)
+				}	
+			}else{
+				//handle instance object here
+			}
+
+
+			if(obj2){
+				web.free.apply(web.free,web.toArray(arguments).slice(2))
+			}
+		}
+
+
+
+		var orientationHandlers=[]
+		var body=$('body'),qWindow=$(window)
+
+			web.orientationchange=function(){
+				web.depricated('web.orientationchange depricated use web.orientation')
+				web.orientation.apply(web,arguments)
+			}
+			var orientation;
+			web.orientation=function(handler){ //TODO make this not work with window size. Optimize to use events
+				if(handler==null){
+					var o = undefined //(screen.orientation || screen.mozOrientation || screen.msOrientation || window.orientation)
+					var raw= (o&&o.type)||''
+					var orientation = raw.split('-')
+					var degree = orientation.pop()
+					orientation= orientation.pop()
+
+					if(orientation!='landscape'||orientation!='portrait'){
+						orientation=(qWindow.width()>qWindow.height())?'landscape':'portrait'
+					}
+					if(orientation=='landscape'){
+						web.orientation.current=orientation
+						web.orientation.landscape=true
+						web.orientation.portrait=false
+						web.orientation.degree=degree
+						web.orientation.primary=(degree=='primary')?true:false;
+					}else if(orientation=='portrait'){
+						web.orientation.current=orientation
+						web.orientation.landscape=false
+						web.orientation.portrait=true
+						web.orientation.degree=degree
+						web.orientation.primary=(degree=='primary')?true:false;
+					}
+				
+					//if (orientation === "landscape-primary"||orientation === "landscape-secondary") {
+					//  console.log("Mmmh... the screen is upside down!");
+					//} else if (orientation === "portrait-secondary" || orientation === "portrait-primary") {
+					//  console.log("Mmmh... you should rotate your device to landscape");
+					//}
+
+
+					return orientation
+					}
+
+
+				//THIS VAR IS NOT CONSISTANT ACROSS DEVICES!!
+				//Reason: http://www.matthewgifford.com/blog/2011/12/22/a-misconception-about-window-orientation/
+				//alert(window.orientation); //0 = portrate -90 landscape right 90 landscape left
+				// if(window.matchMedia){ //most reliable?
+				// 		// Find matches
+				// 		var mql =window.matchMedia("(orientation: portrait)");
+
+				// 		handler(!mql.matches,mql);
+				// 		// Add a media query change listener
+
+				// 		mql.addListener(function(m){return handler(!m.matches,m)});
+				//				window.addEventListener("orientationchange", web.orientation, false);
+				// }
+			
+				handler= _.debounce(handler)
+
+				//Listen for orientation changes
+				qWindow.on("orientationchange", handler);
+				orientationHandlers.push(handler)
+				handler()
+			}
+		var pastOrientation=web.orientation()
+		qWindow.on("resize", _.debounce(function(){
+			var orientation = web.orientation()
+			if(pastOrientation!=orientation){
+				pastOrientation=orientation
+				for(var i=0,l=orientationHandlers.length;i<l;i++){
+					orientationHandlers[i](orientation)
+				}
+			}
+		}));
+
+		web.orientation(function(){
+			web.orientation()
+			//orientation=(isLandscape)?0:90;
+			body.toggleClass('orientation-landscape',web.orientation.landscape);
+			body.toggleClass('orientation-portrait',web.orientation.portrait);
+		})
+
+
+
+		//self is expected to be 'this' in parent function
+		var setScope=web.setScope=function(self,arg){
+			if(isStrict){
+				if(self===web){
+					return arg
+				}
+				return self
+			}//else
+			if(self===web||self===web.global){
+				return arg
+			}
+			return self
+		}
+		var _scope =setScope
+
+
+		var apply=function(fn,arr){
+			return fn.apply(fn,arr)
+		}
+		var call=function(fn){
+			return fn.apply(fn,Array.prototype.slice.call(arguments, 1))
+		}
+
+
+
+
+		web.on=function(elem,event,handler,bool,arg){
+			if(web.isString(elem)){
+				arg=bool
+				bool=handler
+				handler=event
+				event=elem
+				elem=undefined
+			}
+
+			
+
+			if(!web.isBoolean(bool)){
+				arg=bool
+				bool=arg
+			}
+
+			// if(web.contains(event,'||')){
+			// 	var events = event.split('||')
+			// 	function (onclick) {
+			// 		this.bind("touchstart", function (e) { onclick.call(this, e); e.stopPropagation(); e.preventDefault(); });
+			// 		this.bind("click", function (e) { onclick.call(this, e); });   //substitute mousedown event for exact same result as touchstart         
+			// 		return this;
+			// 	};
+			// }
+			//if(event=='dragStart')
+			if(event=='longClick'){ //http://stackoverflow.com/questions/2625210/long-press-in-javascript
+				elem=$( (elem||document) );
+				var mouseButtonsDown={};
+
+				(function(){
+					$(elem).mouseup(function(e){
+						var buttons = web.whichMouseButtons(e) //TODO update this function so it returns more than one 
+						for(var i=0,l=buttons.length;i<l;i++){
+							clearTimeout(mouseButtonsDown[buttons[i]])
+						}
+						// Clear timeout
+						return false;
+					}).mousedown(function(e){
+						// Set timeout
+						var buttons = web.whichMouseButtons(e) //TODO update this function so it returns more than one 
+						for(var i=0,l=buttons.length;i<l;i++){
+							if(mouseButtonsDown[buttons[i]]){
+								clearTimeout(mouseButtonsDown[buttons[i]])
+							}
+							mouseButtonsDown[buttons[i]]=window.setTimeout(_.bind(handler,this,e),arg||1000)
+						}
+						return false; 
+					});
+				})()
+				return
+			}else if(event =='scrollDown'){ //TODO implmente this
+				elem=$( (elem||document) )
+				var lastScrollTop = 0, delta = 5;
+				$(window).scroll(function(event){
+					var st = $(this).scrollTop();
+					
+					if(Math.abs(lastScrollTop - st) <= delta)
+						return;
+					
+					if (st > lastScrollTop){
+						// downscroll code
+						console.log('scroll down');
+					} else {
+						// upscroll code
+						console.log('scroll up');
+					}
+					lastScrollTop = st;
+				});
 
 			}
 
-			var fn = function(){}
-			elem.keydown().keyup()
+
+
+
+			if (elem.addEventListener) { // Modern
+				elem.addEventListener(event, handler, !!bool);
+			} else if (elem.attachEvent) { // Internet Explorer
+				elem.attachEvent("on" + event, handler);
+			} else { // others
+				elem["on" + event] = handler;
+			}
+		};
+		//http://stackoverflow.com/questions/4127118/can-you-detect-dragging-in-jquery
+		// var isDragging = false;
+		// $("a")
+		// .mousedown(function() {
+		// 	$(window).mousemove(function() {
+		// 		isDragging = true;
+		// 		$(window).unbind("mousemove");
+		// 	});
+		// })
+		// .mouseup(function() {
+		// 	var wasDragging = isDragging;
+		// 	isDragging = false;
+		// 	$(window).unbind("mousemove");
+		// 	if (!wasDragging) { //was clicking
+		// 		$("#throbble").show();
+		// 	}
+		// });
+
+
+
+		//http://perfectionkills.com/detecting-event-support-without-browser-sniffing/
+		web.isEventSupported=function isEventSupported(eventName) { //dont check unless developer asks to check
+			if(web.isEventSupported.mutationEvents[eventName]){
+				console.warn('You really shouldn\'t use mutationEvents. Use MutationObservers instead https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver')
+				// check for Mutation Events, DOMAttrModified should be
+				// enough to ensure DOMNodeInserted/DOMNodeRemoved exist
+				if(!web.global.addEventListener){
+					return false;
+				}
+
+				var e = function() {
+						document.documentElement.removeEventListener(eventName||'DOMAttrModified', e, false);
+						isSupported = true;
+						web.global.mutationTest = cache;
+					}
+					,cache=web.global.mutationTest //save value so we can change it back
+					,f = false
+					,isSupported=false;
+				
+				web.global.addEventListener(eventName||'DOMAttrModified', e, false);
+				// now modify a property
+				web.global.mutationTest = 'mutationTest';
+				f = web.global.mutationTest != 'mutationTest';
+				web.global.mutationTest = cache;
+				return isSupported||f;
+		}else{
+			  var el = document.createElement(web.isEventSupported.TAGNAMES[eventName] || 'div');
+			  eventName = 'on' + eventName;
+			  var isSupported = (eventName in el);
+			  if (!isSupported) {
+				el.setAttribute(eventName, 'return;');
+				isSupported = typeof el[eventName] == 'function';
+			  }
+			  el = null;
+			  return isSupported;
+			};
+		}
+
+			web.isEventSupported.TAGNAMES = {
+			'select':'input','change':'input',
+			'submit':'form','reset':'form',
+			'error':'img','load':'img','abort':'img'
+			}
+
+			web.isEventSupported.mutationEvents={
+				DOMAttrModified:true
+				,DOMAttributeNameChanged:true
+				,DOMCharacterDataModified:true
+				,DOMElementNameChanged:true
+				,DOMNodeInserted:true
+				,DOMNodeInsertedIntoDocument:true
+				,DOMNodeRemoved:true
+				,DOMNodeRemovedFromDocument:true
+				,DOMSubtreeModified:true}
+
+		var transitionEventEnd=''
+
+		var mappedEvents={}
+		//window events, view events, resource events, storage events;
+		mappedEvents.DOMWindowCreated=mappedEvents.DOMWindowClose=mappedEvents.DOMTitleChanged=mappedEvents.MozBeforeResize=mappedEvents.SSWindowClosing=mappedEvents.SSWindowStateReady=mappedEvents.SSWindowStateBusy=mappedEvents.close=mappedEvents.fullscreen=mappedEvents.fullscreenchange=mappedEvents.fullscreenerror=mappedEvents.MozEnteredDomFullscreen=mappedEvents.MozScrolledAreaChanged=mappedEvents.resize=mappedEvents.scroll=mappedEvents.sizemodechange=mappedEvents.abort=mappedEvents.cached=mappedEvents.error=mappedEvents.load=mappedEvents.storage=window
+		//Document Events , DOM mutation events
+		mappedEvents.DOMLinkAdded=mappedEvents.DOMLinkRemoved=mappedEvents.DOMMetaAdded=mappedEvents.DOMMetaRemoved=mappedEvents.DOMWillOpenModalDialog=mappedEvents.DOMModalDialogClosed=mappedEvents.unload=mappedEvents.DOMAttributeNameChanged=mappedEvents.DOMAttrModified=mappedEvents.DOMCharacterDataModified=mappedEvents.DOMContentLoaded=mappedEvents.DOMElementNameChanged=mappedEvents.DOMNodeInserted=mappedEvents.DOMNodeInsertedIntoDocument=mappedEvents.DOMNodeRemoved=mappedEvents.DOMNodeRemovedFromDocument=mappedEvents.DOMSubtreeModified=window.document
+
+		//reference for events 
+		//https://developer.mozilla.org/en-US/docs/Web/Events
+		//note: passing document to a paste will be different than omiting it. If you want to attach to document then just omit
+		web.onEvent=/*web.on=*/function(eventName,element,callback,arg0){
+			if(web.contains(eventName,' ')){ //space is seperator see if there are many or one
+				eventName=eventName.split(' ') //create array
+				for(var i=0,l=eventName.lenght;i<l;i++){
+					eventName[i]=web.onEvent(eventName[i],element,callback,arg0)
+				}
+				return eventName
+			}
+			var hooked=false
+				,pluginName=eventName.indexOf('.')
+				,parentHasFocus;
+
+			if(pluginName!=-1){
+				pluginName= web.trimLeft(eventName,'.')
+				eventName = web.deepTrimRight(eventName,'.')
+			}
+
+			if(web.isFunction(element)){
+				arg0=callback
+				callback=element
+				element=undefined
+			}
+
+			//set default element depending on known elements to have that event
+			if(!element){ //for help see https://developer.mozilla.org/en-US/docs/Web/Events
+				element=mappedEvents[eventName]||web.global.document.documentElement||web.global.document; //default is documentElement or document if document element does not exist
+			}
+
+			if(eventName=='copy'){
+				if(callback=='annotation'){
+					callback=function(){
+					web.editSelection(arg0,true)
+					}
+				}
+			}else if(eventName=='transitionEnd'){
+				/* From Modernizr */
+				if(!transitionEventEnd){
+					var t
+						,el = document.createElement('fakeelement')
+						,transitions = [
+							/*'transition':*/ 'transitionend',
+							/*'OTransition':*/ 'oTransitionEnd',
+							/*'MozTransition':*/ 'transitionend',
+							/*'WebkitTransition':*/'webkitTransitionEnd'
+						];
+
+					for(var i=0, l=transitions.length;i<l;i++){
+						if( el.style[t] !== undefined ){
+							transitionEventEnd=transitions[t];
+							break;
+						}
+					}
+				}
+
+				/* Listen for a transition! */
+				transitionEventEnd && element.addEventListener(transitionEventEnd, callback);
+			}else if(eventName=='paste'){
+				//inspiration
+					//http://labs.nereo.com/slick.html
+				//sources
+					//http://stackoverflow.com/questions/2176861/javascript-get-clipboard-data-on-paste-event-cross-browser/2177059#2177059
+					//http://stackoverflow.com/questions/11605415/jquery-bind-to-paste-event-how-to-get-the-content-of-the-paste
+
+				var parentPositioning, ta = $('<textarea/>').css({position:'absolute'})
+
+				//hiding ta element over parent element hack
+				/*if(element){ //element=web.global.document.body
+					parentPositioning=element.css('position') //cache to recover
+					ta.css({position:'absolute',width:'100%',height:'100%',top:0,left:0,opacity:0,cursor:'default'})
+					element.prepend(ta)
+				}else{
+					*/
+				ta.css({top:'-100%',left:'-100%'})
+					/*}*/
+
+				if(element){
+					parentHasFocus = web.focusIndicator(element) //todo replace focusIndicator with a statusWatcher||stateWatcher
+				}else{
+					//pollyfill
+					parentHasFocus=function(){return true};
+					parentHasFocus.focus=true;
+				}
+
+				callback=_.partialRight(function(e,callback){
+						if(!parentHasFocus.focus){
+							return
+						}
+						$(web.global.document.body).append(ta);
+						document.designMode = 'off';
+						ta.focus();
+
+						var text='';
+						var id = web.setInterval(function(){
+							if(text=ta.val()){ //trigger event! 
+								//finished pasting!
+								text=ta.val()
+								ta.val('')
+								ta.remove();
+								callback(e,text)
+								text=''
+								web.clearInterval(id)
+							}
+						}, 'poisson',30);
+						//return false;
+				},callback)
+
+
+				if(web.isEventSupported('paste')){
+					callback=_.partialRight(function(e,callback){
+						if (e.which == 86 && (e.ctrlKey || e.metaKey)) {    // CTRL + V
+							return callback(e)
+						}
+					},callback)
+					eventName='keydown'
+				}
+			}else if(eventName=='select'){
+				//hook into keyboard down and mouse down to check with previous selection in order to trigger event
+			}else if(eventName=='deselect'){
+				//see select event
+			}else if(eventName=='userEncounter'){
+				var fn = function(e){ // resize dblclick hover  textinput touchmove  mouseover mouseout mouseleave mouseenter
+					callback()
+					$(window).off(events,fn)
+				};
+				eventName = 'click mousemove keypress keydown keyup textinput touchstart touchend touchcancel focus scroll contextmenu copy cut paste select mousewheel'
+				element=window
+				pluginName='' //TODO handle plugin name correctly
+			}else if(eventName=='storage'){
+				//debugger
+				//if (window.addEventListener) {
+				//	window.addEventListener(eventName, callback, false);// Normal browsers
+				//} else {
+				//	window.attachEvent("on"+eventName, callback);// for IE (why make your life more difficult)
+				//};
+				//return callback
+			}
+
+			element=$(element) //change it to a jquery
+			if(pluginName){
+				eventName=eventName.split(' ')
+				for(var i=0,l=eventName.length;i<l;i++){
+					eventName[i]+='.'+pluginName+' '
+				}
+				element.on(eventName.join(' ').trim(),callback);
+			}else{
+				element.on(eventName,callback);
+			}
+
+			//TODO ensure this check code works properly
+			// if(!hooked){
+			//	//http://stackoverflow.com/questions/5411026/list-of-css-vendor-prefixes
+			// 	if(eventName.test(/^(-(ms|moz|o|xv|atsc|wap|webkit|khtml|apple|ah|hp|ro|rim|tc)|(mso|prince))-/)){
+			// 		console.warn('you do not need to use prefix event names for '+eventName+' please change this in the javascript code!')
+			// 		return web.onEvent(eventName,element,callback,arg0)
+			// 	}
+			// 	console.warn('This event was not hooked'+eventName)
+			// }
+			return callback; //in case we modified it
 
 		}
+		web.off=function(eventName,element,callback){
+			console.warn('detaching',eventName)
+			if(eventName=='paste'){
+				element=web.global.document.body
+				callback=undefined
+				
+			}
+			return $(element).off(eventName,undefined,callback)
+
+		}
+		var hasPeripheralInput=false;
+		web.onEvent('userEncounter',function(){hasPeripheralInput=true})
+		web.hasPeripheralInput=function(){
+			return hasPeripheralInput
+		}
+
+		var isResizing=false;
+		web.onResize=function(start,end){ //TODO convert this to web.onEvent
+			if(!web.onResize.init){
+				web.onResize.init=true
+				qWindow.on('resize',function(e){
+					if(isResizing==false){
+						isResizing=true
+						for(var i=0,l=web.onResize.startListeners.length;i<l;i++){
+							web.onResize.startListeners[i]()
+						}
+					}
+					web.onResize.end()
+				})
+			}
+			if(isResizing){ //if we are resizing before you started then go ahead and run start handler
+				start()
+			}
+			web.onResize.startListeners.push(start)
+			web.onResize.endListeners.push(end)
+		}
+		web.onResize.end=_.debounce(function(){
+			isResizing=false
+			for(var i=0,l=web.onResize.endListeners.length;i<l;i++){
+				web.onResize.endListeners[i]()
+			}
+		},100)
+		web.onResize.init=false;
+		web.onResize.startListeners=[]
+		web.onResize.endListeners=[]
+
+
+
+		/**************************
+		Web.zeroTimeout
+		//Original http://dbaron.org/log/20100309-faster-timeouts
+		**********************/
+
+		// Only add setZeroTimeout to the window object, and hide everything
+		// else in a closure.
+		var setImmediate =web.setImmediate=(function() {
+			if(web.isNodeJS()){ //if this is nodejs platform then return our fn
+				return setImmediate
+			}
+			var timeouts = [];
+			var messageName = "zero-timeout-message";//TODO generate random message id(reduce collisions)
+			web.on(window,'message',handleMessage,true)
+			return setImmediate;
+
+
+			// Like setTimeout, but only takes a function argument.  There's
+			// no time argument (always zero) and no arguments (you have to
+			// use a closure).
+			function setImmediate(func){
+				if(func==null ){ //create defer object if called with no arguments! //this object is used directly to defer stuff
+					//if(arguments.length==0){
+						var queue=[]
+						var end = false;
+						var next=function(){apply(queue.shift(),arguments)}
+
+						var b = function(arg){
+							if(end){
+								throw new Error('NO NO NO!') //for debugging, this will never be thrown unless there is a logical error
+							}
+							if(arg===undefined){
+								return next
+							}else if(web.isFunction(arg)){
+								queue.push.apply(queue,arguments)
+							}else if(arg===b){
+								//end
+								end=true;
+							}else{
+								throw new Error('defered as an object got an object it can\'t handle',arg)
+							}
+							return b
+						}
+						web.defer.call(b,b,b)
+
+						return b
+					//}else{
+					//	return undefined
+					//}
+				}
+
+				var scope=(this===web||this===web.global)?undefined:this;
+				var callback
+				if(scope||arguments.length>1){
+					callback=[func,scope,Array.prototype.slice.call(arguments, 1)] //(function(){func.apply(scope,Array.prototype.slice.call(arguments, 1))})
+				}else{
+					callback=func
+				}
+
+				if(web.isNodeJS()){
+					return setTimeout(callback,0);
+				}
+				return timeouts.push(callback),window.postMessage(messageName, "*");
+			}
+
+			function handleMessage(event) {
+				if(event.source === web.global && event.data == messageName) {
+					event.stopPropagation(); //consume it
+					if (timeouts.length > 0) {
+						var args=timeouts.shift();
+						if(args.call){
+							args()
+						}else{
+							args[0].apply(args[1],args[2])
+						}
+					}
+				}
+			}
+		})();
+
+		/******************************
+		Web.defer
+		 was integrated into setImmediate.
+		 web.defer is a combindation of both lodash.defer underscore.defer and setZeroTimeout
+		 https://github.com/lodash/lodash/blob/2.4.1/dist/lodash.compat.js#L5840
+		 https://github.com/jashkenas/underscore/blob/9c1c3ea4fcafe82d546e190c5f0edd02940808e5/underscore.js#L719
+		*******************************/
+		web.defer=setImmediate;
+
+
+		//DO NOT USE yet
+		// web.keyboard=function(elem, keyCombo,callback){
+		// 	elem=$(elem||window)
+
+		// 	if(keyCombo=='search'){
+		// 		elem.keydown(function(e){
+		// 			if ( ((e.ctrlKey||e.metaKey) && e.keyCode===70 && !e.shiftKey) || e.keyCode===114){
+		// 				callback(e)
+		// 			}
+		// 		});
+		// 		return
+		// 	}
+		// 	var i=-1;
+		// 	while(++i<keyCombo.length){
+		// 		web.ascii(keyCombo[i])
+		// 	}
+			
+		// 	if(web.keyboard.shiftCharacters[key]){
+
+		// 	}
+
+		// 	var fn = function(){}
+		// 	elem.keydown().keyup()
+
+		// }
+
+
+		web.keyboard=function(keyCombo,keyState,callback,global){ //use call() to set target
+			var obj=setScope(this,undefined)
+
+			if(web.isObject(keyCombo)){
+				_.each(keyCombo,function(value,key,obj){
+					face.keyMap.apply(face.keyMap,value)
+				})
+				return face
+			}
+			keyCombo=String(keyCombo)
+
+			// if(!web.isString(keyCombo)){
+			// 	if(web.isString(target)){
+			// 		var tmp = keyCombo
+			// 		keyCombo=target
+			// 		target=tmp
+			// 	}
+			// }
+			// if(web.isFunction(target)&&!callback){
+			// 	callback=target
+			// 	target=undefined
+			// }
+			if(callback==null){
+				callback=keyState
+				keyState=null
+			}
+			if(web.isString(callback)){
+				callback=_.bind(web.expression,window,callback)
+			}
+
+
+			Mousetrap.bind(keyCombo,callback,keyState);
+		}
+
 		web.keyboard.shift=(function(input){
 				var to={},from={};
 				input.replace(/.(.)/g,function(a){
@@ -7857,6 +9292,10 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 			return web.keyboard.alt
 		}
+
+
+		web.keyboard('mod+f',function(e){e.preventDefault();web.find(null)})
+		web.keyboard(['mod+`','mod+~'],function(e){e.preventDefault();web.prompt('Tilde commands','Such boss, very wow')})
 
 		web.scale = function(num, minA, maxA, minB, maxB){
 			return (
@@ -8023,6 +9462,15 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				console.error('web.concat does not know how to handle ',in1)
 			}
 		}
+// 		web.zeroFill=function(number,padding,base){
+// 			//var pad_char = typeof  !== 'undefined' ? c : '0';
+// 			var pad = new Array(1 + padding).join('0');
+// 			return (pad + number).slice(-pad.length);
+// 		}
+
+
+// var h = ("000000000000000" + number.toString(16)).substr(-16);
+// 		}
 
 		web.padding=function(str,padding,letter,additional){
 			letter=letter||' '
@@ -8041,7 +9489,10 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				//TODO optimize this
 				output=((Array(padding).join(letter)) + str).slice(-padding);
 			}else{
-				throw 'not implemented yet'
+				padding=padding*-1;
+				output=str.slice(0,padding)
+				padding=Math.abs(output.length- (padding+1) )
+				output=(output+(Array(padding).join(letter)))
 			}
 
 			if(additional!=null){
@@ -8120,6 +9571,33 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 			return array;
 		}
+
+
+		web.toArguments=function(string){
+			if( (string.charAt(0)!='[' && string.charAt(string.length-1)!=']' ) ){
+				string='['+string+']'
+				//arg = arg.substring(1, arg.length-1)string.split(/[ ,]+/);
+			}
+			return JSON.parse(string)
+
+
+			// var string = string.split(/[ ,]+/); //no need to trim
+			// var args=web.Array(),arg;
+			// for(var i=0,l=args.length;i<l;i++){
+			// 	arg=args[i]
+			// 	if( (arg.charAt(0)=='"' && arg.charAt(args.length-1)=='"')  ||  (arg.charAt(0)=="'" && arg.charAt(arg.length-1)=="'") ){
+			// 		arg = arg.substring(1, arg.length-1);
+			// 	}else if(web.isNumeric(arg)){
+			// 		arg=web.toNumber(arg)
+			// 	}else if( (arg.charAt(0)=='[' && arg.charAt(string.length-1)==']' ) ){
+			// 		arg=web.toArguments(arg)
+			// 	}
+			// 	args.push(arg)
+				
+			// }
+			//return args
+		}
+
 		web.split=function(string,occurance,position,keep){ //TODO implment keep. keep will be (undefined||false) 'left', 'right', or true. Left and right append delimiter accordingly true keeps it but it is its own entry in the array
 			if(position==1){
 				var i = string.indexOf(occurance)
@@ -8279,16 +9757,25 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		}
 
 		//copied from https://github.com/garycourt/murmurhash-js
-		web.hashID=function(string,asNumber,algorithm){//TODO replace with xxHash https://code.google.com/p/xxhash/
-			if(web.isArray(algorithm)){
-				//concat those fools!
-				var hash=''
-				_.forEach(algorithm,function(algo){
-					hash+=web.hashID(string,asNumber,algo)
-				})
-				return hash
+		web.hashID=function(string,asNumber,seed){//TODO replace with xxHash https://code.google.com/p/xxhash/
+			if(seed==null){
+				seed='280423850456' //some random bit I got from running
 			}
-			var key=string,seed='280423850456' //some random bit I got from running
+			seed=web.toString(seed)
+
+			//if(!web.isNumber(seed)){
+			//	seed=web.hashID(seed,asNumber)
+			//}
+			// if(web.isArray(algorithm)){
+			// 	//concat those fools!
+			// 	var hash=''
+			// 	_.forEach(algorithm,function(algo){
+			// 		hash+=web.hashID(string,asNumber,algo)
+			// 	})
+			// 	return hash
+			// }
+			var key=string;
+	
 			//echo `cat /dev/urandom | base64 | tr -dc "[:alnum:]" | head -c64`
 		/**
 		 * JS Implementation of MurmurHash3 (r136) (as of May 20, 2011)
@@ -8360,7 +9847,6 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 
 
-		web.keyboard(null,'search',function(e){e.preventDefault();web.find(null)})
 
 
 		//http://www.javascripter.net/faq/searchin.htm
@@ -8649,6 +10135,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 			return scrubber
 		}
+
 
 
 		web.screenshot=function(targetElement,type,callback){
@@ -9441,13 +10928,19 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		}
 
 
-		web.stringToColor=function(str,includeAlpha){
-			var hash=web.hashID(str)
-			if(includeAlpha){
-				throw 'Implement this'
-			}
-			return '#'+hash.slice(2)
+		web.stringToColor=function(str,seed){
+			var hash=web.hashID(str,false,seed)
+			//if(option=='includeAlpha'){
+			//	throw 'Implement this'
+			//}
+			//if(option=='tail'){
+			//	return '#'+web.padding(hash,6,'0')
+			//}
+			//if(option=='head'){
+			return '#'+web.padding(hash,-6,'0')
+			//}
 		}
+
 
 		web.complement=function(hex){
 			var pound=(web.startsWith(hex,'#'))?'#':''
@@ -9474,7 +10967,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				hex='0x'+hex.slice(1)
 			}
 			var luma = web.colorLuma(hex)
-			if (luma < 40) {
+			if (luma < 80) {
 				return pound+'FFFFFF'
 			}else{
 				return pound+'000000'
@@ -9867,6 +11360,69 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 			return Object.getOwnPropertyNames(obj);
 		}
+
+		var isMouseButton={
+			buttons:[]
+			,which:['none','primary','auxiliary','secondary']
+			,button:['primary','auxiliary','secondary','forth','fifth']
+		}
+		isMouseButton.button[-1]='none'
+
+		//TODO if IE 8 or earlier if(){ //http://www.w3schools.com/jsref/event_button.asp
+		//isMouseButton.button=['','primary','secondary','','auxiliary']
+		//}
+		//primary,secondary,auxiliary,forth,fifth,none
+		web.isMouseButton=function(which,e){
+			which=which.toLowerCase()
+			e=e||web.event
+			//if (event.buttons!=null) { //lack of support
+				//https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
+				// 1  : Left button
+				// 2  : Right button
+				// 4  : Wheel button or middle button
+				// 8  : 4th button (typically the "Browser Back" button)
+				// 16 : 5th button (typically the "Browser Forward" button)
+			//	return event.buttons === 1;
+			//} else
+			if (e.which!=null && (which!='fourth' || which!='fifth')) {
+				//jquery https://api.jquery.com/mousedown/
+				//The value of which will be 1 for the left button, 2 for the middle button, or 3 for the right button.
+				//mdn https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/which
+				// 0: No button
+				// 1: Left button
+				// 2: Middle button (if present)
+				// 3: Right button
+				return isMouseButton.which[e.which]==which
+			} else {
+				//https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button
+				//-1: No button pressed
+				// 0: Main button pressed, usually the left button
+				// 1: Auxiliary button pressed, usually the wheel button or themiddle button (if present)
+				// 2: Secondary button pressed, usually the right button
+				// 3: Fourth button, typically the Browser Back button
+				//4: Fifth button, typically the Browser Forward button
+				return mouseMap.button[e.button]==which
+			}
+			throw 'error with mouse event in web.isMouseButton'
+		}
+		web.whichMouseButtons=function(e){ //todo update this to work with buttons,which,button in that priority. also return more than one mouse button if needed, also support fourth n fifth
+			var ans = [isMouseButton.which[e.which]]
+			return ans
+		}
+
+		var lastClickedElement=null;
+		web.lastClickedElement=function(obj){
+			if(!lastClickedElement){
+				$(document).click(function(event) {
+					lastClickedElement = event.target;
+				});
+				lastClickedElement=(window.document.documentElement || window.body)
+			}
+			if(obj){
+				lastClickedElement=obj
+			}
+			return lastClickedElement
+		}
 		/*example
 		['OpAutoRedraw'
 		,'OpAntiAlias'
@@ -9916,7 +11472,11 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			console.log('weee') 
 		}*/
 
-		web.GPS = function(arg,callback){
+		//TODO find town and county country n stuff around a gps locaiton
+		//TODO http://freegeoip.net/?q=204.84.7.11
+		//http://www.geoplugin.com/
+
+		web.GPS= function(arg,callback){
 			console.warn('web.GPS is currently a shim!')
 
 			//if(web.isZipCode()){
@@ -9970,95 +11530,6 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			return returnList
 		}
 
-		web.on=function(elem,event,handler,bool,arg){
-			if(web.isString(elem)){
-				arg=bool
-				bool=handler
-				handler=event
-				event=elem
-				elem=undefined
-			}
-
-			
-
-			if(!web.isBoolean(bool)){
-				arg=bool
-				bool=arg
-			}
-
-			// if(web.contains(event,'||')){
-			// 	var events = event.split('||')
-			// 	function (onclick) {
-			// 		this.bind("touchstart", function (e) { onclick.call(this, e); e.stopPropagation(); e.preventDefault(); });
-			// 		this.bind("click", function (e) { onclick.call(this, e); });   //substitute mousedown event for exact same result as touchstart         
-			// 		return this;
-			// 	};
-			// }
-			//if(event=='dragStart')
-			if(event=='longClick'){
-				elem=$( (elem||document) );
-				(function(){
-					var pressTimer
-					$(elem).mouseup(function(){
-						clearTimeout(pressTimer)
-						// Clear timeout
-						return false;
-					}).mousedown(function(){
-						// Set timeout
-						pressTimer = window.setTimeout(handler,arg||1000)
-						return false; 
-					});
-				})()
-				return
-			}else if(event =='scrollDown'){ //TODO implmente this
-				elem=$( (elem||document) )
-				var lastScrollTop = 0, delta = 5;
-				$(window).scroll(function(event){
-				   var st = $(this).scrollTop();
-				   
-				   if(Math.abs(lastScrollTop - st) <= delta)
-				      return;
-				   
-				   if (st > lastScrollTop){
-				       // downscroll code
-				       console.log('scroll down');
-				   } else {
-				      // upscroll code
-				      console.log('scroll up');
-				   }
-				   lastScrollTop = st;
-				});
-
-			}
-
-
-
-
-			if (elem.addEventListener) { // Modern
-				elem.addEventListener(event, handler, !!bool);
-			} else if (elem.attachEvent) { // Internet Explorer
-				elem.attachEvent("on" + event, handler);
-			} else { // others
-				elem["on" + event] = handler;
-			}
-		};
-		//http://stackoverflow.com/questions/4127118/can-you-detect-dragging-in-jquery
-		// var isDragging = false;
-		// $("a")
-		// .mousedown(function() {
-		// 	$(window).mousemove(function() {
-		// 		isDragging = true;
-		// 		$(window).unbind("mousemove");
-		// 	});
-		// })
-		// .mouseup(function() {
-		// 	var wasDragging = isDragging;
-		// 	isDragging = false;
-		// 	$(window).unbind("mousemove");
-		// 	if (!wasDragging) { //was clicking
-		// 		$("#throbble").show();
-		// 	}
-		// });
 
 
 		web.comparator = web.comparator || {}
@@ -10107,7 +11578,14 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 			return array
 		}
-
+		web.sortKey=function(array,key,decending){
+			if(decending=='asending'||decending===undefined){
+				decending=false
+			}else if(decending===true ||decending=='decending'){
+				decending=true
+			}
+			web.sort(array,web.sorter('numerical',key,decending))
+		}
 		web.sort=function(array,comparator,a,b,c,d,e,f,g){
 			if(!comparator){
 				comparator=web.comparator.numerical
@@ -10572,7 +12050,21 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 					document.msExitFullscreen();
 				}
 			}
-			return callback&&web.defer(function(){callback.call(elem,web.isFullScreen())})
+
+			var tmp=function(){
+				if(!web.isFullScreen()){
+					document.removeEventListener('webkitfullscreenchange', tmp, false);
+					document.removeEventListener('mozfullscreenchange', tmp, false);
+					document.removeEventListener('fullscreenchange', tmp, false);
+					document.removeEventListener('MSFullscreenChange', tmp, false);
+				}
+				callback&&web.defer(function(){callback.call(elem,web.isFullScreen())})
+
+			}
+			document.addEventListener('webkitfullscreenchange', tmp, false);
+			document.addEventListener('mozfullscreenchange', tmp, false);
+			document.addEventListener('fullscreenchange', tmp, false);
+			document.addEventListener('MSFullscreenChange', tmp, false);
 		}
 		var isMobile=undefined
 		web.isMobile=function(){
@@ -10851,6 +12343,13 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				return (lower < x && x < upper);
 			}
 		}
+		web.inclusiveBetween=function(x,lower,upper,comparator){
+			var ans = web.isBetween(x,lower,upper,comparator)
+			if(comparator){
+				return ans || (comparator(x,lower)==lower || comparator(x,upper)==upper)
+			}
+			return ans || ((x==lower)||(x==upper))
+		}
 
 		//Supports regexp
 		//http://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr
@@ -10898,7 +12397,8 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		}
 
 
-		//window.setInterval can be evil
+
+//window.setInterval can be evil
 		//http://www.thecodeship.com/web-development/alternative-to-javascript-evil-setinterval/
 		//https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers.setInterval
 
@@ -10919,10 +12419,11 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			var tOut=setTimeout(interv, wait);
 			//console.log('init',tOut)
 			var id=web.setInterval.instances.push(interv)-1;
-			function interv(command) {
+			function interv(command,reason) {
 				if(tOut&&command===false){
 					//console.log('clearing',tOut)
 					clearTimeout(tOut)
+					callback && callback(reason||'canceled')
 					return tOut=undefined
 				}
 				if (counter++ <= times) {
@@ -10959,17 +12460,186 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 		};
 		web.setInterval.instances=[];
-		web.clearInterval=function(id){
+		web.clearInterval=function(id,reason){
 			if(typeof id=='number'){
 				var o = web.setInterval.instances[id]
-				return o&&o(false)
+				return o&&o(false,reason)
 			}else{
-			console.log('clearing')
-				id(false)
+				console.log('clearing')
+				id(false,reason)
 			}
 		}
 
 
+
+		//more accurate
+		// //This could be used in the future but i like the idle handler better below
+		// var lastActivity=Date.now()
+
+		// $(function(){
+		// 	//Zero the idle timer on mouse movement.
+		// 	$(window).on('click mousemove keypress keydown keyup textinput touchstart touchend touchcancel focus scroll contextmenu copy cut paste select mousewheel',_.throttle(function(e){ // resize dblclick hover  textinput touchmove  mouseover mouseout mouseleave mouseenter
+		// 		lastActivity=Date.now()
+		// 	}));
+		// });
+
+		// //if no arguments give last time user active
+		// //if time only use as an idle time and return true false
+		// //if time and fn then use as a callback for when idle
+		// //if fn only default 20
+		// //function get argument isIdle (true means idle, false means user came back)
+		// web.userIdle=function(time,fn){
+		// 	if(!fn && (web.isNumber(time)||time==null)){
+		// 		if(time){
+		// 			return (time-lastActivity)>time
+		// 		}
+		// 		return lastActivity
+		// 	}
+
+		// 	if(web.isFunction(time)){
+		// 		fn = time
+		// 		time=undefined
+		// 	}
+
+		// 	time=time||1200000
+		// 	var isIdle=true
+		// 	var debounced= _.debounce(function(){
+		// 			if(isIdle){
+		// 				//call twice so we call on leading and trailing
+		// 				debounced()
+		// 			}
+		// 			isIdle=!isIdle //flip the flag
+		// 			fn(isIdle)
+		// 		}
+		// 		,time,{leading:true,trailing:true})
+
+		// 	$('body').on("click mousemove keyup",debounced ) // 20 minutes debounce
+		// 	debounced()
+		// }
+
+
+		//more performant
+		//NOTE!!!!!
+		//Do not use event.timeStamp because it is broken in firefox. Use Date.now()
+		var thereWasUserInput=false;
+		var lastActivity=Date.now()
+		var lastTimeStamp=0;
+		var listeningForRevive = false;
+		var reviveHandler=function(){
+							lastActivity=Date.now()
+							listeningForRevive=false;
+						}
+		//The reason for timeStamp offset is for firefox
+		//http://stackoverflow.com/questions/18197401/javascript-event-timestamps-not-consistent
+		//Examples
+		//http://jsfiddle.net/stevea/zTm9L/1/   different epochs too   http://stackoverflow.com/questions/18197401/javascript-event-timestamps-not-consistent
+		//http://jsfiddle.net/wDddR/3/    clicking on input programmatically returns 0 timestamp //http://stackoverflow.com/questions/9960913/why-is-event-timestamp-0-in-firefox
+		//what jquery thinks http://api.jquery.com/event.timestamp/
+		//NOTE onload recieves correct epoch (time since standard old date) but mouse move and other possible system events could be either epoch typeA or typeB
+		//var timeStampOffset=0
+		var idleFunctions=[]
+		var ranIdleFunctions=[]
+		$(function(){
+			//if(loadEvent.timeStamp){ //if it isnt 0 then
+			//	//date.now is deffinately epoch 
+			//	timeStampOffset=Date.now()-loadEvent.timeStamp
+			//	lastTimeStamp=e.timeStamp
+			//}
+			//Zero the idle timer on mouse movement.
+			$(window).on('click mousemove keypress keydown keyup textinput touchstart touchend touchcancel focus scroll contextmenu copy cut paste select mousewheel',_.throttle(function(e){ // resize dblclick hover  textinput touchmove  mouseover mouseout mouseleave mouseenter
+				thereWasUserInput=true;
+				//lastTimeStamp=e.timeStamp
+			}));
+		});
+		web.setInterval(function(){
+			if(thereWasUserInput){
+				thereWasUserInput=false
+				lastActivity=Date.now() //could add but settimeout nor setinterval are accurate enough
+				if(ranIdleFunctions.length){
+					//var o;
+					//while(ranIdleFunctions[0]){
+					//	o = ranIdleFunctions.shift()
+					//	o.revive && o.revive()
+					//	idleFunctions.unshift(o)
+					//}
+					Array.prototype.unshift.apply(idleFunctions, ranIdleFunctions);
+					ranIdleFunctions.length=0
+				}
+			}else{
+				var idleTime=Date.now()-lastActivity
+				var fn
+				while(idleFunctions[0] && idleFunctions[0].time<idleTime){
+					idleFunctions[0].fn()
+					if(idleFunctions[0].revive){
+						web.onEvent('userEncounter',idleFunctions[0].revive)
+						if(!listeningForRevive){
+							listeningForRevive=true;
+							web.onEvent('userEncounter',reviveHandler)
+						}
+					} 
+					ranIdleFunctions.push(idleFunctions.shift())
+				}
+
+			}
+
+
+		},15000)
+
+
+		//if no arguments give last time user active
+		//if time only use as an idle time and return true false
+		//if time and fn then use as a callback for when idle
+		//if fn only default 35min
+		//function get argument isIdle (true means idle, false means user came back)
+		//TODO add a cancel function to cancel useridle hooks
+		web.idle=function(time,fn,revive){
+			if(!fn && !time){
+				return Date.now()-lastActivity
+			}
+
+			if(web.isFunction(time)){
+				fn = time
+				time=undefined
+			}
+
+			if(!fn && time){
+				if((Date.now()-lastActivity)>time ){
+					if(!listeningForRevive){
+						listeningForRevive=true;
+						web.onEvent('userEncounter',reviveHandler)
+					}
+					return true
+				}
+				return false
+			}
+
+			time=time||2100000
+
+
+			var isIdle=true
+			idleFunctions.push({fn:fn,time:time,revive:revive})
+			web.sortKey(idleFunctions,"time")
+			return web.idle.id++
+		}
+		web.idle.id=0;
+
+		//returns true if ANY handlers were triggered
+		//if you supply a handler then we see if that handler is currently waiting for resurection (it has been triggered)
+		//if you supply a number it calls web.idle(time) which will return true if the idle time is greater than the time you query
+		//if handler===true then return true if all handlers are currently waiting for resurection
+		web.isIdle=function(handler){
+			if(handler!=null){
+				if(web.isFunction(handler)){
+					return ranIdleFunctions.indexOf(handler)!=-1
+				}else if(web.isNumber(handler)){
+					return web.idle(handler)
+				}else if(handler===true){
+					return !idleFunctions.length
+				}
+			}
+			return !!ranIdleFunctions.length  //|| listeningForRevive dont do this. Just see if ranidlefunctions has a length. it will be confusing if web.idle(5000) also returns true for web.isIdle()  (listeningForRevive should be an internal value)
+		}
+		
 
 		//Straight up only gets selected text. A convenience for browser compatibility
 		var getSelectedText=function(withAnnotation){
@@ -11055,214 +12725,6 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 		}
 
-
-		//http://perfectionkills.com/detecting-event-support-without-browser-sniffing/
-		web.isEventSupported=function isEventSupported(eventName) { //dont check unless developer asks to check
-			if(web.isEventSupported.mutationEvents[eventName]){
-				console.warn('You really shouldn\'t use mutationEvents. Use MutationObservers instead https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver')
-				// check for Mutation Events, DOMAttrModified should be
-				// enough to ensure DOMNodeInserted/DOMNodeRemoved exist
-				if(!web.global.addEventListener){
-					return false;
-				}
-
-				var e = function() {
-						document.documentElement.removeEventListener(eventName||'DOMAttrModified', e, false);
-						isSupported = true;
-						web.global.mutationTest = cache;
-					}
-					,cache=web.global.mutationTest //save value so we can change it back
-					,f = false
-					,isSupported=false;
-				
-				web.global.addEventListener(eventName||'DOMAttrModified', e, false);
-				// now modify a property
-				web.global.mutationTest = 'mutationTest';
-				f = web.global.mutationTest != 'mutationTest';
-				web.global.mutationTest = cache;
-				return isSupported||f;
-		}else{
-			  var el = document.createElement(web.isEventSupported.TAGNAMES[eventName] || 'div');
-			  eventName = 'on' + eventName;
-			  var isSupported = (eventName in el);
-			  if (!isSupported) {
-				el.setAttribute(eventName, 'return;');
-				isSupported = typeof el[eventName] == 'function';
-			  }
-			  el = null;
-			  return isSupported;
-			};
-		}
-
-			web.isEventSupported.TAGNAMES = {
-			  'select':'input','change':'input',
-			  'submit':'form','reset':'form',
-			  'error':'img','load':'img','abort':'img'
-			}
-
-			web.isEventSupported.mutationEvents={
-				DOMAttrModified:true
-				,DOMAttributeNameChanged:true
-				,DOMCharacterDataModified:true
-				,DOMElementNameChanged:true
-				,DOMNodeInserted:true
-				,DOMNodeInsertedIntoDocument:true
-				,DOMNodeRemoved:true
-				,DOMNodeRemovedFromDocument:true
-				,DOMSubtreeModified:true}
-
-		var transitionEventEnd=''
-
-
-		//reference for events 
-		//https://developer.mozilla.org/en-US/docs/Web/Events
-		//note: passing document to a paste will be different than omiting it. If you want to attach to document then just omit
-		web.onEvent=/*web.on=*/function(eventName,element,callback,arg0){
-			if(web.contains(eventName,' ')){
-				eventName=eventName.split(' ')
-				for(var i=0,l=eventName.lenght;i<l;i++){
-					eventName[i]=web.onEvent(eventName[i],element,callback,arg0)
-				}
-				return eventName
-			}
-			var hooked=false
-				,pluginName=(eventName.indexOf('.')>=0)
-				,parentHasFocus;
-
-			if(pluginName){
-				pluginName= eventName.split('.')
-				eventName=pluginName.shift()
-				pluginName=pluginName.pop()
-			}
-
-			if(web.isFunction(element)){
-				arg0=callback
-				callback=element
-				element=undefined
-			}
-
-			if(eventName=='copy'){
-				if(callback=='annotation'){
-					callback=function(){
-					web.editSelection(arg0,true)
-					}
-				}
-			}else if(eventName=='transitionEnd'){
-				/* From Modernizr */
-				if(!transitionEventEnd){
-					var t
-						,el = document.createElement('fakeelement')
-						,transitions = [
-							/*'transition':*/ 'transitionend',
-							/*'OTransition':*/ 'oTransitionEnd',
-							/*'MozTransition':*/ 'transitionend',
-							/*'WebkitTransition':*/'webkitTransitionEnd'
-						];
-
-					for(var i=0, l=transitions.length;i<l;i++){
-						if( el.style[t] !== undefined ){
-							transitionEventEnd=transitions[t];
-							break;
-						}
-					}
-				}
-
-				/* Listen for a transition! */
-				transitionEventEnd && element.addEventListener(transitionEventEnd, callback);
-			}else if(eventName=='paste'){
-				//inspiration
-					//http://labs.nereo.com/slick.html
-				//sources
-					//http://stackoverflow.com/questions/2176861/javascript-get-clipboard-data-on-paste-event-cross-browser/2177059#2177059
-					//http://stackoverflow.com/questions/11605415/jquery-bind-to-paste-event-how-to-get-the-content-of-the-paste
-
-				var parentPositioning, ta = $('<textarea/>').css({position:'absolute'})
-
-				//hiding ta element over parent element hack
-				/*if(element){ //element=web.global.document.body
-					parentPositioning=element.css('position') //cache to recover
-					ta.css({position:'absolute',width:'100%',height:'100%',top:0,left:0,opacity:0,cursor:'default'})
-					element.prepend(ta)
-				}else{
-					*/
-				ta.css({top:'-100%',left:'-100%'})
-					/*}*/
-
-				if(element){
-					parentHasFocus = web.focusIndicator(element) //todo replace focusIndicator with a statusWatcher||stateWatcher
-				}else{
-					//pollyfill
-					parentHasFocus=function(){return true};
-					parentHasFocus.focus=true;
-				}
-
-				callback=_.partialRight(function(e,callback){
-						if(!parentHasFocus.focus){
-							return
-						}
-						$(web.global.document.body).append(ta);
-						document.designMode = 'off';
-						ta.focus();
-
-						var text='';
-						var id = web.setInterval(function(){
-							if(text=ta.val()){ //trigger event! 
-								//finished pasting!
-								text=ta.val()
-								ta.val('')
-								ta.remove();
-								callback(e,text)
-								text=''
-								web.clearInterval(id)
-							}
-						}, 'poisson',30);
-						//return false;
-				},callback)
-
-
-				if(web.isEventSupported('paste')){
-					callback=_.partialRight(function(e,callback){
-						if (e.which == 86 && (e.ctrlKey || e.metaKey)) {    // CTRL + V
-							return callback(e)
-						}
-					},callback)
-					eventName='keydown'
-				}
-			}else if(eventName=='select'){
-				//hook into keyboard down and mouse down to check with previous selection in order to trigger event
-			}else if(eventName=='deselect'){
-				//see select event
-			}
-
-			element=$(element||web.global.document)
-			if(pluginName){
-				element.on(eventName,callback);
-			}else{
-				element.on(eventName+'.'+pluginName,callback);
-			}
-
-			//TODO ensure this check code works properly
-			// if(!hooked){
-			//	//http://stackoverflow.com/questions/5411026/list-of-css-vendor-prefixes
-			// 	if(eventName.test(/^(-(ms|moz|o|xv|atsc|wap|webkit|khtml|apple|ah|hp|ro|rim|tc)|(mso|prince))-/)){
-			// 		console.warn('you do not need to use prefix event names for '+eventName+' please change this in the javascript code!')
-			// 		return web.onEvent(eventName,element,callback,arg0)
-			// 	}
-			// 	console.warn('This event was not hooked'+eventName)
-			// }
-			return callback; //in case we modified it
-
-		}
-		web.off=function(eventName,element,callback){
-			console.warn('detaching',eventName)
-			if(eventName=='paste'){
-				element=web.global.document.body
-				callback=undefined
-				
-			}
-			return $(element).off(eventName,undefined,callback)
-
-		}
 
 		web.rotate=function(elem,angle){
 			if(!elem){
@@ -11388,274 +12850,6 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		}
 
 
-		var CLASS = function(path){
-			if(web.isNodeJS()){
-				return require('java')['import'](path); 
-			}else if(web.isRhino()){
-				//var pack=('Packages.'+path).split('.');
-				//var clazz = pack.pop()
-				var namespace=function(c,f,b){var e=c.split(f||"."),g=b||window,d,a;for(d=0,a=e.length;d<a;d++){g=g[e[d]]=g[e[d]]||{}}return g};
-				return namespace(path);
-			}else{
-				throw "exception"
-			}
-		}
-
-
-		web.create=web.new=function(constructor /*arguments*/){
-			if(!web.isString(constructor)){
-				//get constructor name and then go to recycledObjects to grab one
-				var name = constructor.name;
-				return recycledObjects[name].pop() || constructor.apply({},arguments);
-			}
-			
-			if(constructor=='array'||constructor=='Array'||constructor=='[]'){
-				return (recycledObjects.array && recycledObjects.array.pop()) ||[]
-			}else if(constructor=='object'||constructor=='Object'||constructor=='{}'){
-				return (recycledObjects.object && recycledObjects.object.pop()) ||{}
-			}else{
-				return recycledObjects[constructor].pop()||{}
-			}		
-		}
-
-		var recycledObjects={}
-
-		web.free=function(obj,instance,obj2){
-			if(!obj){
-				return
-			}
-			if(web.isString(obj)){
-				if(web.startsWith(obj,'blob:')){
-					return URL.revokeObjectURL(obj)
-				}
-				return
-			}
-			obj.clear&&obj.clear()
-			obj.reset&&obj.reset()
-			if(instance==null){
-				if(web.isArray(obj)){
-					if(recursive){
-						for(var i=0,l=obj.length;i<l;i++){
-
-						}
-					}else{
-						obj.length=0
-					}
-				}else if(web.isObject(obj)){ //it is an obj
-					if(recursive){
-						web.extendMapList(recycledObjects,'object',obj)
-					}
-				}else{
-					web.warn('freed an object that was unhandled is ',obj)
-				}	
-			}else{
-				//handle instance object here
-			}
-
-
-			if(obj2){
-				web.free.apply(web.free,web.toArray(arguments).slice(2))
-			}
-		}
-
-
-
-		var orientationHandlers=[]
-		var body=$('body'),qWindow=$(window)
-
-			web.orientationchange=function(){
-				web.depricated('web.orientationchange depricated use web.orientation')
-				web.orientation.apply(web,arguments)
-			}
-			var orientation;
-			web.orientation=function(handler){ //TODO make this not work with window size. Optimize to use events
-				if(handler==null){
-					var o = undefined //(screen.orientation || screen.mozOrientation || screen.msOrientation || window.orientation)
-					var raw= (o&&o.type)||''
-					var orientation = raw.split('-')
-					var degree = orientation.pop()
-					orientation= orientation.pop()
-
-					if(orientation!='landscape'||orientation!='portrait'){
-						orientation=(qWindow.width()>qWindow.height())?'landscape':'portrait'
-					}
-					if(orientation=='landscape'){
-						web.orientation.current=orientation
-						web.orientation.landscape=true
-						web.orientation.portrait=false
-						web.orientation.degree=degree
-						web.orientation.primary=(degree=='primary')?true:false;
-					}else if(orientation=='portrait'){
-						web.orientation.current=orientation
-						web.orientation.landscape=false
-						web.orientation.portrait=true
-						web.orientation.degree=degree
-						web.orientation.primary=(degree=='primary')?true:false;
-					}
-				
-					//if (orientation === "landscape-primary"||orientation === "landscape-secondary") {
-					//  console.log("Mmmh... the screen is upside down!");
-					//} else if (orientation === "portrait-secondary" || orientation === "portrait-primary") {
-					//  console.log("Mmmh... you should rotate your device to landscape");
-					//}
-
-
-					return orientation
-					}
-
-
-				//THIS VAR IS NOT CONSISTANT ACROSS DEVICES!!
-				//Reason: http://www.matthewgifford.com/blog/2011/12/22/a-misconception-about-window-orientation/
-				//alert(window.orientation); //0 = portrate -90 landscape right 90 landscape left
-				// if(window.matchMedia){ //most reliable?
-				// 		// Find matches
-				// 		var mql =window.matchMedia("(orientation: portrait)");
-
-				// 		handler(!mql.matches,mql);
-				// 		// Add a media query change listener
-
-				// 		mql.addListener(function(m){return handler(!m.matches,m)});
-				//				window.addEventListener("orientationchange", web.orientation, false);
-				// }
-			
-				handler= _.debounce(handler)
-
-				//Listen for orientation changes
-				qWindow.on("orientationchange", handler);
-				orientationHandlers.push(handler)
-				handler()
-			}
-		var pastOrientation=web.orientation()
-		qWindow.on("resize", _.debounce(function(){
-			var orientation = web.orientation()
-			if(pastOrientation!=orientation){
-				pastOrientation=orientation
-				for(var i=0,l=orientationHandlers.length;i<l;i++){
-					orientationHandlers[i](orientation)
-				}
-			}
-		}));
-
-		web.orientation(function(){
-			web.orientation()
-			//orientation=(isLandscape)?0:90;
-			body.toggleClass('orientation-landscape',web.orientation.landscape);
-			body.toggleClass('orientation-portrait',web.orientation.portrait);
-		})
-
-
-
-		//self is expected to be 'this' in parent function
-		var setScope=web.setScope=function(self,arg){
-			if(isStrict){
-				if(self===web){
-					return arg
-				}
-				return self
-			}//else
-			if(self===web||self===web.global){
-				return arg
-			}
-			return self
-		}
-		var _scope =setScope
-
-
-		var apply=function(fn,arr){
-			return fn.apply(fn,arr)
-		}
-		var call=function(fn){
-			return fn.apply(fn,Array.prototype.slice.call(arguments, 1))
-		}
-
-		/**************************
-		Web.zeroTimeout
-		//Original http://dbaron.org/log/20100309-faster-timeouts
-		**********************/
-
-		// Only add setZeroTimeout to the window object, and hide everything
-		// else in a closure.
-		var setImmediate =web.setImmediate=(function() {
-			if(web.isNodeJS()){ //if this is nodejs platform then return our fn
-				return setImmediate
-			}
-			var timeouts = [];
-			var messageName = "zero-timeout-message";//TODO generate random message id(reduce collisions)
-			web.on(window,'message',handleMessage,true)
-			return setImmediate;
-
-
-			// Like setTimeout, but only takes a function argument.  There's
-			// no time argument (always zero) and no arguments (you have to
-			// use a closure).
-			function setImmediate(func){
-				if(func==null ){ //create defer object if called with no arguments! //this object is used directly to defer stuff
-					//if(arguments.length==0){
-						var queue=[]
-						var end = false;
-						var next=function(){apply(queue.shift(),arguments)}
-
-						var b = function(arg){
-							if(end){
-								throw new Error('NO NO NO!') //for debugging, this will never be thrown unless there is a logical error
-							}
-							if(arg===undefined){
-								return next
-							}else if(web.isFunction(arg)){
-								queue.push.apply(queue,arguments)
-							}else if(arg===b){
-								//end
-								end=true;
-							}else{
-								throw new Error('defered as an object got an object it can\'t handle',arg)
-							}
-							return b
-						}
-						web.defer.call(b,b,b)
-
-						return b
-					//}else{
-					//	return undefined
-					//}
-				}
-
-				var scope=(this===web||this===web.global)?undefined:this;
-				var callback
-				if(scope||arguments.length>1){
-					callback=[func,scope,Array.prototype.slice.call(arguments, 1)] //(function(){func.apply(scope,Array.prototype.slice.call(arguments, 1))})
-				}else{
-					callback=func
-				}
-
-				if(web.isNodeJS()){
-					return setTimeout(callback,0);
-				}
-				return timeouts.push(callback),window.postMessage(messageName, "*");
-			}
-
-			function handleMessage(event) {
-				if (event.source == web.global && event.data == messageName) {
-					event.stopPropagation();
-					if (timeouts.length > 0) {
-						var args=timeouts.shift();
-						if(args.call){
-							args()
-						}else{
-							args[0].apply(args[1],args[2])
-						}
-					}
-				}
-			}
-		})();
-
-		/******************************
-		Web.defer
-		 was integrated into setImmediate.
-		 web.defer is a combindation of both lodash.defer underscore.defer and setZeroTimeout
-		 https://github.com/lodash/lodash/blob/2.4.1/dist/lodash.compat.js#L5840
-		 https://github.com/jashkenas/underscore/blob/9c1c3ea4fcafe82d546e190c5f0edd02940808e5/underscore.js#L719
-		*******************************/
-		web.defer=setImmediate;
 
 		web.test=function(){return this}
 		//web.test=function(blah1,blah2,callback,context,arguments){}

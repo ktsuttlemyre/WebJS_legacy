@@ -36,6 +36,7 @@ html.full-view, html.full-view body{
 /******************/
 /*  WebJS classes */
 /******************/
+.cursor-none{cursor:none !important;}
 .scroll-no	{overflow: hidden;}
 .scroll-x	{overflow-x: auto;}
 .scroll-y	{overflow-y: auto;}
@@ -501,3 +502,8 @@ html.full-view, html.full-view body{
 	content: "\00a0";
 }
 
+
+#web-contextMenu{
+  position: absolute;
+  display:none;
+}
