@@ -37,3 +37,9 @@
 [submodule "dependencies/kd-tree-javascript"]
 	path = dependencies/kd-tree-javascript
 	url = https://github.com/ubilabs/kd-tree-javascript.git
+[submodule "plugins/video/dependencies/video.js"]
+	path = plugins/video/dependencies/video.js
+	url = https://github.com/videojs/video.js.git
+[submodule "plugins/video/dependencies/videojs-youtube"]
+	path = plugins/video/dependencies/videojs-youtube
+	url = https://github.com/eXon/videojs-youtube.git
