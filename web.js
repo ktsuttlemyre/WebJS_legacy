@@ -9844,7 +9844,7 @@ web.post.handlingArray=false;
 			}
 
 			if(!web.isjQuery(element) || !web.isNode(element)){
-				if(web.isInstance(element,videojs&&videojs.Player)){ //if the element has an on function then use it (video.js uses this)
+				if(web.isInstance(element,global.videojs&&global.videojs.Player)){ //if the element has an on function then use it (video.js uses this)
 					element.on(eventName,callback)
 					return callback
 				}
