@@ -43,3 +43,6 @@
 [submodule "plugins/video/dependencies/videojs-youtube"]
 	path = plugins/video/dependencies/videojs-youtube
 	url = https://github.com/eXon/videojs-youtube.git
+[submodule "dependencies/pure-drawer"]
+	path = dependencies/pure-drawer
+	url = https://github.com/mac81/pure-drawer.git

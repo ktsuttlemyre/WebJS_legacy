@@ -611,9 +611,11 @@ this.web=(function(web,global,environmentFlags,undefined){
 	//web=function(options){ //init start
 		//avoid anything with call, avoid anything with this and use this custom scope function 
 		//http://jsperf.com/bind-vs-jquery-proxy/76
+		
 		web=function(input){
 			if(input==null){
-				//do something else
+				//init?
+
 			}else if(input instanceof webWrapper){
 				return input
 			}
@@ -623,6 +625,8 @@ this.web=(function(web,global,environmentFlags,undefined){
 				//arg1:scope;
 			}
 		};
+	
+		
 
 		web.constructor=self.web.prototype.constructor
 	web.toSource=function(o){
@@ -814,6 +818,8 @@ this.web=(function(web,global,environmentFlags,undefined){
 			return err
 		}
 		web.cancel=web.raise
+
+		web.canceled=new (function webCanceled(){})();
 		web.depricated=function(reason,fn){
 			console.warn('This function is depricated for reason:',reason,fn)
 		}
@@ -847,6 +853,12 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 			return callback.apply(context,args)
 
+		}
+		web.handleCallback=function(context,callback){
+			if(web.isString(callback)){
+				callback=web.get.call(context,callback)
+			}
+			callback&&callback.call&&callback()
 		}
 
 		function parseQueryString(query){
@@ -974,6 +986,31 @@ this.web=(function(web,global,environmentFlags,undefined){
 			return !(web.isPopup() || web.isIframe()) //http://stackoverflow.com/questions/10240398/check-whether-a-window-is-popup-or-not
 		}
 
+	var q = {}
+		$(function(){
+			q.window=$(window)
+			q.document=$(document)
+			q.body=$('body')
+			q.head=$('head')
+			web.q()
+		})
+		web.q=function(id){
+			if(id==undefined){
+				$('*[id]').each(function(){
+					var camelCase = web.camelCase(this.id)
+					var obj = $(this)
+					if(web.q[this.id] || web.Q[camelCase]){
+						throw 'duplicate id in HTML!'
+					}
+					web.q[this.id]=obj
+					web.Q[camelCase]=obj
+					})
+				return
+			}
+			return q[id]
+		}
+		web.Q={} //camelCase
+
 		$(window).on("blur focus", function(e) {
 			var value= e.type=='focus';
 			if(!value){
@@ -987,9 +1024,13 @@ this.web=(function(web,global,environmentFlags,undefined){
 			//}
 		})
 		web.isActive=function(handler){
-			return (document.visiblityState=='visible') || web.isActive.value
+			if(web.isFunction(handler)){
+				web.isActive.handlers.push(handler)
+			}
+			return (document.visibilityState=='visible') || web.isActive.value
 		}
-		web.isActive.value=document.visiblityState=='visible';
+		web.isActive.value=document.visibilityState=='visible';
+		web.isActive.handlers=[]
 
 		web.setUnpausableTimeout=function(fn,time){
 
@@ -1507,8 +1548,94 @@ this.web=(function(web,global,environmentFlags,undefined){
 			return o instanceof RegExp
 		}
 
+
+		//web.trimStart('    butter scotch berry scout  ') => web.trimStart('    butter scotch berry scout  ','') =>  'butter scotch berry scout  '
+		//web.trimStart('    butter scotch berry scout  ',6) => 'tter scotch berry scout  '
+		//web.trimStart('    butter scotch berry scout  ','sc') => 'otch berry scout  '
+		//web.trimStart('    butter scotch berty scout ','sc',true) => 'scotch berry scout  '
+		//web.trimStart('    butter scotch berry scout ','sc',2) => 'out  '
+		//web.trimStart('    butter scotch berry scout ','sc',2,true) => 'scout  '
+		//web.trimStart('    butter scotch berry scout ','sc',-2,) => 'otch berry scout  '
+		//web.trimStart('    butter scotch berry scout ','sc',-2,true) => 'scotch berry scout  '
+
+		web.trimBeginning=function(str,word,instance,keepMatchChars){ // instance=-1=deep negitive numbers count from lastindexof
+			if(!word){ //then trim start whitespace
+				return str.replace(web.RegExp.leadingWhitespace, '');
+			}
+
+			if(instance==null){
+				instance=1
+			}
+			if(!web.isNumber(instance) && web.isNumber(keepMatchChars)){ //instance expected to be a number or it will be converted to boolan and used as keepMatch var
+				var tmp= instance;
+				instance=keepMatchChars
+				keepMatchChars=!!tmp
+			}
+
+	
+			var type = typeof word;
+			if(type=='string'){
+				var i=(instance<0)?web.lastIndexOf(str,word,null,instance):web.indexOf(str,word,null,instance);
+				if(i<0){  //was not found //TODO idk if I should return last answer or '' if instances where more than found ins tring
+					str = '' //i think it should be empty string
+					return str
+				}
+				str=str.slice( i + ((keepMatchChars)?0:word.length))
+			}else if(type=='number'){
+				return str.slice(word)
+			}else if(web.isRegExp(word)){
+				throw 'Not implmented because idk how it should work'
+				// var index=0;
+				// return str.replace(word,function(match,offset,str){
+				// 	if(index==-1){return match}
+				// 	if(offset==index){
+				// 		//this will run as long as we find expected indexes
+				// 	}
+				// })
+			}
+			return str
+		}
+		web.trimEnding=function(str,word,instance,keepMatchChars){
+			if(!word){
+				//todo faster implementation for long strings
+				return str.replace(web.RegExp.trailingWhitespace, '');
+			}
+
+			if(instance==null){
+				instance=1
+			}
+			if(!web.isNumber(instance) && web.isNumber(keepMatchChars)){ //instance expected to be a number or it will be converted to boolan and used as keepMatch var
+				var tmp= instance;
+				instance=keepMatchChars
+				keepMatchChars=!!tmp
+			}
+
+			var type = typeof word;
+			if(type=='string'){
+				var i;
+				while(instance!=0){
+					if(instance<0){
+						instance++
+						str.lastIndexOf(word)
+					}else{
+						str.indexOf(word)
+						instance--
+					}
+					if(i<0){break} //was not found //TODO idk if I should return last answer or '' if instances where more than found ins tring
+					str= str.slice( 0, i + ((keepMatchChars)?word.length:0))
+				}/////
+			}else if(type=='number'){
+				return str.slice(0,word)
+			}else if(web.isRegExp(word)){
+				throw 'Not implmented because idk how it should work'
+			}
+			return str
+		}
+
+
 		//TODO add regular expression that trims characters that test positive for regexp
 		web.trimLeft=function(str,word,keep,deep){
+			web.depricated('use web.trimStart')
 			if(!word){
 				return str.replace(web.RegExp.leadingWhitespace, '');
 			}
@@ -1533,6 +1660,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 		}
 		web.trimRight=function(str,word,keep,deep){ //TODO make deep not boolean but rather number. so we can choose to cut at the 4th instance of a character etc
+			web.depricated('use web.trimEnd')
 			if(!word){
 				//todo faster implementation for long strings
 				return str.replace(web.RegExp.trailingWhitespace, '');
@@ -1667,8 +1795,11 @@ this.web=(function(web,global,environmentFlags,undefined){
 		return url
 	}
 
-	web.toAbsoluteURL= function(url) {
+	web.toAbsoluteURL= function(url){ //TODO any callls to this web.toAbsoulteURL should use toAbsoluteURL if they are within web.js closure or use web.url if they are outside (aka in a project)
 		web.depricated('web.toAbsoluteURL will be depricated soon and will be integrated to web.url')
+		return toAbsoluteURL(url)
+	}
+	var toAbsoluteURL =	function(url) { //TODO update or remove this
 		if(!url){return} //url||location.href; i dont think i should do this just return undefined
 
 		//if already absolute then return
@@ -1739,10 +1870,26 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 		web.url=function(url,cmd1,cmd2){
-			//handle file (file drop to native)
-			if(web.instanceOf(url,fd.File)){
+			//handle file drop (file drop object convert to native file object)
+			if(web.instanceOf(url,fd&&fd.File)){
 				url=url.nativeFile
 			}
+
+			url=url||web.global.location.href
+			if(!web.isString(url)){ //if(type=='Location'){url=url.href}
+
+				this.resource=url
+
+				url=this.resource.href
+				url=this.resource.src||url
+
+				if(!url){
+					throw 'error creating url'
+				}
+			}
+			var rawURL=url;
+
+			url = toAbsoluteURL(url)
 
 
 			if(cmd1){
@@ -1758,13 +1905,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 				if(cmd1=='DOMAIN'){
-					//http://stackoverflow.com/questions/8498592/extract-root-domain-name-from-string
-					url = web.toAbsoluteURL(url)
-					url=url.toString()
-					var matches = url.match(/^https?\:\/\/([^\/?#]+)(?:[\/?#]|$)/i);
-					return (matches && matches[1])||new URI(url).domain();  // domain will be null if no match is found
+					return web.url.prototype.domain.call(url)
 				}else if(cmd1=='PROTOCOL'){
-
+					return web.url.prototype.protocol.call(url)
 				}else if(cmd1=='SAMEORIGIN'){
 					return (web.url(url,'domain')==web.url(cmd2,'domain'))
 				}else if(cmd1=='BASE'){
@@ -1782,18 +1925,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 			if(!(this instanceof web.url)){return new web.url(url,cmd1,cmd2)}
 
-			url=url||web.global.location.href
 
-			if(!web.isString(url)){ //if(type=='Location'){url=url.href}
-				this.resource=url
 
-				url=this.resource.href
-				url=this.resource.src||url
 
-				if(!url){
-					throw 'error creating url'
-				}
-			}
 
 			// if(web.isObject(cmd1)){
 			// 		url.addSearch(queryData);
@@ -1869,6 +2003,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}
 			}
 
+
 			this['?']=queryStringParser(web.deepTrimRight(web.trimLeft(url,'?'),'#'))
 			this['#?']=queryStringParser(web.trimLeft(url,'#'))
 			this['//']=web.url(url,'domain')
@@ -1886,6 +2021,36 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 		web.url.prototype.valueOf=function(){
 			return this.url.toString()
+		}
+		web.url.prototype.domain=function(set){
+			var url=this.url||this //(web.isString(this):this:this.url
+			if(set){
+				url = this.URI || new URI(url)
+				url.domain(set)
+				return this
+			}
+			//http://stackoverflow.com/questions/8498592/extract-root-domain-name-from-string
+			url=url.toString()
+			var matches = url.match(/^https?\:\/\/([^\/?#]+)(?:[\/?#]|$)/i);
+			return (matches && matches[1])||new URI(url).domain();  // domain will be null if no match is found
+		}
+		web.url.prototype.port=function(set){
+			var url=this.url||this //(web.isString(this):this:this.url
+			url = this.URI || new URI(url)
+			if(set){
+				url.port(set)
+				return this
+			}
+			return url.port()
+		}
+		web.url.prototype.path=function(set){
+			var url=this.url||this //(web.isString(this):this:this.url
+			url = this.URI || new URI(url)
+			if(set){
+				url.path(set)
+				return this
+			}
+			return url.path()
 		}
 		web.baseURL=location.protocol + "//" + location.hostname + (location.port && ":" + location.port) + "/"; //web.url(null,'BASE')
 		web.base=function(){
@@ -2086,6 +2251,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 					grid.setSelectionModel(new Slick.RowSelectionModel());
 
 					elem.find(".slick-header").css("height","0px").css('display','none')
+
+					//on init callback
+					options.onInit&&options.onInit()
+					
 					grid.resizeCanvas()
 					grid.autosizeColumns();
 					qWindow.on("resize."+uid,_.throttle(function(){
@@ -2218,7 +2387,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 				if(!grid){
 					init(array[0])
 				}
-
+				if(!array.length){
+					options.onResultsEnd && options.onResultsEnd.call(face)
+					return
+				}
 				if(vertical){
 					dataView.beginUpdate()
 					_.forEach(array,function(item){dataView.addItem(item)})
@@ -2235,6 +2407,11 @@ this.web=(function(web,global,environmentFlags,undefined){
 					i.push.apply(i,array)
 					grid.setColumns(columns)
 					dataView.updateItem(0,i)
+					//check to see if all items are being filtered now and if they are call options.onEmpty
+				}
+	
+				if(dataView.getLength()==0){
+					options.onAllFiltered && options.onAllFiltered.call(face)
 				}
 				//this will replace all data
 				//dataView.beginUpdate();
@@ -3058,11 +3235,13 @@ this.web=(function(web,global,environmentFlags,undefined){
 		//options defaults = a bounding box if other options are not set
 		web.window=function(url,options,callback){
 			if(!(this instanceof web.window)) {return new web.window(url,options,callback)}
+			var id=web.window.instances.push(this)-1
 			var win,html,cmd,session=web.UUID();
 			if(web.isFunction(options)){
 				callback=options
 				options=null;
 			}
+			this.sizeHistory=[]
 
 			if(web.isObject(url)){
 				if(web.isObject(options)){
@@ -3301,7 +3480,11 @@ this.web=(function(web,global,environmentFlags,undefined){
 						callback.call(this) //sucess
 					}
 				}
-			});
+			}).on('beforeunload', function(e) {
+				delete web.window.instances[id]
+			}).on('resize',function(){
+				this.sizeHistory.push({width:this.width(),height:this.height()})
+			})
 
 
 			win.focus(); //might not be nessissary
@@ -3334,7 +3517,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}
 			},false)
 			win.addEventListener('error', function(e){console.error('Web.js error in web.window',e)}, false);
+			this.win=win
 		}
+		web.window.instances=[]
 
 
 		web.window.call=(function(cmd,cmd2){
@@ -3348,10 +3533,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 				this.winwin[cmd]()
 			}
 		})
-		web.window.isClosed=function(){
+		web.window.prototype.isClosed=function(){
 			return this.win.closed
 		}
-		web.window.focus=function(options){
+		web.window.prototype.focus=function(options){
 			if(options){
 				if(open.x!=null || open.y!=null){
 					this.move(open.x,open.y)
@@ -3362,13 +3547,13 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 			return win.focus()
 		}
-		web.window.close=function(){
+		web.window.prototype.close=function(){
 			return this.win.close()
 		}
-		web.window.isFocused=function(){
+		web.window.prototype.isFocused=function(){
 			return this.win.document.hasFocus()
 		}
-		web.window.move=function(apply,x,y){
+		web.window.prototype.move=function(apply,x,y){
 			if(apply==true){
 				this.win.moveBy(x,y)
 			}else{
@@ -3376,15 +3561,127 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 			return this
 		}
-		web.window.resize=function(apply,width,height){
-		if(apply==true){
+		web.window.prototype.resize=function(apply,width,height){
+			if(apply===true){
 				this.win.resizeBy(width,height)
 			}else{
 				this.win.resizeTo(apply,width)
 			}
 			return this
 		}
+		web.window.prototype.toRectangle=function(){
+			var rec={left:this.X(),top:this.Y()}
+			rec.right=rec.left+$(this.win).width()
+			rec.bottom=rec.top+$(this.win).height()
+			return rec
+		}
+		web.window.prototype.x=function(set){
+			if(set!=null){
+				return set
+			}
+			return this.win.screenX ||this.win.screenLeft
+		}
+		web.window.prototype.y=function(set){
+			if(set!=null){
+				return set
+			}
+			return this.win.screenY ||this.win.screenTop
+		}
+		web.window.prototype.width=function(set){
+			if(set!=null){
+				return set
+			}
+			return $(this.win).width();
+		}
+		web.window.prototype.height=function(set){
+			if(set!=null){
+				return set
+			}
+			return $(this.win).height()
+		}
+		web.window.prototype.expand=function(x,y){
+			debugger
+			if(x==null && y==null){
+				x=this.x()+this.width()/2;
+				y=this.y()+this.height()/2;
+			}
+			if(!web.isObject(x)){
+				x={x:x,y:y}
+			}
+			var a=[]
+			_.forEach(web.window.instances,function(o){
+				if(this===o){
+					return
+				}
+				a.push(o.toRectangle())
+			})
+			var left =(window.screenX||window.screenLeft)
+			var top =(window.screenY||window.screenTop)
+			a.push({left:left,right:left+web.q('window').width(),top:top,bottom:top+web.q('window').height()})
 
+			this.moveIntoView()
+			var proposed=web.rectangleMaxFill(null,a,x)
+			console.info('proposed',proposed)
+			this.move(proposed.left,proposed,top)
+			this.resize(proposed.right-proposed.left,proposed.bottom-proposed.top)
+
+		}
+		web.window.prototype.isOutOfXRange=function(){
+			if(this.x()<0){
+				return -1
+			}
+			if(this.x()+this.width<window.screen.availWidth){
+				return 1
+			}
+			return 0
+		}
+		web.window.prototype.isOutOfYRange=function(){
+			if(this.y()<0){
+				return -1
+			}
+			if(this.y()+this.height<window.screen.availHeight){
+				return 1
+			}		
+			
+			return 0
+		}
+		web.window.prototype.set=function(rectangle){
+			//var current = this.toRectangle()
+			//if(current.left!=rectangle.left || current.top!=rectangle.top){
+				this.move(rectangle.left,rectangle.top)
+		//	}
+		//	var width=rectangle.right-rectangle.left
+		////		,height=rectangle.bottom-rectangle.top
+			this.resize(width,height)
+		}
+		web.window.prototype.moveIntoView=function(){
+			var changed=false
+			var rectangle=$.extend({},start)
+			if(rectangle.left<0){
+				changed=true
+				rectangle.right=Math.min(rectangle.right+rectangle.left*-1,window.screen.availWidth)
+				rectangle.left=0
+			}
+			if(rectangle.right>window.screen.availWidth){
+				changed=true
+				rectangle.right=window.screen.availWidth;
+				rectangle.left=Math.max(rectangle.left+window.screen.availWidth-rectangle.right,0)
+			}
+			if(rectangle.top<0){
+				changed=true
+				rectangle.bottom=Math.min(rectangle.bottom+rectangle.top*-1,window.screen.availHeight)
+				rectangle.top=0
+			}
+			if(rectangle.bottom>window.screen.availHeight){
+				changed=true
+				rectangle.bottom=window.screen.availHeight;
+				rectangle.top=Math.max(rectangle.top+window.screen.availHeight-rectangle.bottom,0)
+			}
+			if(changed){
+				this.set(rectangle)
+			}
+		}
+		
 
 //Official web.message strings schema
 //starting string
@@ -3595,10 +3892,13 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 	}
 
-	web.api=function(prefix,cmd2){
+	web.api=function(prefix,channels,permissions){
+		if(channels==true){
+			channels=['tabs','DOM']
+		}
 		var obj=web.global[prefix]||web
 		var thing;
-		debugger
+	
 		// if(web.isString(obj)){
 		// 	if(web.endsWith(obj,'.js')){ //support file.bookmark.js and file.doc.js etc?
 		// 		thing=web.worker(obj,functions)
@@ -3617,90 +3917,113 @@ this.web=(function(web,global,environmentFlags,undefined){
 			var elem=$(this)
 			var method = elem.data('roguedj')
 			var value = elem.is(':checked')
+			if(web.contains(method,'(')||web.contains(method,')')){
+				console.warn('TODO implement an expression handler in web.api interface hanlder')
+				return
+			}
 			if(method && RogueDJ[method]){
 				window[prefix][method](value)
 			}
 			//self.postmessage({command:'web.updateUI',arguments:[method,value]})
 		})
 
+		for(var i=0,l=channels.length;i<l;i++){
+			switch(channels[i]){
+				case 'tabs':
+				//listen for other tabs that my be talking to us
+				//http://html5demos.com/storage-events
+				//window.addEventListener
+				web.listen('tabs', function(message,reply) { //TODO use web.onevent
+					api(message,reply)
+				});
 
-		//listen for other tabs that my be talking to us
-		//http://html5demos.com/storage-events
-		//window.addEventListener
-		web.listen('tabs', function(message,reply) { //TODO use web.onevent
-			api(message,reply)
-		});
+				// //listen for post messages
+				// self.addEventListener('message', function(e) {
+				// 	var data=e.data
 
-		// //listen for post messages
-		// self.addEventListener('message', function(e) {
-		// 	var data=e.data
+				// 	//+"obj.event=e;\n"
+				// 	//+"var obj={callback:function(evnt){obj.postMessage(evnt)}}
+				// 	if(web.isValue(e.origin)){ //is ''
+				// 		if(e.origin!=''){ //TODO look at trusted origins here
 
-		// 	//+"obj.event=e;\n"
-		// 	//+"var obj={callback:function(evnt){obj.postMessage(evnt)}}
-		// 	if(web.isValue(e.origin)){ //is ''
-		// 		if(e.origin!=''){ //TODO look at trusted origins here
+				// 		}else{
+				// 			alert('empty string origin message from postmessage')
+				// 		}
+				// 	}
 
-		// 		}else{
-		// 			alert('empty string origin message from postmessage')
-		// 		}
-		// 	}
+				// 	// e.data is the string sent by the origin with postMessage.
+				// 	if(data){
+				// 		if(!web.isString(data)){
+				// 			data=data.message
+				// 		}
+				// 		if(web.startsWith(data,prefix)){
+				// 			data = web.trimLeft(data,prefix)
+				// 			var ans = web.expression.call(obj,data)
+				// 			if(ans instanceof web.async){
+				// 				ans.callback(function(ans){e.source.postMessage(ans,e.origin)})
+				// 			}else{
+				// 				e.source.postMessage(ans, e.origin);
+				// 			}
+				// 		}else{
+				// 			return
+				// 		}
+				// 	}
 
-		// 	// e.data is the string sent by the origin with postMessage.
-		// 	if(data){
-		// 		if(!web.isString(data)){
-		// 			data=data.message
-		// 		}
-		// 		if(web.startsWith(data,prefix)){
-		// 			data = web.trimLeft(data,prefix)
-		// 			var ans = web.expression.call(obj,data)
-		// 			if(ans instanceof web.async){
-		// 				ans.callback(function(ans){e.source.postMessage(ans,e.origin)})
-		// 			}else{
-		// 				e.source.postMessage(ans, e.origin);
-		// 			}
-		// 		}else{
-		// 			return
-		// 		}
-		// 	}
+				// 	//var source =e.target||e.originalTarget||e.srcElement
+				// 	//if(source!=self){
+				// 	//	return
+				// 	//}
 
-		// 	//var source =e.target||e.originalTarget||e.srcElement
-		// 	//if(source!=self){
-		// 	//	return
-		// 	//}
+				// 	//if(!web.isObject(e.data) && !e.data.session && e.data.session!=session){
+				// 	//	return
+				// 	//}
+				// 	//+'if(source!=obj.){' //TODO find how to check owner in webworker
+				// 	//+'	return'
+				// 	//+'}'
+					
+				// 	//var data = (web.put)?(web.put.call(obj,e.data.fn||'')).apply(/*obj||*/ obj,e.data.arguments):obj[e.data.fn].apply(/*obj||*/ obj,e.data.arguments)
+				// 	//var o={
+				// 	//	"data":data
+				// 	//	,"jobID":e.data.jobID
+				// 	//	,"arguments":e.data.arguments
+				// 	//	,"fn":e.data.fn
+				// 	//};
+				// 	//if(o.data===undefined){return};
+				// 	//obj.postMessage(o);
 
-		// 	//if(!web.isObject(e.data) && !e.data.session && e.data.session!=session){
-		// 	//	return
-		// 	//}
-		// 	//+'if(source!=obj.){' //TODO find how to check owner in webworker
-		// 	//+'	return'
-		// 	//+'}'
-			
-		// 	//var data = (web.put)?(web.put.call(obj,e.data.fn||'')).apply(/*obj||*/ obj,e.data.arguments):obj[e.data.fn].apply(/*obj||*/ obj,e.data.arguments)
-		// 	//var o={
-		// 	//	"data":data
-		// 	//	,"jobID":e.data.jobID
-		// 	//	,"arguments":e.data.arguments
-		// 	//	,"fn":e.data.fn
-		// 	//};
-		// 	//if(o.data===undefined){return};
-		// 	//obj.postMessage(o);
-
-		// }, false);
+				// }, false);
+			}
+		}
 		console.log(prefix+' api available')
 
+		//returns true if allowed false if it isnt
 		function api(message,reply){
 			var method = message
-			if(web.startsWith(message,prefix)){
+			if(!web.startsWith(message,prefix)){//if the prefix is not correct see if it is a web.api specific command
+				if(web.startsWith(message,'web.api')){
+					message=web.trimBegining(message,'.',2)
+					if(web.startsWith(message,'map')){
+						return JSON.stringify(window[prefix],function(){ /*permissions... something */})
+					}
+				}
+
+				return false //web.forbidden web.canceled //call it a syntax error cause it is forbidden
+			}else{
 				method= web.trimLeft(message,'.')
 			}
-			web.expression.call(prefix,method,function(ans){
-				if(ans==null){
-
+			//remember web.expression returns true or false for syntax errors
+			//actual logical errors are handled in callback
+			return web.expression.call(prefix,method,function(ans){ 
+				if(web.error){
+					ans=web.error
 				}
 				reply && web.post(reply,web.toString(ans)) //TODO ensure that the postmessage back to the originating tab when tab broadcast is sent out
 			})
 		}
 		return api
+	}
+	web.api.map=function(){
+		throw 'do not call this directly call this function via a web.api object'
 	}
 
 	web.average=function(array,getter){
@@ -3779,18 +4102,27 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 	//Goodish idea gesture to spacial hash like what windows login does
 	// http://stackoverflow.com/questions/19622912/pointer-event-listener-shape-gestures-how-graphic-example-included
-
-	web.gesture=function(elem,callback){
-		alert()
+	web.gesture=function(elem,options,callback){
+		if(!(this instanceof web.gesture)){return new web.gesture(elem,options,callback)}
 		if(web.isFunction(elem)){
 			callback=elem
-			elem=document
+			elem=undefined
 		}
-		elem=$(elem)[0] //normalize
+		if(web.isFunction(options)){
+			var tmp =options
+			options =callback
+			callback=tmp
+		}
+		options=options||{}
+		options.minFingers=options.minFingers||1
+		options.minPoints=options.minPoints||5
+		elem=$( (elem||document) )[0] //normalize
 
-		var gesture,fingers=0,strokes=0,p$=P$('test'),start;
+		this.p$=P$('test')
+		var gesture,fingers=0,strokes=0,start,self=this;
 
 		elem.addEventListener('touchstart', function(event) {
+			self.result=null
 			if(strokes++){//TODO maybe add time for when fingers add?
 				return //only allows below code to run on first finger
 			}
@@ -3799,98 +4131,209 @@ this.web=(function(web,global,environmentFlags,undefined){
 		})
 
 		elem.addEventListener('touchmove', function(event) {
-			event.preventDefault();
-
 
 			for(var i=0,l=event.touches.length;i<l;i++){
 				//event.touches[i]=web.remap(event.touches[i],event.touches[i],{'clientX':'X','clientY':'Y'})
-
 			}
 
 			gesture.push(event)
 
 			fingers=Math.max(event.touches.length,fingers)
+			if(event.touches.length>options.minFingers){event.preventDefault();}
 		}, false); 
 
 		elem.addEventListener('touchend',function(event){
 			//last event does not have positions
+			debugger
 			if(--strokes!=0){
 				return
 			}
 
-
-
-			var output=function(name,cmd){
-				if(name){
-					if(cmd=='delete'||cmd){
-						//todo!
-						return
-					}
-					//adding training set
-					var instances = p$.AddGesture(name,output.gesture)
-					//console.log('added name=',name,'to p$. Number of ',name,'s ='instances)
-					return instances
-				}
-
-				//TODO possibly fix code so this conversion does not need to happen?
-				//convert web.touch event to proper points array
-				var matrix=[],points=output.gesture
-				for(var i=0,l=output.fingers;i<l;i++){
-					matrix.push([])
-				}
-				var o,p;
-				for(var i=0,l=points.length;i<l;i++){
-					for(var j=0,k=points[i].touches.length;j<k;j++){
-						o=points[i].touches[j]
-						p={}
-						p.X=o.clientX
-						p.Y=o.clientY
-						p.ID=j+1
-						matrix[j].push(p)
-					}
-				}
-				window.matrix=matrix
-				points=matrix.shift()
-				points=points.concat.apply(points,matrix)
-				window.points=points
-				//return
-
-
-				//search
-				var result = p$.Recognize(points,true)//does search
-				//console.log('array', p$.Recognize(points,false))//does search
-				console.log('tree', result)//does search
-				//output.name=result.name
-				//output.score=result.score
-				//console.log('name=',result.Name,'score=',result.Score,result)
-				return result
+			if(fingers<options.minFingers){
+				return
 			}
-			output.fingers=fingers //number of total fingers used in a gesture
-			output.strokes=(fingers==1)?1:undefined //total strokes (needs computation)
-			output.startstart
-			output.gesture=gesture
-			output.end=event
+			if(gesture.length<options.minPoints){
+				return
+			}
+
+			
+			self.fingers=fingers //number of total fingers used in a gesture
+			self.strokes=(fingers==1)?1:undefined //total strokes (needs computation)
+			self.start=start
+			self.gesture=gesture
+			self.end=event
 
 
+			//sort individual stroke arrays here
 
-
-			callback(output)
+			callback.call(self)
 		})
 
 	}
 
-	self.showGestureDebug=false
-	 //test web.gesture
-	 if(showGestureDebug){
-		web.gesture(function(e){
-			window.e=e
-			console.log('standard deviations of x and y'
-			,web.standardDeviation(e.gesture,'touches.0.clientX')
-			,web.standardDeviation(e.gesture,'touches.0.clientY'))
-			var results =e()
-			web.notify(results.Name,results.Score);
+
+	///New gesture to control
+/*
+	//Goodish idea gesture to spacial hash like what windows login does
+	// http://stackoverflow.com/questions/19622912/pointer-event-listener-shape-gestures-how-graphic-example-included
+	web.gesture=function(elem,options,callback){
+		if(!(this instanceof web.gesture)){return new web.gesture(elem,options,callback)}
+		if(web.isFunction(elem)){
+			callback=elem
+			elem=undefined
+		}
+		if(web.isFunction(options)){
+			var tmp =options
+			options =callback
+			callback=tmp
+		}
+		options=options||{}
+		options.minFingers=options.minFingers||1
+		options.minPoints=options.minPoints||5
+		options.maxStrokes=1
+
+		elem=$( (elem||document) )[0] //normalize
+
+		this.p$=P$('test')
+		var gesture,start,self=this,strokes=[],fingers=[];
+
+		elem.addEventListener('touchstart', function(event){
+			strokes.push({start:event})
 		})
+
+		elem.addEventListener('touchmove', function(event){
+
+
+			for(var i=0,l=event.touches.length;i<l;i++){
+				//event.touches[i]=web.remap(event.touches[i],event.touches[i],{'clientX':'X','clientY':'Y'})
+			}
+
+			gesture.push(event)
+
+			fingers=Math.max(event.touches.length,fingers)
+			if(event.touches.length>options.minFingers){event.preventDefault();}
+		}, false); 
+
+		elem.addEventListener('touchend',function(event){
+			//last event does not have positions
+			debugger
+			if(--strokes!=0){
+				return
+			}
+
+			if(fingers<options.minFingers){
+				return
+			}
+			if(gesture.length<options.minPoints){
+				return
+			}
+
+			
+			self.fingers=fingers //number of total fingers used in a gesture
+			self.strokes=(fingers==1)?1:undefined //total strokes (needs computation)
+			self.start=start
+			self.gesture=gesture
+			self.end=event
+
+
+			callback.call(self)
+
+			clear()
+		})
+
+		elem.addEventListener('touchcancel',function(){
+			web.notify('Gesture canceled')
+			clear()
+		})
+
+		function clear(){
+			//clear after call
+			self.result=self.fingers==self.start=self.gesture=self.end=null
+			gesture=[]
+			if(strokes.length<=options.maxStrokes){
+				strokes.shift()
+			}
+		}
+
+	}*/
+
+	web.gesture.prototype.calculate=function(){
+		//TODO possibly fix code so this conversion does not need to happen?
+		//convert web.touch event to proper points array
+		var matrix=[],points=this.gesture
+		if(!this.fingers && !points.length){
+			return {}
+		}
+		for(var i=0,l=this.fingers;i<l;i++){
+			matrix.push([])
+		}
+		var o,p;
+		for(var i=0,l=points.length;i<l;i++){
+			for(var j=0,k=points[i].touches.length;j<k;j++){
+				o=points[i].touches[j]
+				p={}
+				p.X=o.clientX
+				p.Y=o.clientY
+				p.ID=j+1
+				matrix[j].push(p)
+			}
+		}
+		window.matrix=matrix
+		points=matrix.shift()
+		if(points==null){
+			return {}
+		}
+		points=points.concat.apply(points,matrix)
+		window.points=points
+		//return
+
+
+		//search
+		this.result = this.p$.Recognize(points,true)//does search
+		//console.log('array', p$.Recognize(points,false))//does search
+		console.log('tree', this.result)//does search
+		//output.name=result.name
+		//output.score=result.score
+		//console.log('name=',result.Name,'score=',result.Score,result)
+		return this.result
 	}
+	web.gesture.prototype.add=function(name,gesture){
+		//adding training set
+		var instances = this.p$.AddGesture(name,gesture)
+		//console.log('added name=',name,'to p$. Number of ',name,'s ='instances)
+		return instances
+	}
+	web.gesture.prototype.remove=function(name){
+		//todo!
+		return
+	}
+	web.gesture.prototype.getName=function(){
+		if(web.get.call(this,'result.Name')){
+			return this.result.Name
+		}
+		this.result=this.calculate()
+		return this.result.Name
+	}
+	web.gesture.prototype.getScore=function(){
+		if(web.get.call(this,'result.Score')){
+			return this.result.Score
+		}
+		this.result=this.calculate()
+		return this.result.Score
+	}
+
+	// self.showGestureDebug=false
+	//  //test web.gesture
+	//  if(showGestureDebug){
+	// 	web.gesture(function(e){
+	// 		window.e=e
+	// 		console.log('standard deviations of x and y'
+	// 		,web.standardDeviation(e.gesture,'touches.0.clientX')
+	// 		,web.standardDeviation(e.gesture,'touches.0.clientY'))
+	// 		var results =e()
+	// 		web.notify(results.Name,results.Score);
+	// 	})
+	// }
 	//DEV NOTE: NEW KD TREE https://github.com/mikolalysenko/static-kdtree
 	//binary tree br and regular //https://github.com/vadimg/js_bintrees
 	//https://github.com/mikolalysenko/static-kdtree //see chart for decisions
@@ -4335,6 +4778,55 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 
 		}
+
+
+
+		//http://codetheory.in/controlling-the-frame-rate-with-requestanimationframe/
+		//additional	//http://stackoverflow.com/questions/19000109/javascript-cant-adjust-framerate-requestanimationframe
+		web.animationInterval=function(fps,draw){
+			if(!web.isFunction(draw)){
+				if(!web.isFunction(fps)){
+					return
+				}
+				var tmp = fps
+				fps=draw
+				draw=tmp
+			}
+			fps=fps||30
+			var now
+			, then = Date.now()
+			, interval = 1000/fps
+			, delta;
+			var fn = function(){
+				requestAnimationFrame(fn);
+				
+				now = Date.now();
+				delta = now - then;
+				
+				if (delta > interval) {
+					// update time stuffs
+					 
+					// Just `then = now` is not enough.
+					// Lets say we set fps at 10 which means
+					// each frame must take 100ms
+					// Now frame executes in 16ms (60fps) so
+					// the loop iterates 7 times (16*7 = 112ms) until
+					// delta > interval === true
+					// Eventually this lowers down the FPS as
+					// 112*10 = 1120ms (NOT 1000ms).
+					// So we have to get rid of that extra 12ms
+					// by subtracting delta (112) % interval (100).
+					// Hope that makes sense.
+					 
+					then = now - (delta % interval);
+					 
+					draw(now,then)
+				}
+			}
+			fn()
+			return {pause:function(){},play:function(){},stop:function(){},setFPS:function(f){fps=f,interval=1000/f}}
+		}
+
 		web.setTimeout=function(time,fn){ //TODO change this to use webworker timeout   http://stackoverflow.com/questions/5927284/how-can-i-make-setinterval-also-work-when-a-tab-is-inactive-in-chrome
 			//if(!(this instanceof web.setTimeout)){return new web.setTimeout(time,fn)}
 			if(!web.isNumber(time)){
@@ -4352,33 +4844,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 			// }else{
 			// }
 		}
-		//http://stackoverflow.com/questions/19000109/javascript-cant-adjust-framerate-requestanimationframe
-		web.AnimationFrameInterval=function(fps,fn){
-			var to,af,callback
-			if(web.isFunction(fps)){
-				fn=fps
-				fps=null
-			}
 
-			if(fps==null){
-				callback=function(){
-					requestAnimationFrame(function(){
-						requestAnimationFrame(callback)
-						fn()
-					})
-				}
-			}else{
-				callback=function(){
-					to=setTimeout(function(){
-						af=requestAnimationFrame(callback);
-						fn()
-					}, 1000 / fps);
-				}
-			}
-			return function(){
-				clearTimeout(to)
-				cancelAnimationFrame(af)
-			}
+		web.AnimationFrameInterval=function(){
+			throw 'Use web.animation or web.animationInterval'
 		}
 
 		function Traverser (collection,callback,bind,e){
@@ -5325,9 +5793,9 @@ web.mimeToCodecString=function(mime,forceReplace){
 }
 
 web.sendFile=function(session,file){
-	debugger
+	
 	var send = function(){
-		debugger
+
 			File.Send({
 				file: file,
 				channel: session, //anything with send command???
@@ -5385,7 +5853,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 					element=undefined
 				}
 			}
-
+			debugger
 			var callback=(web.isFunction(callbackMap))?callbackMap:null
 
 		/*	if(!web.isNode(element)||!web.isjQuery(element)){
@@ -5645,14 +6113,21 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		//Apple console api
 		//https://developer.apple.com/library/ios/documentation/AppleApplications/Conceptual/Safari_Developer_Guide/Console/Console.html
 		web.log=function(/*arguments*/){
-			web.log.history.push(arguments.length==1?arguments[0]:arguments)
-			while(web.log.history.length>50){
+			if(web.error){
+				console.error(web.error)
+			}
+			web.log.history.push(arguments) //DO NOT AUTO-UNBOX arguments.length==1?arguments[0]:arguments
+			while(web.log.history.length>50){ //TODO use web.queue or something here
 				web.log.history.shift()
 			}
-			console.log.apply(console,arguments);
+			if(arguments.length){
+				console.log.apply(console,arguments); //if arguments.lenght==0 nothing shows in console
+			}else{
+				console.trace('web.log(){arguments.length==0}') //fallback to trace cause we assume something will happen?
+			}
 			return arguments
 		}
-		web.log.history=[]
+		web.log.history=[] //TODO use web.queue or something here
 		web.log.last=function(i){
 			var item = web.log.history[web.log.history.length-1]
 			if(i<0){
@@ -5914,18 +6389,52 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		};
 		*/
 		}
+		var notificationAskedThisSession=false
+		var requestNotificationPermission=function(namespace,callback){
+			if(web.isFunction(namespace)){
+				callback=namespace
+				namespace=undefined
+			}
+			namespace=namespace||''
+			notificationAskedThisSession=true
+			if(web.isFunction(callback)){
+				Notification.requestPermission(forceRequest)
+			}else{
+				Notification.requestPermission(function(permission){
+					//permission = granted, denied or default
+					console.log('Web.js got '+permission+' for desktop Notifications')
+					if(permission=='denied'){
+						web.put.call(localStorage,'web.settings.dontAskForDesktopNotificaitonsAllowed.'+namespace,1)
+					}
+				})
+			}
+		}
 
+		//TODO implement namespace better
 		//http://stackoverflow.com/questions/28478185/remove-html5-notification-permissions
-		web.desktopNotificationsAllowed=function(request){
+		web.desktopNotificationsAllowed=function(namespace,forceRequest,callback){
 			var permission=Notification.permission  === 'granted'
-			if(!permission && request && !web.get.call(localStorage,'web.settings.dontAskForDesktopNotificaitonsAllowed')){
-				if(web.isFunction(request)){
-					Notification.requestPermission(request)
+			if(!web.isString(namespace)){
+				if(web.isBoolean(namespace)){
+					callback=forceRequest
+					forceRequest=namespace
+					namespace=undefined
 				}else{
-					Notification.requestPermission(function(permission){
-						//permission = granted, denied or default
-						console.log('Web.js got '+permission+' for desktop Notifications')
-					})
+					forceRequest=callback
+					callback=namespace
+					namespace=undefined
+				}
+			}
+			if(web.isFunction(forceRequest)){
+				var tmp = callback
+				callback=forceRequest
+				forceRequest=tmp
+			}
+			if(!permission){
+				if(forceRequest){
+					requestNotificationPermission(namespace,callback)
+				}else if(!notificationAskedThisSession && !web.get.call(localStorage,'web.settings.dontAskForDesktopNotificaitonsAllowed.'+namespace)){
+					requestNotificationPermission(namespace,callback)
 				}
 			}
 
@@ -5940,6 +6449,15 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		}else{
 			console.warn('PNotify not found!')
 		}
+
+		qWindow.on('beforeunload', function() {
+			web.notify.instances.forEach(function(instance){
+				instance.close()
+			});
+			web.window.instances.forEach(function(instance){
+				instance.close()
+			})
+		})
 		//https://github.com/jpillora/notifyjs.git
 		//send title = false to remove all
 		web.notify=function(title,message,options,callback){
@@ -5959,7 +6477,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 			// message = message.split('\n')
 
-			title = (title==null)?Object.prototype.toString.call(title):title;
+			title = web.toString(title);
 			type=undefined;
 			if(title.indexOf(':')){
 				type=title.split(':')[0].toLowerCase()
@@ -5975,7 +6493,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			if(message instanceof jQuery){
 				message = message.html()
 			}
-
+			message=web.toString(message)
 
 			if(options==null){
 				options={}
@@ -5992,95 +6510,101 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			
 
 			
-			if(options.timeOut===true||options.timeOut==null){
+			if(options.timeOut===true||options.timeOut===undefined){
 				options.timeOut=5000
 			}
 			options.icon=options.icon||web.images.bug
+			var notice;
 
-			if(web.desktopNotificationsAllowed(true)){ //see if it is allowed with a prompt
+			if(web.desktopNotificationsAllowed()){ //see if it is allowed with a prompt
 				var Notification = window.Notification || window.mozNotification || window.webkitNotification;
 
-				var instance = new Notification(
+				notice = new Notification(
 					title, {
 						body: message,
 						icon: options.icon
 					}
 				);
 
-				instance.onclick = function () {
-					// Something to do
-				};
-				instance.onerror = function () {
-					// Something to do
-				};
-				instance.onshow = function () {
-					// Something to do
-				};
-				instance.onclose = function () {
-					// Something to do
-				};
 
-				if(options.timeOut){
-					setTimeout(function(){instance.close()},options.timeOut)
-				}
+				notice.onclick = web.notify.clickHandlers[ (options.onclick||'DISMISS').toUpperCase() ]
 
-				return instance;
+				notice.onerror = function () {
+					//TODO
+					//do not use notifications?
+					//web.notify()
+				};
+				//Obsolete
+				// notice.onshow = function () {};
+				// notice.onclose = function () {};
+
+			}else{
+				notice = new PNotify({
+					title:title,
+					text: message,
+					icon: false,
+					type: type,
+					width:'auto',
+					hide: true,
+					buttons: {
+						closer: false,
+						sticker: false
+					},
+					insert_brs: false
+				});
+
+
+				notice.get().click(function(e,v,t) { //REMOVE DOM Notice
+					this.remove && this.remove()
+				});
+
+				web.shadow() //TODO WHAT?!
+
+				notice.get().find('form.pf-form').on('click', '[name=cancel]', function() {
+					notice.remove();
+				}).submit(function() {
+					var username = $(this).find('input[name=username]').val();
+					if (!username) {
+						alert('Please provide a username.');
+						return false;
+					}
+					notice.update({
+						title: 'Welcome',
+						text: 'Successfully logged in as ' + username,
+						icon: true,
+						width: PNotify.prototype.options.width,
+						hide: false,
+						buttons: {
+							closer: true,
+							sticker: true
+						},
+						type: 'success'
+					});
+					return false;
+				});
 			}
 
-			var notice = new PNotify({
-				title:title,
-				text: message,
-				icon: false,
-				type: type,
-				width:'auto',
-				hide: true,
-				buttons: {
-					closer: false,
-					sticker: false
-				},
-				insert_brs: false
-			});
-
-
-			notice.get().click(function() {
-			    notice.remove();
-			});
-
-
-
-
-			web.shadow() //TODO WHAT?!
-
-			notice.get().find('form.pf-form').on('click', '[name=cancel]', function() {
-				notice.remove();
-			}).submit(function() {
-				var username = $(this).find('input[name=username]').val();
-				if (!username) {
-					alert('Please provide a username.');
-					return false;
-				}
-				notice.update({
-					title: 'Welcome',
-					text: 'Successfully logged in as ' + username,
-					icon: true,
-					width: PNotify.prototype.options.width,
-					hide: false,
-					buttons: {
-						closer: true,
-						sticker: true
-					},
-					type: 'success'
-				});
-				return false;
-			});
-
-
+			var id = web.notify.instances.push(notice)-1;
 			if(options.timeOut){
-				setTimeout(function(){notice.close()},options.timeOut)
+				setTimeout(function(){
+					web.notify.clickHandlers['DISMISS'].call(notice)
+					delete web.notify.instances[id];
+				},options.timeOut)
 			}
 
 			return notice
-		}
+		};
+		web.notify.clickHandlers={
+			'FOCUS':function(x) { window.focus(); this.cancel(); }
+			,'DISMISS':function(x) {
+				if(this){
+					this.cancel && this.cancel(); //Notify object (HTML5)
+					this.close && this.close();
+					this.remove && this.remove(); //DOM element
+				}
+			 }
+		};
+		web.notify.instances=[]
 
 		//TODO use this instead??? http://stackoverflow.com/questions/4326845/how-can-i-determine-the-direction-of-a-jquery-scroll-event 
 		web.flicker = function(elem,callback){
@@ -6241,23 +6765,37 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 
 
-		web.chromeCast=function(applicationID,statusCallback,disconnectCallback){
+		web.chromeCast=function(applicationID,statusCallback){
 
 			if(web.isFunction(applicationID)){
 				statusCallback=applicationID
 				applicationID=undefined
 			}
 
-
+			var friendly={
+				'INITIALIZING':'Loading...'
+				,'CONNECTED':'Connected to Chromecast'
+				,'DISCONNECTED':'Lost connection to Chromecast'
+				,'AVAILABLE':'Chromecast available on network'
+				,'FOUNDEXTENTION':'Chromecast extension is installed'
+			}
+			var setStatus=function(status){
+				if(!status){
+					status=(face.message) ||
+							(face.session&&"CONNECTED") ||
+								(face.available&&"AVAILABLE") ||
+								(face.hasExtention&&"FOUNDEXTENTION")
+				}
+				face.status=status
+				statusCallback.call(face,status,friendly[status])
+			}
 
 			var terminationListener=function(isAlive){
 				if(!isAlive){
-					face.status='Disconnected'
-					face.session=null;
-					face.statusCallback(face)
-					disconnectCallback(face)
-					//TODO callback that continues playing
-					//face.onTermination
+					face.session=null
+					setStatus('DISCONNECTED')
+					face.status=null
+					setStatus()
 				}
 			}
 
@@ -6265,12 +6803,6 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				console.info('________')
 				console.dir(face)
 				console.info('________')
-				debugger
-				face.applicationID=face.applicationID||chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
-
-				if(web.caseInsensitive(face.applicationID,'youtube')){
-					face.applicationID='233637DE'
-				}
 
 
 				face.apiConfig = new chrome.cast.ApiConfig(
@@ -6278,7 +6810,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 					,function sessionListener(e) { // no need to return session here
 						console.log('chromecast: joining an existing session ',e)
 						face.session = face.session||e;
-						e&&face.statusCallback && face.statusCallback(face)
+						e&&setStatus()
 						face.session.addUpdateListener(terminationListener)
 						//callbacks.ready && callbacks.ready(session) //sesssion exists
 					}
@@ -6292,13 +6824,14 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 						//	break;
 						//}
 						face.available=(e==key.AVAILABLE)
-						face.statusCallback && face.statusCallback(face)
+						setStatus()
 						//face.callbacks.available && face.callbacks.available(face.available)
 					}
 				);
 				face.sessionCallback=function(callback){
 					var e;
 					if(face.session){
+						aler('already got session pretest')
 						web.defer(callback)
 						return
 					}
@@ -6307,30 +6840,72 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 						callback=undefined
 					}
 					chrome.cast.requestSession(function(session){
-						console.log('request session',session)
-							face.session=face.session||session;
-							(callback&&callback())||face.statusCallback(face)
-							face.session.addUpdateListener(terminationListener)
+							if(face.session){
+								alert('already got session! KTS posttest')
+								web.defer(callback)
+								return
 							}
-							,function(e){ //error handler
-				
-							web.raise(e,(callback||face.statusCallback),face)
-
-							
-							// if(!face.available){
-							// 	setTimeout(face.connect,5000)
-							// }
-							//callback(e)
-						} );
+							face.session=face.session||session;
+							face.session.addUpdateListener(terminationListener)
+							setStatus()
+							callback&&callback()
+						}
+						,function(e){ //error handler
+							web.raise(e,(callback||function(a){setStatus()}),face)
+						// if(!face.available){
+						// 	setTimeout(face.connect,5000)
+						// }
+						//callback(e)
+					} );
 				}
-				face.connect()
+				console.log('connecting');
+				chrome.cast.initialize(face.apiConfig
+					,function(){}/*face.sessionCallback*/
+					,function(e){
+						web.raise(e,function(){setStatus()},face)
+				})
 			}
 
 
 
-			var face = function(){}
+			var face = {}
+			face.status='INITIALIZING'
 			face.on=function(event){
 
+			}
+
+			face.connect=function(callback){
+				face.sessionCallback(function(){
+					if(web.error){ //this typically happens is user does not select a chromecast and "cancels" the action
+						console.log(web.error)
+						callback()
+						return
+					}
+
+					face.session.addMessageListener(face.namespace, function (ns, message){
+						connectToPeer(message)
+					})
+					// face.message('getIP()',function(response){
+					// 	if(web.error){
+					// 		web.notify('error see console')
+					// 		console.error(web.error)
+					// 	}else{
+					// 		web.notify('response for ip='+response)
+					// 		console.log('To debug chromecast go to http://'+response+':9222')
+					// 	}
+					// })
+
+				})
+			}
+			face.message=function(message,callback){
+				this.session.sendMessage(face.namespace
+					, message
+					, callback
+					, function(e){
+						web.error=e||'unknown error'
+						callback&&callback()
+						web.error=undefined
+					});
 			}
 			// face.eventHandlers={
 			// 	hasExtention:[]
@@ -6359,13 +6934,14 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 							media.addUpdateListener(function(isAlive){
 								var message = web.capitalize(media.playerState,true).replace('_',' ')
 								console.log('status Update:',message,(isAlive)?'alive':'dead')
-								face.status=message
-								face.statusCallback(face)
+								alert(message)
+								face.message=message
+								setStatus()
 							});
 							callback(media)
 						}
 						,function(e){
-							web.raise(e,face.statusCallback,face) //send to status callback
+							web.raise(e,function(){setStatus()},face) //send to status callback
 							web.raise(e,callback,face) 	//send to callback
 						}
 						);
@@ -6373,14 +6949,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			face.media=null
 			face.session=null
 			face.applicationID=applicationID
-			face.statusCallback=statusCallback
-			face.connect=function(){
-				console.log('connecting');
-				chrome.cast.initialize(face.apiConfig
-					,function(){}/*face.sessionCallback*/
-					,function(e){
-						web.raise(e,face.statusCallback,face)
-					})}
+
 
 			
 			var scriptSrc='https://www.gstatic.com/cv/js/sender/v1/cast_sender.js'
@@ -6400,6 +6969,13 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 				//https://developers.google.com/cast/docs/chrome_sender
 				self['__onGCastApiAvailable'] = function(loaded, errorInfo) {//when the API loads, or with errorInfo when load fails (e.g. when no extension is discovered).
+					//Finish face initialization that requires information from chromecast api
+					face.applicationID=face.applicationID||chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
+					if(web.caseInsensitive(face.applicationID,'youtube')){
+						face.applicationID='233637DE'
+					}
+					face.namespace='urn:x-cast:'+face.applicationID
+
 					face.hasExtention=loaded //loaded lets us know if the extention exists
 
 					if (loaded) {
@@ -6421,10 +6997,166 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			return face
 			
 		}
+
+//CALL THIS BEFORE DOCUMENT READY!
+//CALL IT AS SOON AS YOU CAN
+web.chromeReceiver=function(namespace,callback){
+	if(!web.startsWith(namespace,'urn:x-cast:')){
+		namespace='urn:x-cast:'+namespace
+	}
+
+	var face={}
+	face.message=function(senderId,message){ //arg1 can be event or sender id or true to brodcast to all
+		if(!web.isString(senderId) && web.isString(senderId.senderId)){
+			senderId=senderId.senderId
+		}
+		if(senderId===true){
+			face.messageBus.brodcast(message)
+			return
+		}
+		face.messageBus.send(senderId, message);
+	}
+	face.apis=[]
+	face.addAPI=function(api){
+		face.apis.push(api)
+	}
+
+	//load api then apply all listeners and etc
+	web.load('//www.gstatic.com/cast/sdk/libs/receiver/2.0.0/cast_receiver.js',null,function(){
+		cast.receiver.logger.setLevelValue(0);
+
+		//face.mediaElement = document.getElementById('media');
+		//face.mediaManager = new cast.receiver.MediaManager(face.mediaElement);
+
+		console.log('Starting Receiver Manager');
+		web.notify('Starting Receiver Manager')
+		face.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
+		
+		// handler for the 'ready' event
+		face.castReceiverManager.onReady = function(event) {
+			console.log('Received Ready event: ' + JSON.stringify(event.data));
+			face.castReceiverManager.setApplicationState("Application status is ready...");
+		};
+		
+		// handler for 'senderconnected' event
+		face.castReceiverManager.onSenderConnected = function(event) {
+			console.log('Received Sender Connected event: ' + event.data);
+			console.log(face.castReceiverManager.getSender(event.data).userAgent);
+		};
+		
+		// handler for 'senderdisconnected' event
+		// face.castReceiverManager.onSenderDisconnected = function(event) {
+		// 	console.log('Received Sender Disconnected event: ' + event.data);
+		// 	if (face.castReceiverManager.getSenders().length == 0) {
+		// 		window.close();
+		// 	}
+		// };
+		
+		// handler for 'systemvolumechanged' event
+		face.castReceiverManager.onSystemVolumeChanged = function(event) {
+			console.log('Received System Volume Changed event: ' + event.data['level'] + ' ' +
+			event.data['muted']);
+		};
+		// create a CastMessageBus to handle messages for a custom namespace
+		face.messageBus = face.castReceiverManager.getCastMessageBus(namespace);
+		
+		// handler for the CastMessageBus message event
+		 face.messageBus.onMessage = function(event) {
+		 	console.log('Message [' + event.senderId + ']: ' + event.data);
+			
+		// 	// display the message from the sender
+			var message=event.data
+			console.log(message);
+			web.notify(message);
+			face.castReceiverManager.setApplicationState(message); //This sets the text on chromecast extention within browser
+
+
+			if(message=='getIP()'){
+				if(face.ip){
+					face.message(event,ip)
+				}
+				web.ip(true,function(ip){face.message(event,face.ip=ip)})
+			}else if(message=='getPeerID()'){
+				face.message(event, peerID);
+			}else if(web.startsWith(message,'setLocation')){
+				face.message(event,'set location to ')
+			}else if(face.apis.length){
+				for(var i=0,l=face.apis.length;i<l;i++){
+					face.apis[i](message,function(rep){face.message(event,rep)})
+				}
+			}
+
+
+
+		// 	// inform all senders on the CastMessageBus of the incoming message event
+		// 	// sender message listener will be invoked
+			//face.messageBus.send(event.senderId, event.data);
+		}
+		// initialize the CastReceiverManager with an application status message
+		face.castReceiverManager.start({statusText: "Application is starting"});
+		console.log('Receiver Manager started');
+		
+		callback && callback()
+	})
+	return face
+
+}
+
+		//http://stackoverflow.com/questions/20840019/how-to-change-every-character-to-opposite-case-in-javascript
+		web.oppositeCase=function(str){
+			if(str.length==1){
+				return (/[a-z]/).test(str) ? str.toUpperCase() : str.toLowerCase();
+			}
+			return str.replace(/([a-z]+)|([A-Z]+)/g, function(_, low, up) { 
+				return low ? low.toUpperCase() : up.toLowerCase() 
+			})
+		}
+
+
 		web.isIsolatedWorld=function(){ //https://developer.chrome.com/extensions/api_index
 			return chrome.extension && chrome.i18n && chrome.runtime && chrome.storage && !chrome.webstore //TODO find other apis isolated world can not access
 		}
 
+
+		//TODO fix this. Method is incomplete. it should replace stayOnScreen
+		//if area===window use viewport //scrolldirection may need to be taken in account
+		//if area===screen use whole screen
+		//if area===document use the document duh
+		//if area is an element use that
+		//returns false if no collision
+		//returns an object with x and y being the closest you can get.
+		web.squareBoundsCollision=function(direction,area,cord,inner){
+			var scrollDir;
+
+			if(direction=='width'){
+				scrollDir='scrollLeft'
+				axis='x'
+			}else{
+				scrollDir='scrollTop'
+				axis='y'
+			}
+
+			if(!web.isNumber(cord)){
+				if (cord instanceof jQuery.Event || cord instanceof Event ) {
+					cord=cord['client'+axis]
+				}else{
+					cord=cord[axis]||cord[web.oppositeCase(axis)]
+				}
+			}
+
+			if(web.isjQuery(inner)){
+				inner=inner[direction]()
+			}
+
+			var scroll = qWindow[scrollDir]()
+				,position = cord + scroll;
+
+			// opening menu would pass the side of the page
+			if (cord + range > qWindow[direction]() && range < cord) 
+				position -= range;
+
+			return position
+		}
 
 		web.stayOnScreen=function(axis, mouse, range) {
 			var direction, scrollDir;
@@ -6579,8 +7311,66 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			return callback;
 		}
 
+		var expandingFunctions={'vertical':function(area,rectangleMatrix,start,proposed,set){
+				//Expand top to bottom
+				for(var o,i=0,l=rectangleMatrix.length;i<l;i++){
+					o=rectangleMatrix[i]
+					if(web.isBetween(start.x,o.left,o.right) || web.isBetween(start.x,o.left,o.right)){
+						//proposed.top=Math.min(o.bottom,proposed.top)
+						if(o.bottom<proposed.top){
+							proposed.top=set.top=o.bottom
+						}//proposed.top=Math.max(o.bottom,proposed.top)
+						if(o.top>proposed.bottom){
+							proposed.bottom=set.bottom=o.top
+						}//proposed.bottom=Math.min(o.top,proposed.bottom)
+					}
+				}
+			},'horizontal':function(area,rectangleMatrix,start,proposed,set){
+				//Expand left to right
+				for(var o,i=0,l=rectangleMatrix.length;i<l;i++){
+					o=rectangleMatrix[i]
+					if(web.isBetween(start.y,o.top,o.bottom) || web.isBetween(start.y,o.top,o.bottom)){
+						if(o.right<proposed.left){
+							proposed.left=set.left=o.right
+						}//proposed.left=Math.max(o.right,proposed.left)
+						if(o.left>proposed.right){
+							proposed.right=set.right=o.left
+						}//proposed.right=Math.min(o.left,proposed.right)
+					}
+				}
+			}
+		}
+ 
+		web.rectangleMaxFill=function(area,rectangleMatrix,start,preferedDirection){ //TODO add prefered direction
+			if(!area){
+				area={top:0,bottom:window.screen.availHeight,left:0,right:window.screen.availWidth}
+			}
+
+			var proposedA={left:start.x,right:start.x,top:start.y,bottom:start.y}
+				,setA=jQuery.extend({}, area)
+
+				,proposedB={left:start.x,right:start.x,top:start.y,bottom:start.y}
+				,setB=jQuery.extend({}, area)
+			
+			
+			expandingFunctions['horizontal'](area,rectangleMatrix,start,proposedA,setA)
+			expandingFunctions['vertical'](area,rectangleMatrix,start,proposedA,setA)
+
+			expandingFunctions['vertical'](area,rectangleMatrix,start,proposedB,setB)
+			expandingFunctions['horizontal'](area,rectangleMatrix,start,proposedB,setB)
+	
+			if((setA.right-setA.left)*(setA.bottom-setA.top)<(setB.right-setB.left)*(setB.bottom-setB.top)){//who has the bigger area
+				return setB
+			}
+			return setA
+		}
+
 		//https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection
-		web.collisionRectangle=function(rect1,rect2,difference){ //http://stackoverflow.com/questions/12066870/how-to-check-if-an-element-is-overlapping-other-elements
+		web.collisionRectangle=function(rect1,rect2,difference){
+			web.depricated('use web.isRectangleCollision')
+			return web.isRectangleCollision(rect1,rect2,difference)
+		}
+		web.isRectangleCollision=function(rect1,rect2,difference){ //http://stackoverflow.com/questions/12066870/how-to-check-if-an-element-is-overlapping-other-elements
 			if(difference){
 				return
 			}
@@ -6919,7 +7709,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 		}
 		web.form=function(form,arg1){
-			debugger
+
 			if(!web.form.init){
 				web.form.init=true
 				$(function(){
@@ -7026,8 +7816,11 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 
 
 
-		web.capitalize = function(string,agressive){
-				return string.charAt(0).toUpperCase() + (agressive?string.slice(1).toLowerCase():string.slice(1));
+		web.capitalize= function(string,agressive){
+				if(string!=null && string.length){
+					return string.charAt(0).toUpperCase() + (agressive?string.slice(1).toLowerCase():string.slice(1));
+				}
+				return string
 			}
 		web.humanize=function(string){
 			return //string.rep
@@ -7110,15 +7903,28 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 
 			console.warn('isURl is broken for now need to add options to web.toAbsoluteURL so bare words are not prepended to current location')
-			var tmp,url=web.toAbsoluteURL(url),count=0;
+			var tmp,url=toAbsoluteURL(url),count=0;
 			URI.withinString(url,function(u){tmp=u;return ''})
 			if(count>0){
 				return false;
 			}
 			return (tmp==url)?tmp:false;
 		}
+		web.extractURL=function(text){
+			var found=(web.SOH==URI.withinString(text, function(arg){
+					text = arg
+					return web.SOH
+			}))
+			if(found){
+				return text
+			}
+			return false;
+		}
+		web.extractURLs=function(){
+
+		}
 		web.isRelativeURL=function(url){
-			return isURL(web.toAbsoluteURL(url))
+			return isURL(toAbsoluteURL(url))
 
 		}
 		web.isDataURL=function(url){
@@ -7239,6 +8045,11 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			
 			var obj = setScope(this,undefined)
 
+			if(obj===localStorage){
+				localStorage.setItem(path, value);
+				callback&&web.defer(callback)
+				return
+			}
 			if(!web.isValue(obj)){ //not using call
 				//remote storage
 				if(firstChar=='.'||firstChar=='/'){//relative path url put
@@ -7396,7 +8207,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			obj=web.global[obj]
 		}
 
-		debugger
+	
 		var regExp = /\(([^)]*?)\)/;
 		var matches = regExp.exec(key);
 		var path,args;
@@ -7445,6 +8256,7 @@ web.listen=function(target,handler){
 
 web.post=function(target,message,reply){
 	var reply;
+	//handlingarray is true when an array is passed in. ensures we only do first level of array
 	if(!web.post.handlingArray && web.isArray(target)){
 		web.post.handlingArray=true
 		reply=[]
@@ -7457,6 +8269,8 @@ web.post=function(target,message,reply){
 		localStorage.setItem(web.namespace.storageEvents, ''); //clear storage event so we can send more later
 	}else if(target.postMessage && web.isFunction(target.postMessage)){
 		target.postMessage(message)
+	}else if(web.isFunction(target)){
+		target(message)
 	}else{
 		throw 'Dont know how to post to '+target
 	}
@@ -7512,7 +8326,9 @@ web.post.handlingArray=false;
 					}
 				}
 
-				if(type){ //has resp been set?
+				if(type){ //has resp been set? //TODO idtenify if it is a string using web.extractURL
+					//web.extractURL(key)
+
 					//Default to obj is object and key typeof== string and split as needed
 					key = String(key)
 					var parts = key.split('.');
@@ -7531,7 +8347,7 @@ web.post.handlingArray=false;
 						}
 					}
 				}
-				callback && callback.call && web.defer(callback,callback,resp)
+				callback && callback.call && web.defer(callback,callback,resp);
 				return resp;
 			}
 
@@ -7581,7 +8397,14 @@ web.post.handlingArray=false;
 		web.append=function(elem,elem2){
 			if(web.isNode(elem)){
 				elem.appendChild(elem2);
+			}else if(web.isArray(elem)){
+				if(web.isArray(elem2)){
+					elem.push.apply(elem,elem2)
+				}else{
+					elem.push(elem2)
+				}
 			}
+			return elem
 		}
 		web.insert=function(array,index,value){
 			if(web.isArray(array)){
@@ -8614,49 +9437,12 @@ web.post.handlingArray=false;
 
 
 
-		var orientationHandlers=[]
-		var body=$('body'),qWindow=$(window)
-
-			web.orientationchange=function(){
-				web.depricated('web.orientationchange depricated use web.orientation')
-				web.orientation.apply(web,arguments)
-			}
-			var orientation;
-			web.orientation=function(handler){ //TODO make this not work with window size. Optimize to use events
-				if(handler==null){
-					var o = undefined //(screen.orientation || screen.mozOrientation || screen.msOrientation || window.orientation)
-					var raw= (o&&o.type)||''
-					var orientation = raw.split('-')
-					var degree = orientation.pop()
-					orientation= orientation.pop()
-
-					if(orientation!='landscape'||orientation!='portrait'){
-						orientation=(qWindow.width()>qWindow.height())?'landscape':'portrait'
-					}
-					if(orientation=='landscape'){
-						web.orientation.current=orientation
-						web.orientation.landscape=true
-						web.orientation.portrait=false
-						web.orientation.degree=degree
-						web.orientation.primary=(degree=='primary')?true:false;
-					}else if(orientation=='portrait'){
-						web.orientation.current=orientation
-						web.orientation.landscape=false
-						web.orientation.portrait=true
-						web.orientation.degree=degree
-						web.orientation.primary=(degree=='primary')?true:false;
-					}
-				
-					//if (orientation === "landscape-primary"||orientation === "landscape-secondary") {
-					//  console.log("Mmmh... the screen is upside down!");
-					//} else if (orientation === "portrait-secondary" || orientation === "portrait-primary") {
-					//  console.log("Mmmh... you should rotate your device to landscape");
-					//}
+		
+		var body=$('body'),qWindow=$(window),orientationHandlers=[];
 
 
-					return orientation
-					}
 
+			web.orientation=function(handler){ 
 
 				//THIS VAR IS NOT CONSISTANT ACROSS DEVICES!!
 				//Reason: http://www.matthewgifford.com/blog/2011/12/22/a-misconception-about-window-orientation/
@@ -8671,17 +9457,41 @@ web.post.handlingArray=false;
 				// 		mql.addListener(function(m){return handler(!m.matches,m)});
 				//				window.addEventListener("orientationchange", web.orientation, false);
 				// }
-			
-				handler= _.debounce(handler)
-
-				//Listen for orientation changes
-				qWindow.on("orientationchange", handler);
 				orientationHandlers.push(handler)
-				handler()
+				handler(web.orientation) //go ahead and execute it in order to catchup
+				return web.orientation
 			}
-		var pastOrientation=web.orientation()
-		qWindow.on("resize", _.debounce(function(){
-			var orientation = web.orientation()
+
+		var orientation = (screen.orientation || screen.mozOrientation || screen.msOrientation || window.orientation)
+		function setOrientation(){//orientation does 2 types of orientaitons. Device Orientaiton or Page orientation.
+				var page,device;
+				if(orientation){
+					if(web.orientation.angle==orientation.angle){
+						return web.orientation
+					}
+				}
+
+				//set orientation landscape/portrait
+				page=(qWindow.width()>qWindow.height())?'landscape':'portrait';
+				device=(window.screen.width>window.screen.height)?'landscape':'portrait';
+				if(!orientation && web.orientation.page==page && web.orientation.device==device){
+					return web.orientation
+				}
+				
+				web.orientation.page=page
+				web.orientation.device=device
+				var rank= ((orientation&&orientation.type)||'').split('-').pop()
+				web.orientation.angle=orientation.angle
+				web.orientation.primary=(rank=='primary')?true:false;
+				web.orientation.timeStamp=Date.now()
+				return web.orientation
+		}
+		setOrientation()
+	
+		//Listen for orientation changes
+		var pastOrientation=web.orientation.timeStamp
+		qWindow.on("resize orientationchange", _.debounce(function(){
+			var orientation = setOrientation().timeStamp
 			if(pastOrientation!=orientation){
 				pastOrientation=orientation
 				for(var i=0,l=orientationHandlers.length;i<l;i++){
@@ -8691,10 +9501,13 @@ web.post.handlingArray=false;
 		}));
 
 		web.orientation(function(){
-			web.orientation()
-			//orientation=(isLandscape)?0:90;
-			body.toggleClass('orientation-landscape',web.orientation.landscape);
-			body.toggleClass('orientation-portrait',web.orientation.portrait);
+			var pageLandscape=web.orientation.page=='landscape'
+			var deviceLandscape=web.orientation.device=='landscape'
+			body.toggleClass('page-landscape',pageLandscape)
+			.toggleClass('page-portrait',!pageLandscape)
+			.toggleClass('device-landscape',deviceLandscape)
+			.toggleClass('device-portrait',!deviceLandscape);
+
 		})
 
 
@@ -8965,7 +9778,7 @@ web.post.handlingArray=false;
 					element.prepend(ta)
 				}else{
 					*/
-				ta.css({top:'-100%',left:'-100%'})
+				ta.css({top:'-999%',left:'-999%'})
 					/*}*/
 
 				if(element){
@@ -9000,7 +9813,7 @@ web.post.handlingArray=false;
 				},callback)
 
 
-				if(web.isEventSupported('paste')){
+				if(!web.isEventSupported('paste')){
 					callback=_.partialRight(function(e,callback){
 						if (e.which == 86 && (e.ctrlKey || e.metaKey)) {    // CTRL + V
 							return callback(e)
@@ -9029,6 +9842,14 @@ web.post.handlingArray=false;
 				//};
 				//return callback
 			}
+
+			if(!web.isjQuery(element) || !web.isNode(element)){
+				if(web.isInstance(element,videojs&&videojs.Player)){ //if the element has an on function then use it (video.js uses this)
+					element.on(eventName,callback)
+					return callback
+				}
+			}
+
 
 			element=$(element) //change it to a jquery
 			if(pluginName){
@@ -9063,6 +9884,23 @@ web.post.handlingArray=false;
 			return $(element).off(eventName,undefined,callback)
 
 		}
+		
+
+
+		web.redirectEvents=function(events,from,to,handler){
+		$(from).on(events
+			,function(e){
+				var event =e.originalEvent
+				//to.each(function(){
+				//	this.dispatchEvent(event)
+				//})
+				to.scrollTop(to.scrollTop()+event.deltaY)
+				to.scrollLeft(to.scrollLeft()+event.deltaX)
+				handler&&handler(e)
+			})
+		}
+
+
 		var hasPeripheralInput=false;
 		web.onEvent('userEncounter',function(){hasPeripheralInput=true})
 		web.hasPeripheralInput=function(){
@@ -9190,6 +10028,46 @@ web.post.handlingArray=false;
 		*******************************/
 		web.defer=setImmediate;
 
+		//works like defer only runs when page is thought to be in a low cpu usage state
+		var demote=null
+		var demoteTotal=0
+		var demoteN=1
+		var demoteTimestamp=null
+		var demoteTimeout=500
+		var setDemoteTest=function(){
+			var time = Date.now()
+			//add all differences up and divide by n
+			demoteTotal+=(time-demoteTimestamp)
+			var avg = (demoteTotal)/(demoteN++)
+			if(avg<500){
+				while(demotes.length){
+					demotes.pop()();
+				}
+			}
+			demoteTimestamp=time
+			web.nativeTimeout(setDemoteTest,demoteTimeout)
+		}
+		web.setDemote=function(max,fn){
+			demotes.push(fn)
+			return demote
+		}
+
+
+
+		web.dragging=function(item,target,start,dragging,end){
+				item.mousedown(function(e){
+					start && start(e)
+
+					qWindow.mousemove(dragging)
+
+					qWindow.mouseup(end)
+				})
+
+
+
+		}
+
+
 
 		//DO NOT USE yet
 		// web.keyboard=function(elem, keyCombo,callback){
@@ -9222,10 +10100,17 @@ web.post.handlingArray=false;
 			var obj=setScope(this,undefined)
 
 			if(web.isObject(keyCombo)){
+				var args;
 				_.each(keyCombo,function(value,key,obj){
-					face.keyMap.apply(face.keyMap,value)
+					args=[key]
+					if(web.isArray(value)){
+						args.push.apply(args, value);
+					}else{
+						args.push(value)
+					}
+					web.keyboard.apply(web.keyboard,args)
 				})
-				return face
+				return undefined
 			}
 			keyCombo=String(keyCombo)
 
@@ -9606,6 +10491,40 @@ web.post.handlingArray=false;
 				throw 'not implemented'
 			}
 		}
+
+web.token=function(input,type,converter){
+	if(web.isArray(input)){
+		var a=[];
+		for(var i=0,l=input.length;i<l;i++){
+			a.push(web.token(input[i],type,converter))
+		}
+		return a
+	}
+	input=input.trim()
+	if(web.contains(type,'whitespace',true)){
+		input = input.match(/\S+/g);
+	}else if(web.contains(type,'return',true)){
+		input=input.split('\n')
+	}
+	if(converter){
+		if(converter=='smart'){
+			converter=function(n,i){
+				if(web.isNumeric(n)){return parseFloat(n)}
+				return n
+			}
+		}
+		else if(converter==parseFloat){
+			converter=function(n,i){return parseFloat(n)}
+		}else if(converter==parseInt){
+			converter=function(n,i){return parseInt(n)}
+		}
+		input=_.map(input,converter)
+	}
+	return input
+
+}
+
+
 
 		var splitTrimCache={}
 		web.splitTrim=function(string,delimiter){
@@ -10038,6 +10957,10 @@ web.post.handlingArray=false;
 			"/":'&#x2F;'
 		};
 		web.escapeHTML=function(str) {
+			if(!str){
+				return ''
+			}
+			str=web.toString(str)
 			//if(document){
 			//	var div = document.createElement('div');
 			//	div.appendChild(document.createTextNode(str));
@@ -10779,6 +11702,43 @@ web.post.handlingArray=false;
 			$(elem).resize(_.debounce(callback, debounce));
 		}
 
+		web.onEdgeSnap=function(fn){
+			if(!web.onEdgeSnap.handlers.length){
+					qWindow.on('resize focus blur',_.throttle(function(){
+							var snapTop=(window.screenY||window.screenTop)==0
+							var snapBottom=qWindow.height()==window.screen.height
+
+							var snapLeft=(window.screenX||window.screenLeft)==0
+
+							var snapRight=(window.screenX||window.screenLeft)+$(window).width()==window.screen.width
+
+							var side;
+							if(snapLeft&&!snapRight){
+								side='left'
+							}else if(!snapLeft&&snapRight){
+								side='right'
+							}else if(snapLeft&&snapRight){
+								side='max'
+							}
+							if(web.onEdgeSnap.last==side){
+								return
+							}
+							web.onEdgeSnap.last=side;
+
+							web.log('snap '+side)
+							web.onEdgeSnap.handlers.forEach(function(fn){fn(side)})
+						}
+						,300
+						,{leading:false,trailing:true}
+					))
+			}
+			web.onEdgeSnap.handlers.push(fn)
+
+		}
+		web.onEdgeSnap.handlers=[]
+		web.onEdgeSnap.last=undefined
+
+
 		web.scrollListener=function(elem,debounce,callback){
 			if(web.isFunction(elem)){
 				callback=elem
@@ -10826,12 +11786,6 @@ web.post.handlingArray=false;
 
 		var args=[];
 
-		web.endsWith =function(str, suffix) {
-			if(str==undefined){
-				return false
-			}
-			return str.indexOf(suffix, str.length - suffix.length) !== -1;
-		}
 		//Inspiration: Martin Algesten
 		// http://stackoverflow.com/questions/4250364/how-to-trim-a-file-extension-from-a-string-in-javascript
 		//Inspiration: Boldewyn
@@ -11342,17 +12296,126 @@ web.post.handlingArray=false;
 			return days*86400000;
 		}
 
-		web.ip = function(req){
-			var xForward=req.headers['x-forwarded-for'];
+		var userScriptCallback=function(ips){
 
-			if(!xForward){
-				return req.connection.remoteAddress || 
-				req.socket.remoteAddress ||
-				req.connection.socket.remoteAddress;
+			for(var i=0,l=ips.length;i<l;i++){
+				var url=web.url()
+				var domain=url.domain()
+				url.domain(ips[0]).port(5677).path(domain) //TODO make port configurable. Possibly have to save it in another static domain.
+
+				web.load(url,function(){
+					if(web.error){
+						alert('not loaded')
+					}
+				})
 			}
-			console.log("@@@@@@@"+xForward)
-			return xForward.split(',')[0].trim()
 		}
+
+		web.userScript=function(port){
+			web.ip(true,function(ips){
+				if(!ips){
+					return web.ip(userScriptCallback)
+				}
+				return userScriptCallback(ips)
+				
+			})
+		}
+
+
+/*if local get local ip address
+			if browser use webrtc
+			if node use command line
+		if not local
+			call a web service
+		if local is string see if it is a url and then convert to ip with DNS service or exract ip if the url is an ip
+
+
+		*/
+		web.ip=function(local,callback){
+			if(isFunction(local)){
+				var tmp = local;
+				local=callback
+				callback=tmp
+			}
+			var command='ifconfig | grep inet | grep -v inet6 | cut -d\" \" -f2 | tail -n1'
+
+			if(web.isString(local)){
+				throw 'to implement' //get ip address from url or convert domain to ip
+			}else if(web.isObject(local)){ //TODO find a way to ensure it is a request object in nodejs environment
+				var xForward=local.headers['x-forwarded-for'];
+
+				console.log("@@@@@@@"+xForward)
+				if(!xForward){
+					xForward=local.connection.remoteAddress || 
+					local.socket.remoteAddress ||
+					local.connection.socket.remoteAddress;
+				}else{
+					xForward = xForward.split(',')[0].trim()
+				}
+				web.defer(callback,xForward);
+				return xForward
+			}else if(local==true){ //http://net.ipcalf.com/
+				//http://stackoverflow.com/questions/20194722/can-you-get-a-users-local-lan-ip-address-via-javascript
+
+				// NOTE: window.RTCPeerConnection is "not a constructor" in FF22/23
+				var RTCPeerConnection = /*window.RTCPeerConnection ||*/ window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
+
+				if (RTCPeerConnection){
+					(function () {
+				    var rtc = new RTCPeerConnection({iceServers:[]});
+				    if (1 || window.mozRTCPeerConnection) {      // FF [and now Chrome!] needs a channel/stream to proceed
+				        rtc.createDataChannel('', {reliable:false});
+				    };
+				    
+				    rtc.onicecandidate = function (evt) {
+				        // convert the candidate to SDP so we can run it through our general parser
+				        // see https://twitter.com/lancestout/status/525796175425720320 for details
+				        if (evt.candidate) grepSDP("a="+evt.candidate.candidate);
+				    };
+				    rtc.createOffer(function (offerDesc) {
+				        grepSDP(offerDesc.sdp);
+				        rtc.setLocalDescription(offerDesc);
+				    }, function (e) { console.warn("offer failed", e); });
+				    
+				    
+				    var addrs = Object.create(null);
+				    addrs["0.0.0.0"] = false;
+				    function updateDisplay(newAddr) {
+				        if (newAddr in addrs) return;
+				        else addrs[newAddr] = true;
+				        var displayAddrs = Object.keys(addrs).filter(function (k) { return addrs[k]; });
+				        callback(displayAddrs || null);
+				    }
+				    
+				    function grepSDP(sdp) {
+				        var hosts = [];
+				        sdp.split('\r\n').forEach(function (line) { // c.f. http://tools.ietf.org/html/rfc4566#page-39
+				            if (~line.indexOf("a=candidate")) {     // http://tools.ietf.org/html/rfc4566#section-5.13
+				                var parts = line.split(' '),        // http://tools.ietf.org/html/rfc5245#section-15.1
+				                    addr = parts[4],
+				                    type = parts[7];
+				                if (type === 'host') updateDisplay(addr);
+				            } else if (~line.indexOf("c=")) {       // http://tools.ietf.org/html/rfc4566#section-5.7
+				                var parts = line.split(' '),
+				                    addr = parts[2];
+				                updateDisplay(addr);
+				            }
+				        });
+				    }
+				})();
+				}else if(web.isNodeJS()){
+					web.exe(command,callback)
+				}else{
+					callback(null,command);
+					//document.getElementById('list').nextSibling.textContent = "In Chrome and Firefox your IP should display automatically, by the power of WebRTCskull.";
+				}
+
+
+			}
+		}
+
+
+
 		web.dir=function(obj,onlyEnumerable){
 			if(typeof obj != 'object'){return obj.toString()+"(typeof:"+typeof obj+")"}
 			if(onlyEnumerable){
@@ -11471,6 +12534,15 @@ web.post.handlingArray=false;
 			//if options contains one or the other flag then wee!!!
 			console.log('weee') 
 		}*/
+
+
+		
+
+		//http://stackoverflow.com/questions/12941083/get-the-output-of-a-shell-command-in-node-js
+		web.exe=function(command, callback){
+			require('child_process').exec(command, function(error, stdout, stderr){ callback(stdout); });
+		};
+
 
 		//TODO find town and county country n stuff around a gps locaiton
 		//TODO http://freegeoip.net/?q=204.84.7.11
@@ -12067,12 +13139,25 @@ web.post.handlingArray=false;
 			document.addEventListener('MSFullscreenChange', tmp, false);
 		}
 		var isMobile=undefined
-		web.isMobile=function(){
-			if(isMobile!=null){
+		web.isMobile=function(userAgent){
+			if(!userAgent && isMobile!=null){
 				return isMobile
 			}
-			var type = uaparser.getDevice().type
-			return isMobile=(!!type||(function(a,b){if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i.test(a)||/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0,4)))window.location=b})(navigator.userAgent||navigator.vendor||window.opera,'http://detectmobilebrowser.com/mobile'));
+			userAgent=userAgent||navigator.userAgent||navigator.vendor||window.opera
+			var type  = uaparser.getDevice().type=='mobile'
+			if(type!=undefined){
+				return isMobile=type
+			}
+			type=(function(a){
+				if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i.test(a)
+					||/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0,4))
+					)
+				return true
+				})(userAgent);
+			//while(type==undefined){
+			//	type=confirm('Would you like to visit the mobile site?')
+			//}
+			return isMobile=!!type
 		}
 		web.isDesktop=function(){
 			return !web.isMobile()
@@ -12132,7 +13217,7 @@ web.post.handlingArray=false;
 		}
 
 		//http://dracoblue.net/dev/linear-least-squares-in-javascript/
-		web.slope=function(array,xGetter,yGetter) { //values_x, values_y
+		web.slope=web.linearLeastSquares=function(array,xGetter,yGetter) { //values_x, values_y
 			//Nothing to do.
 			if (l === 0) {
 				return {m:undefined,b:undefined};
@@ -12193,15 +13278,57 @@ web.post.handlingArray=false;
 			var slope = web.slope(array,xGetter,yGetter)
 			//  We will make the x and y result line now
 
-			var results = [];
-			callback=callback||function(x,y){return {x:x,y:y}}
+			var results = [],x,y;
+			callbackConstructor=callbackConstructor||function(x,y){return {x:x,y:y}}
 
 			for (var v = 0,l=array.length; v <l; v++) {
 				x = xGetter(array[v]);
-				y = x * m + b;
-				results = callbackConstructor(x,y);
+				y = slope.m*x + slope.b;
+				results.push(callbackConstructor(x,y));
 			}
 			return results
+		}
+		web.bestFitRay=function(array,xGetter,yGetter,callbackConstructor){
+			if(array==null && xGetter==null && yGetter==null && callbackConstructor==null){
+				return new web.bestFitRay()
+			}
+
+			if(web.isString(xGetter)){
+				xGetter=_.partal(function(path,o){return web.get.call(o,path)},xGetter)
+			}else if(!xGetter.call){
+				xGetter=function(o){return o}
+			}
+
+			var slope = web.slope(array,xGetter,yGetter)
+			//  We will make the x and y result line now
+			return new v
+
+
+		}
+		/*To convert from slope m to slope angle and back:
+angle = arctan(m)
+m = tan(angle)
+Tan, and its inverse arctan, are described in Trigonometry Overview
+
+*/
+		web.bestFitRay.prototype.start=function(){
+
+		}
+		web.bestFitRay.prototype.push=function(){
+
+		}
+		web.bestFitRay.prototype.end=function(){
+			return {x:null,y:null}
+		}
+
+		web.asAngle=function(p1,p2){
+			var dy = p2.y - p1.y;
+			var dx = p2.x - p1.x;
+			var theta = Math.atan2(dy, dx); // range (-PI, PI]
+			theta *= 180 / Math.PI; // rads to degs, range (-180, 180]
+			//if (theta < 0) theta = 360 + theta; // range [0, 360)
+			return theta;
+
 		}
 
 		web.distance=function(p1,p2,x,y){
@@ -12343,49 +13470,106 @@ web.post.handlingArray=false;
 				return (lower < x && x < upper);
 			}
 		}
+		//if it ends with true then force
 		web.inclusiveBetween=function(x,lower,upper,comparator){
-			var ans = web.isBetween(x,lower,upper,comparator)
+			return web.constrainTo(x,lower,upper,comparator)===x
+		}
+		web.constrainTo=function(x,lower,upper,comparator){
 			if(comparator){
-				return ans || (comparator(x,lower)==lower || comparator(x,upper)==upper)
+				if(comparator(x,lower)<0){
+					return lower
+				}else if(comparator(x,upper)>0){
+					return upper
+				}
 			}
-			return ans || ((x==lower)||(x==upper))
+			if(x<lower){
+				return lower
+			}else if(x>upper){
+				return upper
+			}
+			return x
+		}
+		web.asPercentDecimal=function(number){ //,low,high){
+			if(web.isString(number) && web.endsWith(number,'%')){
+				number=parseFloat(number)/100
+			}
+			if(number>1){
+				throw 'error number too high'
+			}
+			//if(low!=null || high!=null){
+			//	number=web.constrainTo(number,low,high)
+			//}
+			return number
+		}
+
+		web.getLine=function(str,number){
+			return web.getChunk(str,number,'\n')
+		}
+		web.getChunk=function(str,number,delimiter){
+			var end=web.indexOf(str,delimiter,0,number),start=web.lastIndexOf(str,delimiter,end-1)
+			return str.substr(start,end);
 		}
 
 		//Supports regexp
 		//http://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr
+		//if match is not found we will return the last match as a netitive. This value will be respective of the end of the string.
 		web.indexOf= function(str,regex,startpos,nth) {
-			var ans;
-			while(nth){
-				debugger
-				startpos=(ans)?ans+1:(startpos||0);
-				if(regex instanceof RegExp){
+			var ans,tmp;
+			if(nth==null){
+				nth=1
+			}
+			if(startpos==null){
+				startpos=0
+			}else if(startpos<0){
+				startpos=str.length+startpos
+			}
+			while(nth--){
+				if(regex instanceof RegExp){ //TODO test this
 					var indexOf = str.substring(startpos).search(regex);
-					ans=(indexOf >= 0) ? (indexOf + (startpos)) : indexOf;
+					tmp=(indexOf >= 0) ? (indexOf + (startpos)) : indexOf;
 				}else{
-					ans=str.indexOf(regex,startpos)
+					tmp=str.indexOf(regex,startpos)
 				}
-				nth--
+				if(tmp<0){
+					return ans-str.length //return position from end of the string
+				}
+				ans=tmp
+				startpos=ans+1;
 			}
 			return ans
 		}
-		web.lastIndexOf= function(str,regex, startpos) {
-			if(regex instanceof RegExp){
-				regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : ""));
-				if(typeof (startpos) == "undefined") {
-					startpos = str.length;
-				} else if(startpos < 0) {
-					startpos = 0;
-				}
-				var stringToWorkWith = str.substring(0, startpos + 1);
-				var lastIndexOf = -1;
-				var nextStop = 0;
-				while((result = regex.exec(stringToWorkWith)) != null) {
-					lastIndexOf = result.index;
-					regex.lastIndex = ++nextStop;
-				}
-				return lastIndexOf;
+		web.lastIndexOf= function(str,regex,startpos,nth) {
+			var ans,tmp;
+			if(nth==null){
+				nth=1
 			}
-			return str.lastIndexOf(regex,startpos)
+			if(startpos==null){
+				startpos=str.length
+			}else if(startpos<0){
+				startpos=str.length+startpos
+			}
+			while(nth--){
+				if(regex instanceof RegExp){ //TODO test this
+					regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : "")); //force it to be global
+			
+					var stringToWorkWith = str.substring(0, startpos + 1);
+					var lastIndexOf = -1;
+					var nextStop = 0;
+					while((result = regex.exec(stringToWorkWith)) != null) {
+						lastIndexOf = result.index;
+						regex.lastIndex = ++nextStop;
+					}
+					return lastIndexOf;
+				}else{
+					tmp=str.lastIndexOf(regex,startpos)
+				}
+				if(tmp<0){
+					return ans-str.length //return position from end of the string
+				}
+				ans=tmp
+				startpos=ans-1;
+			}
+			return ans
 		}
 
 		//http://stackoverflow.com/questions/12568097/how-can-i-replace-a-string-by-range
