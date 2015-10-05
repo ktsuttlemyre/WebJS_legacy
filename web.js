@@ -615,6 +615,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 		web=function(input){
 			if(input==null){
 				//init?
+				if(this instanceof web){ //web inherited functions and values
+					this.isWebObject=true
+					return
+				}
 
 			}else if(input instanceof webWrapper){
 				return input
@@ -855,6 +859,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 		}
 		web.handleCallback=function(context,callback){
+			throw "dont use web.handleCallback instead turn your string into a callback with an instance of web.api"
 			if(web.isString(callback)){
 				callback=web.get.call(context,callback)
 			}
@@ -3132,7 +3137,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		//Web.constants
 		web.maxZIndex=2147483647
 		web.maxNumber= Number.MAX_VALUE
-		web.constnats={
+		web.constants={
 			phi:1.6180339887498948482 //(1+Math.sqrt(5))/2
 			,pi:Math.pi
 		}
@@ -3223,19 +3228,39 @@ this.web=(function(web,global,environmentFlags,undefined){
 		*/
 
 
+		/*
+		examples 
 		//url or html //soon you can you wml :-D
-		//signatures
-		//target (optional) can be string or another window element
-		//web.window('<html></html>')
-		//web.window('google.com')
+		web.window('google.com') //same as window.open()
+		web.window('google.com',function(){alert('yes')}) //open url and then when it finishes callback (i think it callsback for open and then also dom load if supported)
+		web.window('google.com',{target:'_new'},alert) //opens new window, target is new window, then alerts blank 
+		web.window('<html><body><h1>Hello Web!</h1></body></html>')
+		web.window($('#someDiv'),function(){//apply hooks n stuff heere})
 
-		//experimental target=_background is supported
+		options settings
+		 target= window name. also supports _blank _new etc like in window.open 
+		 		Web.js features!
+		 			_background tries to open in current window as background tab
+		 			//TODO _left _right _bottom _top will open window in those available areas and web.window.extend to fill the space!
+		 			//todo _extend
+		 			//TODO _cover
+		 			//todo [x,y]
+		 defaults = a bounding box if other options are not set can be jquery or dom
+		 width= in pixel units //TODO can be expand,max or percent
+		 height= in pixel units //TODO can be expand,max or percent
+		 x||X||horizontal||left= number in pixel units  can also be (center,middle,left,right)
+		 y=||Y||vertical||top= number in pixel units  can also be (center,middle,left,right)
+		 //TODO reference
+		 origin default is top,left
+		 cmd accepts regular window.open commands
 
 
-		//options defaults = a bounding box if other options are not set
+		*/
 		web.window=function(url,options,callback){
 			if(!(this instanceof web.window)) {return new web.window(url,options,callback)}
 			var id=web.window.instances.push(this)-1
+			var name = this.name='webWindow'+id
+
 			var win,html,cmd,session=web.UUID();
 			if(web.isFunction(options)){
 				callback=options
@@ -3333,6 +3358,70 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}
 			}
 
+
+
+			switch(options.target.toLowerCase()){//handle web.js special string
+				case '_expand':
+				case '_top':
+				case '_right':
+				case '_bottom':
+				case '_left':
+					options.target='_blank'
+					rectangle = web.window.expand(web.trimLeft(options.target.toLowerCase(),1))
+					break;
+				case '_background':
+					//http://stackoverflow.com/questions/10812628/open-a-new-tab-in-the-background
+					//http://jsfiddle.net/3ZmvS/5/
+					//NOTE: event.initMouseEvent is depricated https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent.initMouseEvent
+					debugger
+					var a = document.createElement("a");
+					a.href = "about:blank"
+					web.window.register(url||web.toDataURI(html,'text/html'),name,id) //set it up to recieve
+					a.target=name //if it fails at least it will go to the bg
+
+					//the tenth parameter of initMouseEvent sets ctrl key
+					//var evt = document.createEvent("MouseEvents");
+					// evt.initMouseEvent("click" /*type*/
+					// 					//canBubble, cancelable, view,
+					// 					,true,	true,	window
+					// 					//detail, screenX, screenY, clientX, clientY,
+					// 					,0, 0, 0, 0, 0
+					// 					//ctrlKey, altKey, shiftKey, metaKey, button, relatedTarget
+					// 					,true, false, false, false, 0, null);
+					var handler=function(e){
+						console.log(handler,e)
+						//if(e.shiftKey && e.metaKey){//e.which==2){
+							//http://stackoverflow.com/questions/7243970/access-a-window-by-window-name
+							web.defer(function(){
+								window.open("javascript:void(window.opener.web.window.register(window,'"+name+"',"+id+"));", name)
+							})
+							web.off('click',a,handler)
+						//	}
+					}
+					web.onEvent('click',a,handler)
+					var evt = new MouseEvent('click', {"detail":0
+													,"screenX":0
+													,"screenY":0
+													,"clientX":0
+													,"clientY":0
+													,"ctrlKey":true
+													,"shiftKey":false
+													,"altKey":false
+													,"metaKey":true
+													,"button":0
+													,'view': window
+													,'bubbles': true
+													,'cancelable': true
+													});
+					web.defer(function(){
+						a.dispatchEvent(evt)
+					})
+
+					return
+				}
+
+
+
 			
 			cmd = (options.cmd||'').trim() || 'scrollbars=yes' //default command //TODO see if i should keep options.cmd as an input
 			if(!options.location){
@@ -3395,49 +3484,17 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 
-			if(!web.isString(options.target)){
+			if(web.isWindow(options.target)){
 				win = target
 				options.target='_blank'
 				if(url){
 					win.location.href=url
 				}
+			}else if(web.isInstance(options.target,web.window)){
+				throw 'handle this'
+			}else if(web.isArray(options.target)){
+				web.window.expand(options.target)
 			}else{ //target it is a string
-				if(options.target.toLowerCase()=='_background'){ //handle special experimental string
-					//http://stackoverflow.com/questions/10812628/open-a-new-tab-in-the-background
-					//http://jsfiddle.net/3ZmvS/5/
-					//NOTE: event.initMouseEvent is depricated https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent.initMouseEvent
-
-					var a = document.createElement("a");
-					a.href = url||web.toDataURI(html,'text/html');
-					a.target='_blank' //if it fails at least it will go to the bg
-
-					//the tenth parameter of initMouseEvent sets ctrl key
-					//var evt = document.createEvent("MouseEvents");
-					// evt.initMouseEvent("click" /*type*/
-					// 					//canBubble, cancelable, view,
-					// 					,true,	true,	window
-					// 					//detail, screenX, screenY, clientX, clientY,
-					// 					,0, 0, 0, 0, 0
-					// 					//ctrlKey, altKey, shiftKey, metaKey, button, relatedTarget
-					// 					,true, false, false, false, 0, null);
-					var evt = new MouseEvent('click', {"detail":0
-													,"screenX":0
-													,"screenY":0
-													,"clientX":0
-													,"clientY":0
-													,"ctrlKey":true
-													,"shiftKey":false
-													,"altKey":false
-													,"metaKey":true
-													,"button":0
-													,'view': window
-													,'bubbles': true
-													,'cancelable': true
-													});
-					a.dispatchEvent(evt);
-					return
-				}
-
 				win=window.open(url, options.target, cmd);
 			}
 
@@ -3533,8 +3590,29 @@ this.web=(function(web,global,environmentFlags,undefined){
 				this.winwin[cmd]()
 			}
 		})
+
+		web.window.prototype=new web()
+
+		var registeredWindowsQueue={}
+		web.window.register=function(win,name,id){
+			if(web.isString(win) && web.isString(name)){
+				registeredWindowsQueue[name]={url:win,id:id}
+				return
+			}
+			var obj=registeredWindowsQueue[name]
+
+			win.location.href=obj.url
+			web.window.instances[obj.id].win=win
+			delete registeredWindowsQueue[name]
+		}
+
 		web.window.prototype.isClosed=function(){
 			return this.win.closed
+		}
+		web.window.prototype.url=function(url){
+			var old = win.location.href
+			win.location.href=url
+			return old 
 		}
 		web.window.prototype.focus=function(options){
 			if(options){
@@ -3599,8 +3677,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 			return $(this.win).height()
 		}
-		web.window.prototype.expand=function(x,y){
-			debugger
+		web.window.prototype.expand=web.window.expand=function(x,y){
+			if(web.isString(x)){
+				throw 'handle this'
+			}
 			if(x==null && y==null){
 				x=this.x()+this.width()/2;
 				y=this.y()+this.height()/2;
@@ -3608,22 +3688,33 @@ this.web=(function(web,global,environmentFlags,undefined){
 			if(!web.isObject(x)){
 				x={x:x,y:y}
 			}
+			x.x=web.forceRange(x.x,0,window.screen.availWidth)
+			y.y=web.forceRange(y.y,0,window.screen.availHeight)
+
 			var a=[]
 			_.forEach(web.window.instances,function(o){
 				if(this===o){
+					o.moveIntoView()
 					return
 				}
 				a.push(o.toRectangle())
 			})
+
+			//TODO add current window to web.window.instances as [0]
+			//add current window
 			var left =(window.screenX||window.screenLeft)
 			var top =(window.screenY||window.screenTop)
 			a.push({left:left,right:left+web.q('window').width(),top:top,bottom:top+web.q('window').height()})
 
-			this.moveIntoView()
+			
 			var proposed=web.rectangleMaxFill(null,a,x)
 			console.info('proposed',proposed)
-			this.move(proposed.left,proposed,top)
-			this.resize(proposed.right-proposed.left,proposed.bottom-proposed.top)
+			if(web.isInstance(this,web.window)){
+				this.move(proposed.left,proposed,top)
+				this.resize(proposed.right-proposed.left,proposed.bottom-proposed.top)
+				return this
+			}
+			return proposed
 
 		}
 		web.window.prototype.isOutOfXRange=function(){
@@ -3654,9 +3745,18 @@ this.web=(function(web,global,environmentFlags,undefined){
 		////		,height=rectangle.bottom-rectangle.top
 			this.resize(width,height)
 		}
-		web.window.prototype.moveIntoView=function(){
+		web.window.moveIntoView=web.window.prototype.moveIntoView=function(rectangle){ //This is static and method
+			var set=false;
+			if(rectangle){
+				set=true
+				if(rectangle===this){
+					rectangle=null
+				}else if(!web.instanceOf(rectangle,web.window)){
+					throw 'can\'t compute window size'
+				}
+			}
 			var changed=false
-			var rectangle=$.extend({},start)
+			var rectangle=$.extend({},(rectangle||this.toRectangle()))
 			if(rectangle.left<0){
 				changed=true
 				rectangle.right=Math.min(rectangle.right+rectangle.left*-1,window.screen.availWidth)
@@ -3677,9 +3777,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 				rectangle.bottom=window.screen.availHeight;
 				rectangle.top=Math.max(rectangle.top+window.screen.availHeight-rectangle.bottom,0)
 			}
-			if(changed){
+			if(set && changed){
 				this.set(rectangle)
 			}
+			return rectangle
 		}
 		
 
@@ -6410,6 +6511,32 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			}
 		}
 
+		var goldenRatioCache={
+		}
+		web.goldenRatio=function(str){ //TODO be sure that iterations beyond 1 actually work for percent
+			var ans = goldenRatioCache[str]
+			if(ans){
+				return ans
+			}
+			if(str.charAt(str.length-1)=='%'){
+				ans = 100
+				for(var i=0,l=str.length-1;i<l;i++){ //does not look at last character (expected to be units)
+					if(i==1){
+						console.warning('web.goldenRatio may change calculations beyond 1 iteration in the future')
+					}
+					if(str.charAt(i)=='>'){
+						ans=ans/web.constants.phi
+					}else{
+						ans=ans-(ans/web.constants.phi);
+					}
+				}
+				return goldenRatioCache[str]=ans
+			}else{
+				throw 'web.goldenRatio does not understand'
+			}
+
+		}
+
 		//TODO implement namespace better
 		//http://stackoverflow.com/questions/28478185/remove-html5-notification-permissions
 		web.desktopNotificationsAllowed=function(namespace,forceRequest,callback){
@@ -6516,7 +6643,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			options.icon=options.icon||web.images.bug
 			var notice;
 
-			if(web.desktopNotificationsAllowed()){ //see if it is allowed with a prompt
+			if(!options.style=='inline' && web.desktopNotificationsAllowed()){ //see if it is allowed with a prompt
 				var Notification = window.Notification || window.mozNotification || window.webkitNotification;
 
 				notice = new Notification(
@@ -6539,9 +6666,23 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				// notice.onclose = function () {};
 
 			}else{
+				if(web.isURL(options.icon)){
+					message='<div class="media">'+
+							'	<div class="media-left">'+
+							'		<a href="#">'+
+							'			<img class="media-object" src="'+options.icon+'" alt="umm..." style="max-height:5em">'+
+							'		</a>'+
+							'	</div>'+
+							'	<div class="media-body">'+
+							'		<h4 class="media-heading">'+title+'</h4>'+
+							'		'+message+'</br>'+
+							'	</div>'+
+							'</div>'
+					title=''
+				}
 				notice = new PNotify({
-					title:title,
-					text: message,
+					title:title||'',
+					text: message||'',
 					icon: false,
 					type: type,
 					width:'auto',
@@ -6553,6 +6694,11 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 					insert_brs: false
 				});
 
+				var windowWidth=web.q('window').width()
+				var maxWidth=(windowWidth>750)?web.goldenRatio('<%'):web.goldenRatio('>%');
+
+				notice.get().css('max-width',maxWidth+'%')
+				//notice.get().css('max-width',web.goldenRatio(windowWidth,300,'%')+'%')
 
 				notice.get().click(function(e,v,t) { //REMOVE DOM Notice
 					this.remove && this.remove()
@@ -10491,7 +10637,7 @@ web.post.handlingArray=false;
 				throw 'not implemented'
 			}
 		}
-
+//http://blog.tompawlak.org/split-string-into-tokens-javascript
 web.token=function(input,type,converter){
 	if(web.isArray(input)){
 		var a=[];
@@ -10523,7 +10669,6 @@ web.token=function(input,type,converter){
 	return input
 
 }
-
 
 
 		var splitTrimCache={}
@@ -13459,6 +13604,9 @@ Tan, and its inverse arctan, are described in Trigonometry Overview
 			// don't think this is needed? }
 			// don't think this is needed? return web.functionArguments(web.replaceRange(names,c1,c2+2))
 
+		}
+		web.forceRange=function(x,lower,upper){
+			return Math.max(upper,Math.min(x.x,lower))
 		}
 
 		web.isBetween=function(x,lower,upper,comparator){
