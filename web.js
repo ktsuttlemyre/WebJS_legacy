@@ -577,7 +577,9 @@ function(){
 // 	return web
 // }
 // this.web=self.web()
-
+if(this.web!=null){
+	this.webOptions=this.web
+}
 this.web=(function(web,global,environmentFlags,undefined){
 	if(!environmentFlags){
 		/*environment flags*/
@@ -598,37 +600,45 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 		})
 	}
-
-
+	var options;
 	//if it does not exist. make it!
 	if(typeof web!='undefined'){
-		if(!(typeof web == 'function')){//settings object
-			var settings = web;
-			defer.call(web,web.settings,settings); //TODO make this work!
-			
+		if(typeof web == 'object'){//settings object
+			options=web
 		}
+		if(typeof web.options=='object'){
+			options=web.options
+		}
+		if(typeof global.webOptions != 'undefined'){//settings object
+			if(typeof global.webOptions.options == 'object'){//settings object
+				options=global.webOptions.options
+			}else{
+				options=global.webOptions
+			}
+			delete global.webOptions
+		}
+
 	}
 	//web=function(options){ //init start
-		//avoid anything with call, avoid anything with this and use this custom scope function 
-		//http://jsperf.com/bind-vs-jquery-proxy/76
-		
-		web=function(input){
-			if(input==null){
-				//init?
-
-			}else if(input instanceof webWrapper){
-				return input
-			}
-			return new webWrapper(input)
-
-			if(this===web || this===web.global){
-				//arg1:scope;
-			}
-		};
+	//avoid anything with call, avoid anything with this and use this custom scope function 
+	//http://jsperf.com/bind-vs-jquery-proxy/76
 	
-		
+	web=function(input){
+		if(input==null){
+			//init?
 
-		web.constructor=self.web.prototype.constructor
+		}else if(input instanceof webWrapper){
+			return input
+		}
+		return new webWrapper(input)
+
+		if(this===web || this===web.global){
+			//arg1:scope;
+		}
+	};
+	web.options=options;
+
+	web.constructor=self.web.prototype.constructor
 	web.toSource=function(o){
 		if(o===undefined){
 			if(!arguments.length){
@@ -5830,6 +5840,47 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 }
 
 
+web.router=function(arrayMap){
+	//if(!(this instanceof web.router)){return new web.router(arrayMap)}
+	var parsers={}
+	var compiled={}
+
+	var webRouter=function(item,data){
+		//var fn = parsers[item.provider]
+		//if(fn){
+		//	return fn.call(item)
+		//}
+		data=web.toArray(arguments,1,0)
+		for(var i=0,l=webRouter.order.length;i<l;i++){
+			if(compiled[webRouter.order[i]].test(item)){
+				var value = parsers[webRouter.order[i]].apply(item,data)
+				if(value){
+					return value
+				}
+			}
+		}
+	}
+	webRouter.order=order||[]
+	webRouter.add=function(regEx,fn){
+		if(fn==null && web.isArray(regEx)){
+			for(var i=0,l=regEx.length;i<l;i++){
+				webRouter.add(regEx[i++],regEx[i])
+			}
+			return
+		}
+		if(regEx==null){
+			regEx=/^$|./ //http://stackoverflow.com/questions/3333461/regular-expression-which-matches-a-pattern-or-is-an-empty-string
+		}
+		compiled[regEx]=RegExp(regEx)
+		regEx=regEx.toString()
+		parsers[regEx]=fn
+		webRouter.order.push(regEx)
+	}
+
+	web.router.add(arrayMap)
+	return webRouter
+}
+
 		//http://stackoverflow.com/questions/1829774/jquery-simulating-a-click-on-a-input-type-file-doesnt-work-in-firefox
 		//http://stackoverflow.com/questions/210643/in-javascript-can-i-make-a-click-event-fire-programmatically-for-a-file-input
 
@@ -5837,6 +5888,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 		//callback map accepts either a map object of what types it accepts as well as how to handle them or it is an open any file and will return a list to the hanlder
 		//todo implement filter for open any file format
 		web.inputFile=function(element,preview /*,filter*/ ,callbackMap){
+			debugger
 			//web to fileDrop api
 			// bin = binary
 			// dataURI = 'url', 'uri' or 'src' reads Data URI (very nice for generating thumbnails)
@@ -5854,7 +5906,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 				}
 			}
 			debugger
-			var callback=(web.isFunction(callbackMap))?callbackMap:null
+			// var callback=(web.isFunction(callbackMap))?callbackMap:null
 
 		/*	if(!web.isNode(element)||!web.isjQuery(element)){
 				if(web.isString(element)){
@@ -5928,8 +5980,7 @@ web.recieveFile=function(session,onBegin,onProgress,onEnd){
 			web.onEvent('paste.'+guid
 					,$('#'+guid)
 					,function(a,b,c){
-						console.log('yes')
-						if(callback(a,b,c)!==false){
+						if(callbackMap('text/',a,b,c)!==false){
 							web.off('paste',$('#'+guid))
 						}
 					}
@@ -10178,9 +10229,8 @@ web.post.handlingArray=false;
 			return web.keyboard.alt
 		}
 
-
-		web.keyboard('mod+f',function(e){e.preventDefault();web.find(null)})
-		web.keyboard(['mod+`','mod+~'],function(e){e.preventDefault();web.prompt('Tilde commands','Such boss, very wow')})
+		web.get.call(web.options,'keyboard.overrideSearch') &&web.keyboard('mod+f',function(e){e.preventDefault();web.find(null)})
+		web.get.call(web.options,'keyboard.addTildeStarKey') && web.keyboard(['mod+`','mod+~'],function(e){e.preventDefault();web.prompt('Tilde commands','Such boss, very wow')})
 
 		web.scale = function(num, minA, maxA, minB, maxB){
 			return (
