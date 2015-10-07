@@ -3548,9 +3548,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}
 			}).on('beforeunload', function(e) {
 				delete web.window.instances[id]
-			}).on('resize',function(){
+			}).on('resize',_.bind(this,function(){
 				this.sizeHistory.push({width:this.width(),height:this.height()})
-			})
+			}))
 
 
 			win.focus(); //might not be nessissary
