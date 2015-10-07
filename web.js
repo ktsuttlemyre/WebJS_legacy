@@ -5960,7 +5960,7 @@ web.router=function(arrayMap){
 			}
 		}
 	}
-	webRouter.order=order||[]
+	webRouter.order=[]
 	webRouter.add=function(regEx,fn){
 		if(fn==null && web.isArray(regEx)){
 			for(var i=0,l=regEx.length;i<l;i++){
@@ -5976,8 +5976,13 @@ web.router=function(arrayMap){
 		parsers[regEx]=fn
 		webRouter.order.push(regEx)
 	}
-
-	web.router.add(arrayMap)
+	
+	if(arrayMap){
+		if(!web.isArray(arrayMap)){
+			throw 'web.router expects array'
+		}
+		webRouter.add(arrayMap)
+	}
 	return webRouter
 }
 
@@ -6007,6 +6012,7 @@ web.router=function(arrayMap){
 			}
 			debugger
 			// var callback=(web.isFunction(callbackMap))?callbackMap:null
+			callbackMap=web.router(callbackMap)
 
 		/*	if(!web.isNode(element)||!web.isjQuery(element)){
 				if(web.isString(element)){
@@ -6115,8 +6121,8 @@ web.router=function(arrayMap){
 			web.error=null
 			web.event=this.event()
 
-			if(callback){
-				callback.call(this,web.event,files)
+			if(callbackMap){
+				callbackMap('text/',web.event,files,this)
 			}else{
 				files.each(function (file) {
 					console.warn(file,'File has mimeType=',file.mime)
@@ -8795,6 +8801,7 @@ web.post.handlingArray=false;
 					});
 				}
 			}
+			return input
 		}
 		web.toJSON=function(obj){
 			if(web.isjQuery(obj)){
