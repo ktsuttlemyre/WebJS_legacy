@@ -6086,7 +6086,8 @@ web.router=function(arrayMap){
 			web.onEvent('paste.'+guid
 					,$('#'+guid)
 					,function(a,b,c){
-						if(callbackMap('text/',a,b,c)!==false){
+						web.log(a,b,c)
+						if(callbackMap('text/',b,a,c)!==false){
 							web.off('paste',$('#'+guid))
 						}
 					}
@@ -6122,7 +6123,7 @@ web.router=function(arrayMap){
 			web.event=this.event()
 
 			if(callbackMap){
-				callbackMap('text/',web.event,files,this)
+				callbackMap('text/',files,web.event,this)
 			}else{
 				files.each(function (file) {
 					console.warn(file,'File has mimeType=',file.mime)
