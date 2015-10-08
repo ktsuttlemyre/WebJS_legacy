@@ -5992,7 +5992,7 @@ web.router=function(arrayMap){
 
 		//callback map accepts either a map object of what types it accepts as well as how to handle them or it is an open any file and will return a list to the hanlder
 		//todo implement filter for open any file format
-		web.inputFile=function(element,preview /*,filter*/ ,callbackMap){
+		web.inputFile=function(element,options,fileHandlers){
 			debugger
 			//web to fileDrop api
 			// bin = binary
@@ -6001,18 +6001,19 @@ web.router=function(arrayMap){
 			// text = if 'text' reads data as UTF-8 string
 			// Not supported! =if starts with 'read' is assumed to be a method name on native File object which will be called.
 			// Any other string value istreated as character encoding (e.g. 'cp1251') and data is read as text in that encoding.
-			if(!web.isValue(callbackMap)){
-				if(!web.isBoolean(preview)){
-					callbackMap=preview
-					preview = false
-				}else if(web.isFunction(element)){
-					callbackMap=element
+			if(!web.isValue(fileHandlers)){
+				if(web.isFunction(element)){
+					fileHandlers=element
 					element=undefined
 				}
 			}
+			if(web.isArray(options)){
+				fileHandlers=options
+				options=null
+			}
 			debugger
-			// var callback=(web.isFunction(callbackMap))?callbackMap:null
-			callbackMap=web.router(callbackMap)
+			// var callback=(web.isFunction(fileHandlers))?fileHandlers:null
+			fileHandlers=web.router(fileHandlers||web.fileHandlers)
 
 		/*	if(!web.isNode(element)||!web.isjQuery(element)){
 				if(web.isString(element)){
@@ -6087,7 +6088,7 @@ web.router=function(arrayMap){
 					,$('#'+guid)
 					,function(a,b,c){
 						web.log(a,b,c)
-						if(callbackMap('text/',b,a,c)!==false){
+						if(fileHandlers('text/',b,a,c)!==false){
 							web.off('paste',$('#'+guid))
 						}
 					}
@@ -6118,65 +6119,179 @@ web.router=function(arrayMap){
 				//   });
 				// });
 
-		zone.event('send', function (files){
-			web.error=null
-			web.event=this.event()
 
-			if(callbackMap){
-				callbackMap('text/',files,web.event,this)
+
+		zone.event('send', function (files){
+			var previewFn=function(uri){
+				if(web.isInstance(uri,fd.File)){
+					var img = new Image
+					var errorHandle=function (error) {
+						img.src = web.images.bug
+						img.alt =JSON.stringify(error)
+						zone.el.appendChild(img)
+					}
+
+					if(web.startsWith(file.type,'application/')){
+						img.src = web.images.dataURI.ban32;
+						img.alt = file.type
+						zone.el.appendChild(img)
+					}else if(web.startsWith(file.type,'image/')){
+						uri.readData(
+							function(uri){
+								img.src = uri
+								zone.el.appendChild(img)
+							}
+							,errorHandle
+							,'uri'
+						)
+					}else if(web.startsWith(file.type,'text/html')){
+						throw 'text/html must be sanitied first'
+						uri.readData(
+							function(text){
+								var iframe=document.createElement('iframe');
+								iframe.src='about:blank'
+								document.body.appendChild(iframe);
+								iframe.contentWindow.document.open();
+								iframe.contentWindow.document.write(text);
+								iframe.contentWindow.document.close();
+							}
+							,errorHandle
+							,'text'
+						)
+					}else if(web.startsWith(file.type,'text/')){
+						uri.readData(
+							function(text){
+								var input = document.createElement("textarea");
+								input.name = "post";
+								input.maxLength = "5000";
+								input.cols = "80";
+								input.rows = "40";
+								input.value=text;
+								zone.el.appendChild(input)
+							}
+							,errorHandle
+							,'text'
+						)
+					
+					}else if(web.startsWith(file.type,'video/')){
+						var video = document.createElement('video');
+						video.src = url;
+						video.autoplay=video.muted=video.loop=true;
+						video.addEventListener('loadedmetadata', function() {
+							this.currentTime = this.duration*.3 //wadsworth
+						}, false);
+
+						zone.el.appendChild(video)
+					}else if(web.startsWith(file.type,'audio/')){
+						uri.readData(
+							function(data){
+									var audioElement = document.createElement('audio'); 
+									audioElement.setAttribute('src', data); 
+									audioElement.setAttribute('controls', true); 
+									audioElement.setAttribute('preload', true); 
+									audioElement.setAttribute('type', uri.type); 
+
+
+									audioElement.addEventListener("load", function() { 
+										audioElement.play(); 
+									}, true);
+									zone.el.appendChild(audioElement)
+									audioElement.load();
+							}
+							,errorHandle
+							,'uri'
+						)
+					}else if(web.startsWith(file.type,'message/')){
+					}else if(web.startsWith(file.type,'multipart/')){
+					}else if(web.startsWith(file.type,'x-token/')){
+					}else{
+						uri.readData(
+							function(text){
+								var iframe=document.createElement('iframe');
+								iframe.src = text
+								//iframe.src='data:text/html;charset=utf-8,' + encodeURI(html);
+								zone.el.appendChild(iframe)
+							}
+							,errorHandle
+							,'uri'
+						)
+					}
+					//else{
+					//	img.src = web.images.bug
+					//	img.alt ='The file type '+file.type+' does not have a preview thumb rutine')
+					//	zone.el.appendChild(img)
+					//}
+				}
+			}
+			web.error=null
+			var e = web.event=this.event()
+
+			if(fileHandlers){
+				files.each(function (file){
+					console.warn(file,'File has mimeType=',file.mime)
+					if(web.startsWith(file.mime,"text/")){
+						file.readData(
+							function (str) { fileHandlers(file.mime,str,e,previewFn) },
+							function (e) { console.error('Terrible error!') },
+							'text'
+						)
+					}else{
+						fileHandlers(file.mime,files,web.event,this)
+					}
+				})
 			}else{
 				files.each(function (file) {
 					console.warn(file,'File has mimeType=',file.mime)
 					
 
-			/*read a file http://stackoverflow.com/questions/3582671/how-to-open-a-local-disk-file-with-javascript
+					/*read a file http://stackoverflow.com/questions/3582671/how-to-open-a-local-disk-file-with-javascript
 					function readSingleFile(e) {
-			  var file = e.target.files[0];
-			  if (!file) {
-				return;
-			  }
-			  var reader = new FileReader();
-			  reader.onload = function(e) {
-				var contents = e.target.result;
-				displayContents(contents);
-			  };
-			  reader.readAsText(file);
-			}
+					  var file = e.target.files[0];
+					  if (!file) {
+						return;
+					  }
+					  var reader = new FileReader();
+					  reader.onload = function(e) {
+						var contents = e.target.result;
+						displayContents(contents);
+					  };
+					  reader.readAsText(file);
+					}
 
-			function displayContents(contents) {
-			  var element = document.getElementById('file-content');
-			  element.innerHTML = contents;
-			}
+					function displayContents(contents) {
+					  var element = document.getElementById('file-content');
+					  element.innerHTML = contents;
+					}
 
-			document.getElementById('file-input')
-			  .addEventListener('change', readSingleFile, false);*/
-
+					document.getElementById('file-input')
+					  .addEventListener('change', readSingleFile, false);*/
+					var preview=false
 					if(preview){
 						//TODO make preview work!
 						console.error('preview not implemented')
 						// file.readData(
-					   //    function(str){
-					   //    	notice&&notice.remove()
-					   //      callback&&callback(null,str)
-					   //    },
-					   //    function(){
-					   //    	notice&&notice.remove()
-					   //    	callback&&callback('Problem reading this file.');
-					   //    },'uri' //dataURI
-					   //  )
+						//    function(str){
+						//    	notice&&notice.remove()
+						//      callback&&callback(null,str)
+						//    },
+						//    function(){
+						//    	notice&&notice.remove()
+						//    	callback&&callback('Problem reading this file.');
+						//    },'uri' //dataURI
+						//  )
 					}
 
 					file.readData(
-					  function(str){
-						//TODO handle preview
-						//(preview)?web.toDataURI(str,file.mime)
-						notice&&notice.remove()
-						callback&&callback.call(this,null,str)
-					  },
-					  function(){
-						notice&&notice.remove()
-						callback&&callback.call(this,'Problem reading this file.');
-					  },inputFileMimeHandlers[file.mime.split('/').shift()||'application']
+						function(str){
+							//TODO handle preview
+							//(preview)?web.toDataURI(str,file.mime)
+							notice&&notice.remove()
+							callback&&callback.call(this,null,str)
+						},
+						function(){
+							notice&&notice.remove()
+							callback&&callback.call(this,'Problem reading this file.');
+						},inputFileMimeHandlers[file.mime.split('/').shift()||'application']
 					)
 				})
 			}
