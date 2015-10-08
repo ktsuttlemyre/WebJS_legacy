@@ -5945,15 +5945,15 @@ web.router=function(arrayMap){
 	var parsers={}
 	var compiled={}
 
-	var webRouter=function(item,data){
+	var webRouter=function(item /*data*/){
 		//var fn = parsers[item.provider]
 		//if(fn){
 		//	return fn.call(item)
 		//}
-		data=web.toArray(arguments,1,0)
+		var data=web.toArray(arguments,1,0)
 		for(var i=0,l=webRouter.order.length;i<l;i++){
 			if(compiled[webRouter.order[i]].test(item)){
-				var value = parsers[webRouter.order[i]].apply(item,data)
+				var value = parsers[webRouter.order[i]].apply(webRouter,data)
 				if(value){
 					return value
 				}
@@ -6086,8 +6086,7 @@ web.router=function(arrayMap){
 			web.onEvent('paste.'+guid
 					,$('#'+guid)
 					,function(a,b,c){
-						web.log(a,b,c)
-						if(callbackMap('text/',b,a,c)!==false){
+						if(callbackMap('text/',a,b,c)!==false){
 							web.off('paste',$('#'+guid))
 						}
 					}
@@ -6123,7 +6122,7 @@ web.router=function(arrayMap){
 			web.event=this.event()
 
 			if(callbackMap){
-				callbackMap('text/',files,web.event,this)
+				callbackMap('text/',web.event,files,this)
 			}else{
 				files.each(function (file) {
 					console.warn(file,'File has mimeType=',file.mime)
