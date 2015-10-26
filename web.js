@@ -1562,7 +1562,13 @@ this.web=(function(web,global,environmentFlags,undefined){
 			return o instanceof RegExp
 		}
 
-
+		web.not=function(fn){
+			if(web.isFunction(fn)){
+				return function(){!fn}
+			}else{ //maybe dont do this?
+				return !fn
+			}
+		}
 		//web.trimStart('    butter scotch berry scout  ') => web.trimStart('    butter scotch berry scout  ','') =>  'butter scotch berry scout  '
 		//web.trimStart('    butter scotch berry scout  ',6) => 'tter scotch berry scout  '
 		//web.trimStart('    butter scotch berry scout  ','sc') => 'otch berry scout  '
@@ -1606,6 +1612,14 @@ this.web=(function(web,global,environmentFlags,undefined){
 				// 		//this will run as long as we find expected indexes
 				// 	}
 				// })
+			}else if(type=='function'){
+				var n = 0
+				while(n<str.length){
+					if(!word(str.charAt(n))){
+						return str.slice(n)
+					}
+					n++
+				}
 			}
 			return str
 		}
@@ -1846,6 +1860,20 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 			return stack.join("/");
 		}
+	}
+
+	var plusEncodeMap={'0':' ','b':'+'}
+	var plusDecodeMap={' ':'0','+':'b'}
+	web.formURLEncode=web.plusEncode=function(s){
+		return encodeURIComponent(s).replace(/%2(0|b)/g, function(match,group1,index,str){
+			return plusEncodeMap[group1]
+		})
+	}
+	web.formURLDecode=web.plusDecode=function(s){
+		s= s.replace(/\ +|\ /g, function(match,index,str){
+			return '%2'+plusEncodeMap[match]
+		})
+		return decodeURIComponent(s)
 	}
 
 		//TODO
@@ -2176,7 +2204,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 				,dataView
 				,column
 				,columns
-				,settings;
+				,settings
+				,scrollfn
+				,debounceQueryFn;
 
 
 
@@ -2341,7 +2371,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		///////////////////////////////////////
 		//////////////////////////////////////
 					var endless=true
-					var scrollfn=(vertical)?/*vertical*/(function(e,args){
+					scrollfn=(vertical)?/*vertical*/(function(e,args){
 							//calculate in pixels how close we are to the bottom
 							//(this.getDataLength()*settings.rowHeight)-args.scrollTop
 							//OR calculate in number of items
@@ -2371,7 +2401,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 					});
 
 					queryFn=web.lockable(_.debounce(queryFn,500))
-					var debounceQueryFn=_.debounce(scrollfn,50)
+					debounceQueryFn=_.debounce(scrollfn,50)
 					grid.onScroll.subscribe(debounceQueryFn)
 
 					//do all defered actions now
@@ -2487,6 +2517,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				,click:function(fn){
 					return face.on('click',fn)
 				}
+
 				,setID:function(){ //TODO
 
 				}
@@ -2499,7 +2530,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 					}
 
 				}
-				,reset:function(options){
+				,reset:function(options,callback){
 					if(options){
 						if(web.isFunction(options)){
 							queryFn=options
@@ -2507,8 +2538,11 @@ this.web=(function(web,global,environmentFlags,undefined){
 							setOptions(options)
 						}
 					}
-					grid=undefined;
-					queryFn(undefined,appendData)
+					grid && grid.onScroll &&grid.onScroll.unsubscribe(debounceQueryFn)
+					grid=undefined; //forces init to be called in queryFn below
+					
+
+					queryFn(undefined,function(){appendData.apply(appendData,arguments);callback&&callback()})
 				}
 				,getSelection:function(){
 					var indices=grid.getSelectedRows() //grid returns array of number indecies
@@ -6684,26 +6718,45 @@ web.router=function(arrayMap){
 
 		var goldenRatioCache={
 		}
-		web.goldenRatio=function(str){ //TODO be sure that iterations beyond 1 actually work for percent
-			var ans = goldenRatioCache[str]
-			if(ans){
-				return ans
-			}
-			if(str.charAt(str.length-1)=='%'){
-				ans = 100
-				for(var i=0,l=str.length-1;i<l;i++){ //does not look at last character (expected to be units)
-					if(i==1){
-						console.warning('web.goldenRatio may change calculations beyond 1 iteration in the future')
-					}
-					if(str.charAt(i)=='>'){
-						ans=ans/web.constants.phi
-					}else{
-						ans=ans-(ans/web.constants.phi);
-					}
-				}
-				return goldenRatioCache[str]=ans
+		web.goldenRatio=function(number,str){ //TODO be sure that iterations beyond 1 actually work for percent
+			if(str && web.isNumber(number)){
+				str=number+str
+				number=undefined
 			}else{
-				throw 'web.goldenRatio does not understand'
+				str=number
+				number=undefined
+			}
+			debugger
+			str=web.splitAlphaNum(str)
+			if(str.length==2){
+				number=parseFloat(str.shift())
+				str=str.join()
+			}else if(str.length=1){
+				number=undefined
+				str=str[0]
+			}
+			//check cache first
+			var ans = goldenRatioCache[str]
+			
+			var operation = str.charAt(str.length-1)
+			if(operation=='%'){
+				if(!ans){
+					ans=100
+					for(var i=0,l=str.length-1;i<l;i++){ //does not look at last character (expected to be units)
+						if(i==1){
+							console.warn('web.goldenRatio may change calculations beyond 1 iteration in the future')
+						}
+						if(str.charAt(i)=='>'){
+							ans=ans/web.constants.phi
+						}else{
+							ans=ans-(ans/web.constants.phi);
+						}
+					}
+					goldenRatioCache[str]=ans=ans/100
+				}
+				return (web.isValue(number))?number*ans:ans;
+			}else{
+				throw 'web.goldenRatio did not get an operation. Such as percent %: '+str
 			}
 
 		}
@@ -7287,6 +7340,11 @@ web.router=function(arrayMap){
 				//https://developers.google.com/cast/docs/chrome_sender
 				self['__onGCastApiAvailable'] = function(loaded, errorInfo) {//when the API loads, or with errorInfo when load fails (e.g. when no extension is discovered).
 					//Finish face initialization that requires information from chromecast api
+					if(errorInfo){
+						web.log(errorInfo)
+						console.warn(errorInfo)
+						return
+					}
 					face.applicationID=face.applicationID||chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
 					if(web.caseInsensitive(face.applicationID,'youtube')){
 						face.applicationID='233637DE'
@@ -7304,7 +7362,6 @@ web.router=function(arrayMap){
 					//callbacks.hasExtention && callbacks.hasExtention(false)
 					//web.raise(errorInfo,callbacks.error,errorInfo,'loading api')
 					
-					throw errorInfo
 				}
 			}else{ //TODO this route has not been tested well
 				face.hasExtention=web.get.call(window,'chrome.cast.isAvailable')
@@ -7541,6 +7598,10 @@ web.chromeReceiver=function(namespace,callback){
 
 		//callback(e,notify,value)
 		web.prompt=function(title,message,options,callback){
+			if(web.isFunction(message)){
+				callback=message
+				message=undefined
+			}
 			if(web.isString(options)){
 				//'class:warning;showing:fadeIn swing 300;hiding:fadeOut linear 1000;time:-1'
 				//options=web.declorationParser(input,map,note) //WUT
@@ -8587,7 +8648,7 @@ web.post=function(target,message,reply){
 	}else if(target.postMessage && web.isFunction(target.postMessage)){
 		target.postMessage(message)
 	}else if(web.isFunction(target)){
-		target(message)
+		web.defer(target,message)
 	}else{
 		throw 'Dont know how to post to '+target
 	}
@@ -9807,11 +9868,13 @@ web.post.handlingArray=false;
 		setOrientation()
 	
 		//Listen for orientation changes
-		var pastOrientation=web.orientation.timeStamp
+		var pastOrientationTimeStamp=web.orientation.timeStamp
 		qWindow.on("resize orientationchange", _.debounce(function(){
-			var orientation = setOrientation().timeStamp
-			if(pastOrientation!=orientation){
-				pastOrientation=orientation
+			var orientation = setOrientation()
+			var timeStamp=orientation.timeStamp
+			
+			if(pastOrientationTimeStamp!=timeStamp){
+				pastOrientationTimeStamp=timeStamp
 				for(var i=0,l=orientationHandlers.length;i<l;i++){
 					orientationHandlers[i](orientation)
 				}
@@ -10306,6 +10369,8 @@ web.post.handlingArray=false;
 					//}else{
 					//	return undefined
 					//}
+				}else if(!web.isFunction(func)){
+					return
 				}
 
 				var scope=(this===web||this===web.global)?undefined:this;
@@ -10515,6 +10580,7 @@ web.post.handlingArray=false;
 				}
 			}
 		}
+
 
 
 
@@ -12644,8 +12710,6 @@ web.token=function(input,type,converter){
 		if not local
 			call a web service
 		if local is string see if it is a url and then convert to ip with DNS service or exract ip if the url is an ip
-
-
 		*/
 		web.ip=function(local,callback){
 			if(isFunction(local)){
