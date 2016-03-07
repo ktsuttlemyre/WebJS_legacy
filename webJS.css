@@ -437,8 +437,10 @@ html.full-view, html.full-view body{
 		max-width: none
 	}
 
-	/*Fix the stupid hover and active colors that make toggle buttons difficult to understand*/
-	.btn:focus, .btn.focus {
+	/*Fix the stupid hover and active colors that make toggle buttons difficult to understand
+	//DEVNOTE removed this because it was causeing pNotify primary buttons to look funny when clicked
+	also I dont use the bootstrap toggle buttons anymore I made my own
+	.btn:focus, .btn.focus { 
 		background-color: #fff;
 	}
 	.btn.active {
@@ -446,7 +448,7 @@ html.full-view, html.full-view body{
 	}
 	.btn.focus:hover {
 		background-color: rgb(230, 230, 230)
-	}
+	}*/
 
 
 
@@ -507,3 +509,15 @@ html.full-view, html.full-view body{
   position: absolute;
   display:none;
 }
+
+
+.Chromecast .slick-viewport{
+	overflow: hidden !important;
+}
+
+
+/*
+Pnotify needed classes
+*/
+.ui-pnotify.stack-bar-top{right:0;top:0;}
+.ui-pnotify.stack-bar-bottom{margin-left:15%;right:auto;bottom:0;top:auto;left:auto;}

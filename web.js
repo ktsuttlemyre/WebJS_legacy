@@ -1,3 +1,25 @@
+/*Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.*/
+
 "use strict"
 var g=function(){return this}
 //TODO jailed for untrusted code
@@ -217,7 +239,7 @@ var GreatCircle = {
 			// 	return (this.className||'').trim().split(' ').pop().trim()
 			// }
 
-		})(jQuery);
+		})(window.jQuery);
 
 //I DONT REMEMBER WHAT THIS IS
 		// !(function($){
@@ -315,7 +337,7 @@ var GreatCircle = {
 var uaparser = new UAParser();
 window.Stallion=window.Stallion||{};
 
-Stallion.compare=Stallion.compare||{};
+Stallion.compare=Stallion.compare||function(){};
 Stallion.compare.toOperator=function(i){
 	switch(i){
 		case -1:
@@ -396,7 +418,7 @@ Stallion.compare.versions=function (v1, v2){
 			return 1;
 		}
 		x=parseInt(v1parts[i],10);
-		k=parseInt(v2parts[i]),10;
+		k=parseInt(v2parts[i],10);
 		if (x === k) {
 			continue;
 		}
@@ -635,11 +657,21 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 		return new webWrapper(input)
 
-		if(this===web || this===web.global){
-			//arg1:scope;
-		}
+		// if(this===web || this===web.global){
+		// 	//arg1:scope;
+		// }
 	};
+	web.startTime=Date.now()
 	web.options=options;
+
+	//http://stackoverflow.com/questions/13761968/detect-whether-postmessage-can-send-objects
+	var onlyStrings = false;
+	try{
+		window.postMessage({toString:function(){onlyStrings=true;}},"*");
+	}catch(e){}
+	web.supports={
+		postMessageObjects:function(){return !onlyStrings}
+	}
 
 	web.constructor=self.web.prototype.constructor
 	web.toSource=function(o){
@@ -667,7 +699,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 			currentScript=scripts[scripts.length - 1];
 		}
 		web.src=currentScript.src
-
+		var scriptStatus={}
 		web.load=function(scripts,checks,options,callback){ //TODO use injector
 			if(web.isFunction(options)){
 				callback=options
@@ -678,6 +710,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 			var loaded=false
 				,timeOut=setTimeout(function(){web.raise('Timeout Loading scripts',callback)},options.timeOut||10000)
 				,script = document.createElement('script');
+			scriptStatus[scripts]=0 //0 means loading
 			script.type = 'text/javascript';
 			script.async = true;
 			script.onload = function(){
@@ -686,12 +719,14 @@ this.web=(function(web,global,environmentFlags,undefined){
 					var obj = (web.call)?checks():web.get.call(web.global,checks)
 					if(obj){
 						loaded=true
+						scriptStatus[scripts]=1 //1 means loaded
 						callback(obj)
 					}else{
 						web.raise('error checking',callback,obj)
 					}
 				}else{ //assume it worked...
 					loaded=true
+					scriptStatus[scripts]=1 //1 means loaded
 					callback(obj)
 				}
 			};
@@ -701,7 +736,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 		web.loaded=function(querySrcURL){
 
 		}
-		web.loading=function(){}
+		web.resourceStatus=function(url){
+			return scriptStatus[url]
+		}
 
 
 
@@ -712,22 +749,61 @@ this.web=(function(web,global,environmentFlags,undefined){
 			
 
 
+		web.bug=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
+			logWithIcon(err,web.images.bug,'error')
+			callback && callback(arg,arg1,arg2,arg3,arg4,arg5)
+		}
+		web.raise=function(err,defered,arg,arg1,arg2,arg3,arg4,arg5){
+			if(!err&&!defered){
+				return web.error;
+			}
+			if(web.isFunction(err)){
+				defered=err
+				err=null
+			}
 
+			if(err){
+				var error=(new Error)
+				var stack = error.stack;
+				var line = (stack)?stack.split("\n")[2]:error.lineNumber;
+				//web.raise('Error '+line.trim()+' :'+err);
+				//TODO send error back to server!
+			}
+			if(!defered){
+				defered=function(arg,arg1,arg2,arg3,arg4,arg5){console.error(web.error,arg,arg1,arg2,arg3,arg4,arg5)}
+			}
+			web.error=err
+
+			defered && defered(arg,arg1,arg2,arg3,arg4,arg5)
+			web.error=undefined
+			
+			return err
+		}
+		web.cancel=web.raise
+
+		web.canceled=new (function webCanceled(){})();
+		web.depricated=function(reason,fn){
+			console.trace('This function is depricated for reason:',reason,fn)
+		}
+		web.warning=null;
+		web.event=null;
+		var errorSilently=web.errorSilently={
+			removeIndex:true
+		}
 
 
 
 		var production=false;
-		web.setProduction=function(isProduction){
-			if(isProduction.toUpperCase&&isProduction.toUpperCase()=='PRODUCTION'){
-				production=true
-				return
+		web.isDevelopment=web.isDev=function(arg){
+			if(web.isBoolean(arg)){
+				production=!arg
 			}
-			production=isProduction
-		}
-		web.isDevelopment=web.isDev=function(){
 			return !production
 		}
-		web.isProduction=function(){
+		web.isProduction=function(arg){
+			if(web.isBoolean(arg)){
+				production=arg
+			}
 			return production
 		}
 
@@ -738,8 +814,33 @@ this.web=(function(web,global,environmentFlags,undefined){
 		web.slash='\\'
 		web.newLine='\n'
 
+		web.isElectron=function(){
+			web.depricated('use web.isEnvironment')
+			return web.isEnvironment('electron')
+		}
+
+
+		web.isEnvironment=function(str){
+			if(web.isArray(str)){
+				return str.every(web.isEnvironment)
+			}
+			str=str.toLowerCase()
+			switch(str){
+				case 'electron':
+					return window && window.process && window.process.type && window.process.versions && process.versions['electron'];
+				case 'nodejs':
+				case 'node.js':
+					return environmentFlags.platform=='nodejs';
+				case 'browser':
+					return !['electron','nodejs'].some(web.isEnvironment)
+			}
+			return false
+		}
+				web.isArray=Array.isArray;
+
 			web.isNodeJS=function(){
-				return environmentFlags.platform=='nodejs';
+				web.depricated('use web.isEnvironment')
+				return web.isEnvironment('nodejs')
 			}
 			//http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
 			web.isJSCommons=function(){
@@ -800,47 +901,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 		})()
 
-		web.bug=function(err,callback,arg,arg1,arg2,arg3,arg4,arg5){
-			logWithIcon(err,web.images.bug,'error')
-			callback && callback(arg,arg1,arg2,arg3,arg4,arg5)
-		}
-		web.raise=function(err,defered,arg,arg1,arg2,arg3,arg4,arg5){
-			if(!err&&!defered){
-				return web.error;
-			}
-			if(web.isFunction(err)){
-				defered=err
-				err=null
-			}
 
-			if(err){
-				var error=(new Error)
-				var stack = error.stack;
-				var line = (stack)?stack.split("\n")[2]:error.lineNumber;
-				//web.raise('Error '+line.trim()+' :'+err);
-				//TODO send error back to server!
-			}
-			if(!defered){
-				defered=function(arg,arg1,arg2,arg3,arg4,arg5){console.error(web.error,arg,arg1,arg2,arg3,arg4,arg5)}
-			}
-			web.error=err
-
-			defered && defered(arg,arg1,arg2,arg3,arg4,arg5)
-			web.error=undefined
-			
-			return err
-		}
-		web.cancel=web.raise
-
-		web.canceled=new (function webCanceled(){})();
-		web.depricated=function(reason,fn){
-			console.warn('This function is depricated for reason:',reason,fn)
-		}
-		web.warning=null;
-		web.event=null;
-		var errorSilently=web.errorSilently={
-			removeIndex:true
-		}
 
 
 
@@ -869,17 +930,17 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 		web.handleCallback=function(context,callback){
 			throw "dont use web.handleCallback instead turn your string into a callback with an instance of web.api"
-			if(web.isString(callback)){
-				callback=web.get.call(context,callback)
-			}
-			callback&&callback.call&&callback()
+			// if(web.isString(callback)){
+			// 	callback=web.get.call(context,callback)
+			// }
+			// callback&&callback.call&&callback()
 		}
 
 		function parseQueryString(query){
 			web.depricated('Do not use private method parseQueryString, instead use public web.queryString')
-			if(!web.global.location){
+			// if(!web.global.location){
 
-			}
+			// }
 			if(!query){
 				if(web.global.location){
 					query ={
@@ -926,7 +987,55 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 
+	/*
+	web.isDev(web.parameters('alpha'))
+	-- force to look at long flag
+	- force short flag
+	_ look at unlabeled 
 
+	# force hash //hash assumed to follow bare word or query syntax
+	? force query
+	/ force path
+
+	*/
+	web.parameter=function(/*arguments*/){ 
+		var args = web.toArray(arguments)
+		var variable = args.pop()
+		var obj,arg;
+		if(web.isNodeJS()){
+			obj=require('minimist')(process.argv.slice(2));
+		}else{
+			obj={}
+		}
+		var url=web.url()
+
+		if(args[0]=='!'){
+			args.shift()
+			args=_.difference(['--','-','_','#','?','/'],args)
+		}
+
+		if(!args.length){
+			args=['--','-','_','#','?','/']
+		}
+		while(args.length){
+			arg=args.shift()
+			switch(args){
+				case '--':
+				case '-':
+				break
+				case '_':
+				break
+				case '#':
+				case '?':
+				if(url[arg]){
+					return url[arg]
+				}
+				break
+				case '/':
+				break
+			}
+		}
+	}
 
 
 
@@ -1000,12 +1109,38 @@ this.web=(function(web,global,environmentFlags,undefined){
 			return !(web.isPopup() || web.isIframe()) //http://stackoverflow.com/questions/10240398/check-whether-a-window-is-popup-or-not
 		}
 
+		web.isPrivateBrowsing=function(callback){
+			var fs = window.RequestFileSystem || window.webkitRequestFileSystem;
+			if (fs) {
+			  fs(window.TEMPORARY,
+			     100,
+			     function(){callback(false)},
+			     function(){callback(true)});
+			}
+
+			//TODO if is safari
+
+			// try {
+			//   // try to use localStorage
+			//   localStorage.test = 2;   
+			//	web.defer(callback,false)
+			// } catch (e) {
+			//   // there was an error so...
+			//   web.defer(callback,true)
+			// }
+			
+			//always return undefined. Force the dev to give a callback
+			return undefined
+		}
+
 	var q = {}
 		$(function(){
-			q.window=$(window)
 			q.document=$(document)
 			q.body=$('body')
 			q.head=$('head')
+			q.html=$('html')
+			web.layout=$.extend({},q)
+			web.layout.id={}
 			web.q()
 		})
 		web.q=function(id){
@@ -1017,14 +1152,16 @@ this.web=(function(web,global,environmentFlags,undefined){
 						throw 'duplicate id in HTML!'
 					}
 					web.q[this.id]=obj
+					web.layout.id[this.id]=obj
 					web.Q[camelCase]=obj
 					})
 				return
 			}
 			return q[id]
 		}
+		q.window=$(window)
 		web.Q={} //camelCase
-
+		var nativeTimeout=window.setTimeout;//( (Window&&Window.prototype)||window ).setTimeout;
 		$(window).on("blur focus", function(e) {
 			var value= e.type=='focus';
 			if(!value){
@@ -1233,6 +1370,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 		web.isString=function(obj){
 			return typeof obj == 'string';
 		}
+		web.isEvent=function(obj){//TODO use web instanceof for jquery and any other events
+			return obj instanceof window.Event||obj instanceof $.Event
+		}
 		web.toString=function(obj,override){ //http://stackoverflow.com/questions/3945202/whats-the-difference-between-stringvalue-vs-value-tostring
 			if(!obj){
 				return String(obj)
@@ -1304,6 +1444,12 @@ this.web=(function(web,global,environmentFlags,undefined){
 		var isFunction= web.isFunction= function(value) {
 			return typeof value == 'function';
 		}
+		web.isCallable=function(o){
+			return o &&o.call
+		}
+		web.isApplyable=function(o){
+			return o.apply
+		}
 
 		// detect native method in object not same scope of isHostObject
 		//https://github.com/dperini/nwevents/blob/ac33e52c1ed1c1c3a1bb1612384ca5b2f7a9b3ef/src/nwmatcher.js#L41
@@ -1317,7 +1463,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		//http://stackoverflow.com/questions/596467/how-do-i-convert-a-number-to-an-integer-in-javascript
 		web.toInt=function(value){ return ~~value; }
 
-		web.isArray=Array.isArray;
+
 
 
 		web.isValue=function(o){
@@ -1569,37 +1715,63 @@ this.web=(function(web,global,environmentFlags,undefined){
 				return !fn
 			}
 		}
-		//web.trimStart('    butter scotch berry scout  ') => web.trimStart('    butter scotch berry scout  ','') =>  'butter scotch berry scout  '
+		//web.trimStart('    butter scotch berry scout  ') =>  'butter scotch berry scout  '
 		//web.trimStart('    butter scotch berry scout  ',6) => 'tter scotch berry scout  '
 		//web.trimStart('    butter scotch berry scout  ','sc') => 'otch berry scout  '
-		//web.trimStart('    butter scotch berty scout ','sc',true) => 'scotch berry scout  '
-		//web.trimStart('    butter scotch berry scout ','sc',2) => 'out  '
-		//web.trimStart('    butter scotch berry scout ','sc',2,true) => 'scout  '
-		//web.trimStart('    butter scotch berry scout ','sc',-2,) => 'otch berry scout  '
-		//web.trimStart('    butter scotch berry scout ','sc',-2,true) => 'scotch berry scout  '
+		//web.trimStart('    butter scotch berty scout  ','sc',true) => 'scotch berry scout  '
+		//web.trimStart('    butter scotch berry scout  ','sc',2) => 'out  '
+		//web.trimStart('    butter scotch berry scout  ','sc',2,true) => 'scout  '
+		//web.trimStart('    butter scotch berry scout  ','sc',-2,) => 'otch berry scout  '
+		//web.trimStart('    butter scotch berry scout  ','sc',-2,true) => 'scotch berry scout  '
 
-		web.trimBeginning=function(str,word,instance,keepMatchChars){ // instance=-1=deep negitive numbers count from lastindexof
+		//strict counting (consume whole string if we are not satisfied)
+		//web.trimStart('    butter scotch berry scout  ','sc','3=') => ''
+		//loose counting (take what you can get)
+		//web.trimStart('    butter scotch berry scout  ','sc','3<') => 'out  '
+		//all or none (match instance count or return string) //numbers act this way by default
+		//web.trimStart('    butter scotch berry scout  ','sc','3!') => '    butter scotch berry scout  '
+
+		//if instance is positive count starting from start
+		//if instance is negitive count starting from end
+		web.trimStart=function(str,word,instance,keepMatchChars){ // instance=-1=deep negitive numbers count from lastindexof
 			if(!word){ //then trim start whitespace
 				return str.replace(web.RegExp.leadingWhitespace, '');
 			}
 
+			var countType;
+			if(web.isString(instance)){ //instance expected to be a number 5 (strict) or '5<' (loose count) or '5!' (n or no trim)
+				countType=instance.charAt(instance.length-1)
+				instance=parseFloat(instance)
+			}
+			countType=countType||'!'; //set counttype default value 
+
 			if(instance==null){
 				instance=1
-			}
-			if(!web.isNumber(instance) && web.isNumber(keepMatchChars)){ //instance expected to be a number or it will be converted to boolan and used as keepMatch var
-				var tmp= instance;
-				instance=keepMatchChars
-				keepMatchChars=!!tmp
 			}
 
 	
 			var type = typeof word;
 			if(type=='string'){
-				var i=(instance<0)?web.lastIndexOf(str,word,null,instance):web.indexOf(str,word,null,instance);
-				if(i<0){  //was not found //TODO idk if I should return last answer or '' if instances where more than found ins tring
-					str = '' //i think it should be empty string
-					return str
-				}
+				//TODO turn this code into web.indexOf()
+				var i,h,direction=(instance<0)?1:-1;
+				while(instance!=0){
+					h=i
+					i=(instance<0)?str.lastIndexOf(word):str.indexOf(word);
+					if(i<0){ //was not found
+						if(countType=='<'){ //return last answer or '' if instances where more than found ins tring
+							i=h
+							break
+						}else if(countType=='='){
+							return ''
+						}else if(countType=='!'){
+							return str
+						}else{
+							throw 'error countType in trimStart is unknown symbol'+countType
+						}
+					}
+					instance=instance+direction
+				}//end while
+				//end of web.indexOf
 				str=str.slice( i + ((keepMatchChars)?0:word.length))
 			}else if(type=='number'){
 				return str.slice(word)
@@ -1623,35 +1795,45 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 			return str
 		}
-		web.trimEnding=function(str,word,instance,keepMatchChars){
+		web.trimEnd=function(str,word,instance,keepMatchChars){
 			if(!word){
 				//todo faster implementation for long strings
 				return str.replace(web.RegExp.trailingWhitespace, '');
 			}
+			var countType;
+			if(web.isString(instance)){ //instance expected to be a number 5 (strict) or '5<' (loose count) or '5!' (n or no trim)
+				countType=instance.charAt(instance.length-1)
+				instance=parseFloat(instance)
+			}
+			countType=countType||'!'; //set counttype default value 
 
 			if(instance==null){
 				instance=1
 			}
-			if(!web.isNumber(instance) && web.isNumber(keepMatchChars)){ //instance expected to be a number or it will be converted to boolan and used as keepMatch var
-				var tmp= instance;
-				instance=keepMatchChars
-				keepMatchChars=!!tmp
-			}
 
 			var type = typeof word;
 			if(type=='string'){
-				var i;
+				//TODO turn this code into web.indexOf()
+				var i,h,direction=(instance<0)?1:-1;
 				while(instance!=0){
-					if(instance<0){
-						instance++
-						str.lastIndexOf(word)
-					}else{
-						str.indexOf(word)
-						instance--
+					h=i
+					i=(instance<0)?str.lastIndexOf(word):str.indexOf(word);
+					if(i<0){ //was not found
+						if(countType=='<'){ //return last answer or '' if instances where more than found ins tring
+							i=h
+							break
+						}else if(countType=='='){
+							return ''
+						}else if(countType=='!'){
+							return str
+						}else{
+							throw 'error countType in trimEnd is unknown symbol'+countType
+						}
 					}
-					if(i<0){break} //was not found //TODO idk if I should return last answer or '' if instances where more than found ins tring
-					str= str.slice( 0, i + ((keepMatchChars)?word.length:0))
-				}/////
+					instance=instance+direction
+				}//end while
+				//end of web.indexOf
+				str= str.slice( 0, (i + ((keepMatchChars)?word.length:0)))
 			}else if(type=='number'){
 				return str.slice(0,word)
 			}else if(web.isRegExp(word)){
@@ -1810,7 +1992,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 			return q;
 		}
 
-
+		web.isSecure=function(){
+			return location.protocol === 'https:'
+		}
 
 	web.urlAddProtocol=function(url){
 		web.depricated('web.urlAddProtocol will be depricated soon and will be integrated to web.url')
@@ -1917,13 +2101,14 @@ this.web=(function(web,global,environmentFlags,undefined){
 				url=url.nativeFile
 			}
 
-			url=url||web.global.location.href
+			url=(url==='')?'':(url||web.global.location.href)
 			if(!web.isString(url)){ //if(type=='Location'){url=url.href}
 
 				this.resource=url
 
 				url=this.resource.href
 				url=this.resource.src||url
+				url=this.resource.toString()
 
 				if(!url){
 					throw 'error creating url'
@@ -2046,8 +2231,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 
 
-			this['?']=queryStringParser(web.deepTrimRight(web.trimLeft(url,'?'),'#'))
-			this['#?']=queryStringParser(web.trimLeft(url,'#'))
+			this['?']=queryStringParser(web.trimEnd(web.trimStart(url,'?'),'#',-1)) //web.deepTrimRight(web.trimLeft(url,'?'),'#')
+
+			this['#?']=queryStringParser(web.trimStart(url,'#'))
 			this['//']=web.url(url,'domain')
 
 
@@ -2301,8 +2487,11 @@ this.web=(function(web,global,environmentFlags,undefined){
 					
 					grid.resizeCanvas()
 					grid.autosizeColumns();
-					qWindow.on("resize."+uid,_.throttle(function(){
+					qWindow.on("resize."+uid,_.throttle(function(a,b,c){
+						var tmp=face.isUserEvent
+						face.isUserEvent=false
 						grid.resizeCanvas();
+						face.isUserEvent=tmp
 					},350))
 
 					// wire up model events to drive the grid
@@ -2426,7 +2615,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}
 
 			// When user clicks button, fetch data via Ajax, and bind it to the dataview. 
-
+			var allFilteredEventRunning=false //this allows the dev to attempt refiltering while the allfiltered event handler is running. in otherwords it ensures only one onAllFiltered handler runs at a time
 			var appendData=function(array){
 				if(!grid){
 					init(array[0])
@@ -2455,7 +2644,9 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}
 	
 				if(dataView.getLength()==0){
+					allFilteredEventRunning=true
 					options.onAllFiltered && options.onAllFiltered.call(face)
+					allFilteredEventRunning=false
 				}
 				//this will replace all data
 				//dataView.beginUpdate();
@@ -2476,12 +2667,16 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 			var face= {
 				get:function(i){
-					if(i>-1){
-						return dataView.getItem(i)
-					}else if(i<0){
-						return dataView.getItem((dataView.getLength()-1)-i)
+					if(web.isNumber(i)){
+						if(i>-1){
+							return dataView.getItem(i)
+						}else if(i<0){
+							return dataView.getItem((dataView.getLength()-1)-i)
+						}else{
+							return face.getSelection()
+						}
 					}else{
-						return face.getSelection()
+						return dataView.getItemById(i)
 					}
 				}
 				,append:function(data){
@@ -2566,23 +2761,35 @@ this.web=(function(web,global,environmentFlags,undefined){
 				,previous:function(){
 					if(vertical){
 						var i = grid.getSelectedRows()[0]
-						grid.scrollRowToTop(i--)
+						face.scrollTo(i--)
 						grid.setActiveCell(i,0)
 						return dataView.getItem(i)
 					}else{
 						throw 'NEED TO implment!'
 					}
 				}
-				,select:function(index){
+				,select:function(index){ //TODO handle arrays of ids
 					var range;
-					if(web.isArray(index)){
-						range=index
-						index=web.sort(index)[0]
-					}else{
+					debugger
+
+
+					if(!web.isArray(index)){ //assume numbers
 						range=[index]
+					}else{
+						range=index.slice();
 					}
+					for(var i=0,l=range.length;i<l;i++){
+						if(web.isNumber(range[i])){
+							continue
+						}else if(web.isString(range[i])){
+							range[i]=dataView.getIdxById(range[i]) //"3yu6st"
+						}else if(web.isObject(range[i])){ //
+							range[i]=dataView.getIdxById(web.get.call(range[i],idGetter))
+						}
+					}
+					index=web.sort(range)[0] //get the lowest value
 					
-					if(index>0){
+					if(index<0){
 						return grid.setSelectedRows([]);
 					}
 
@@ -2607,33 +2814,37 @@ this.web=(function(web,global,environmentFlags,undefined){
 						// return dataView.getItems(range)
 					}
 				}
-				,scrollTo:function(arg){
+				,isUserEvent:true
+				,scrollTo:function(arg,a,b,c){
+					//web.notify('scrollto')
+					console.info(this,arg,a,b,c)
 					if(!grid){
 						return
 					}
+					var tmp = this.isUserEvent
+					this.isUserEvent=false
 					if(web.isString(arg)){
 						if(web.startsWith(arg,'selection',true)){
 							var list = grid.getSelectedRows()
 
 							if(list.length){
-								grid.scrollRowToTop(list[0])
+								arg=list[0]
 							}else if(web.endsWith(arg,'bottom',true)){
-								grid.scrollRowToTop(undefined)
+								arg=undefined
 							}else{
-								grid.scrollRowToTop(0)
+								arg=0
 							}
-							return 
 						}else if(arg='bottom'){
 							if(options.leaveSpaceForNewRows==true){
-								grid.scrollRowToTop(undefined) //hax!
+								arg=undefined //hax!
 							}else{
 								console.warn('UNTESTED behavior for web.abyss().scrollTo("bottom") just a guess ')
-									grid.scrollRowIntoView(undefined)
-								}
+								grid.scrollRowIntoView(undefined)
+							}
 						}
 					}
 					grid.scrollRowToTop(arg)
-
+					this.isUserEvent=tmp
 				}
 				,render:function(item){
 					var id;
@@ -2668,7 +2879,15 @@ this.web=(function(web,global,environmentFlags,undefined){
 					}
 				}
 				,refresh:function(){
-					return dataView&&dataView.refresh();
+					if(dataView){
+						dataView.refresh();
+						if(dataView.getLength()==0 && allFilteredEventRunning==false){
+							allFilteredEventRunning=true
+							options.onAllFiltered && options.onAllFiltered.call(face)
+							allFilteredEventRunning=false
+						}
+					}
+					return
 				}
 				,setBackdrop:function(backdrop){
 					return elem.append(backdrop)
@@ -2676,7 +2895,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 				,on:function(event,fn){
 					if(grid){
 						if(event=='scroll'){
-							grid.onScroll.subscribe(fn)
+							grid.onScroll.subscribe(function(a,b){ //this could be optimized
+								b.isUserEvent=face.isUserEvent //pass the flag from face to event
+								fn.call(this,a,b)
+							})
 						}else if(event=='click'){
 							grid.onClick.subscribe(function(e,args){
 								var elem=$(e.target).closest('a, .slick-cell')//traverse up the dom until you find an anchor,consume-click,or end at div.slick-cell
@@ -2950,23 +3172,23 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 
 
-		web.snapTo=function(elem1,edge,elem2,edge2){
-			elem1=$(elem1)
-			elem2=$(elem2)
-			var fn = function(){
-				elem1.offset()
-				elem2.offset()
+		// web.snapTo=function(elem1,edge,elem2,edge2){
+		// 	elem1=$(elem1)
+		// 	elem2=$(elem2)
+		// 	var fn = function(){
+		// 		elem1.offset()
+		// 		elem2.offset()
 
-				'static'
-				'relative'
-				'absolute'
-				'fixed'
-				'sticky'
-			}
+		// 		'static'
+		// 		'relative'
+		// 		'absolute'
+		// 		'fixed'
+		// 		'sticky'
+		// 	}
 
-			fn()
-			return fn
-		}
+		// 	fn()
+		// 	return fn
+		// }
 
 		web.position=function(elem,relativeTo){
 			elem=$(elem)
@@ -2988,7 +3210,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				relativeTo=web.global[relativeTo]||$()
 			}
 
-			if(relativeTo===web.document){
+			if(relativeTo===window.document){
 				//do nothing
 			}else if(relativeTo===web.viewPort){
 				var offset=elem.offset()
@@ -3054,6 +3276,24 @@ this.web=(function(web,global,environmentFlags,undefined){
 				resetDummyDiv()
 			  return w;
 			}
+		}
+		web.refresh=function(hard){ //http://stackoverflow.com/questions/3715047/how-to-reload-a-page-using-javascript
+			if(window.location.reload){
+				//Javascript 1.2
+				window.location.reload(hard); 
+				// If we needed to pull the document from
+				//  the web-server again (such as where the document contents
+				//  change dynamically) we would pass the argument as 'true'.
+				return
+			}else if(window.location.replace){
+				//Javascript 1.1
+				window.location.replace(window.location.pathname);
+				// does not create a history entry
+				return
+			}
+			//Javascript 1.0
+			window.location.href = window.location.pathname;
+			// creates a history entry
 		}
 
 		var qWindow=$(window)
@@ -3550,20 +3790,18 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 			//two checks for popups blocked
 			//syncronus
-
 			if(!win
 				|| win.closed
 				|| win.closed===undefined
-				|| win.outerHeight <=0
-				|| win.outerWidth <= 0
 				) {
 				web.defer.call(this,function(){
 					this.error = web.error='Popups blocked'
-					callback.call(this)
+					callback.call(web.window.instances[id])
 					web.error=null
 				})
 				return null
 			}
+
 			//async check for popups blocked
 			$(win).load(function(){//http://stackoverflow.com/questions/668286/detect-blocked-popup-in-chrome
 				if(!this.error){  //if error is already thrown then dont care
@@ -3574,17 +3812,22 @@ this.web=(function(web,global,environmentFlags,undefined){
 						|| win.outerWidth <= 0
 						) {
 							this.error = web.error='Popups blocked'
-							callback.call(this)
+							callback.call(web.window.instances[id])
 							web.error=null
 					}else{
-						callback.call(this) //sucess
+						callback.call(web.window.instances[id]) //sucess
 					}
 				}
-			}).on('beforeunload', function(e) {
+			})
+			this.on('beforeunload', _.bind(function(e) {
+				alert('beforeunload triggered')
+				this.trigger('close')
 				delete web.window.instances[id]
-			}).on('resize',_.bind(this,function(){
+			},this))
+			this.on('resize',_.bind(function(){
 				this.sizeHistory.push({width:this.width(),height:this.height()})
-			}))
+			},this))
+
 
 
 			win.focus(); //might not be nessissary
@@ -3635,6 +3878,13 @@ this.web=(function(web,global,environmentFlags,undefined){
 		})
 
 		web.window.prototype=new web()
+		web.window.prototype.on=function(evnt,fn){
+			return web.on(this.win,evnt,fn)
+		}
+		web.window.prototype.trigger=function(event){
+			return web.trigger(this.win,event)
+		}
+
 
 		var registeredWindowsQueue={}
 		web.window.register=function(win,name,id){
@@ -4040,7 +4290,15 @@ this.web=(function(web,global,environmentFlags,undefined){
 		if(channels==true){
 			channels=['tabs','DOM']
 		}
-		var obj=web.global[prefix]||web
+		//use 'this' so we can get either global or be able to set with the call function
+		var obj=this
+		if(!obj || obj===web){
+			obj=web.global
+		}
+		var obj=obj[prefix];
+		if(!obj){
+			throw 'Error, no object found as an api reference point'
+		}
 		var thing;
 	
 		// if(web.isString(obj)){
@@ -4053,6 +4311,8 @@ this.web=(function(web,global,environmentFlags,undefined){
 		// 	}
 		// 	obj=thing()
 		// }
+
+		var trustedURLs=channels; //todo filter out tabs dom instances etc
 
 		//listen and control any interface elements with data-API
 
@@ -4071,15 +4331,20 @@ this.web=(function(web,global,environmentFlags,undefined){
 			//self.postmessage({command:'web.updateUI',arguments:[method,value]})
 		})
 
+
+
+
+
 		for(var i=0,l=channels.length;i<l;i++){
 			switch(channels[i]){
-				case 'tabs':
+				case 'instances':
 				//listen for other tabs that my be talking to us
 				//http://html5demos.com/storage-events
 				//window.addEventListener
-				web.listen('tabs', function(message,reply) { //TODO use web.onevent
+				web.listen('instances', function(message,reply) { //TODO use web.onevent
 					api(message,reply)
 				});
+				break
 
 				// //listen for post messages
 				// self.addEventListener('message', function(e) {
@@ -4136,12 +4401,41 @@ this.web=(function(web,global,environmentFlags,undefined){
 				// 	//obj.postMessage(o);
 
 				// }, false);
+				case 'postMessages':
+						//Handle post messages
+						var listener = function(event){
+							//console.info('postmessage',event)
+							var json=event.data
+							if(json.type!='web_api'){
+								return
+							}
+							if(trustedURLs.indexOf(event.origin)==-1 && json.value){// && web.api.isValid(event.data.value)){
+								web.confirm('Warning!!',event.origin+' is attempting to send commands to RogueDJ.<br>'+JSON.stringify(json)+'<br> Would you like to give this url access?',function(yes){
+									if(yes){
+										trustedURLs.push(event.origin)
+										listener(event)
+									}
+								})
+								return
+							}
+							//TODO include the message id as well
+							api(event.data,function(ans){event.source.postMessage(ans, event.origin)});
+						}
+
+						web.onEvent('message',listener)
+						// if (window.addEventListener){
+						// 	addEventListener("message", listener, false)
+						// } else {
+						// 	attachEvent("onmessage", listener)
+						// }
+
 			}
 		}
-		console.log(prefix+' api available')
+		web.htmlConsole('<span style="color:hsl(0, 0%, 80%);background-color:hsl(0, 0%, 0%);"> # </span><span style="color:hsl(240, 100%, 90%);background-color:hsl(240, 100%, 50%);"> '+prefix+' api available'+' </span><span style="color:hsl(0, 0%, 80%);background-color:hsl(0, 0%, 0%);"> # </span> ')
 
 		//returns true if allowed false if it isnt
 		function api(message,reply){
+			debugger
 			var method = message
 			if(!web.startsWith(message,prefix)){//if the prefix is not correct see if it is a web.api specific command
 				if(web.startsWith(message,'web.api')){
@@ -4163,6 +4457,35 @@ this.web=(function(web,global,environmentFlags,undefined){
 				}
 				reply && web.post(reply,web.toString(ans)) //TODO ensure that the postmessage back to the originating tab when tab broadcast is sent out
 			})
+		}
+		api.isValid=function(string){
+			string=web.trimEnd(string,'(',1)
+			var obj = prefix
+			if(web.isString(obj)){
+				obj=web.global[obj]
+			}
+			if(web.isFunction(web.get.call(obj,string,{check:function(obj,path,parent){return !web.isNativeFunction(obj)}}))){
+				return true
+			}
+			return false
+		}
+		api.postMessage=function(target,command,url,callback){
+			if(web.isFunction(url)){
+				callback=url
+				url=null
+			}
+			url=url||'*'
+			if(!web.isObject(command)){
+				command={value:command}
+			}
+			command.timeStamp=Date.now()
+			command.id=
+			command.instance=
+			command.type='web_api'
+			if(!web.supports.postMessageObjects()){
+				command=JSON.stringify(command)
+			}
+			target.postMessage(command,url)
 		}
 		return api
 	}
@@ -4702,8 +5025,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		web.Pointer.prototype.getLocation=function(){
 			//TODO
 			if(!pointer.target){
-
-				//hooks were not hooked so guess where it is within the last eliment hovered
+				//hooks were not hooked so guess where it is within the last element hovered
 				var elem = $( ":hover" ).last()
 				var offset = elem.offset();
 
@@ -4863,7 +5185,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 
 		window.setTimeoutQueue=[], window.setIntervalQueue=[];
-		var nativeTimeout=( (Window&&Window.prototype)||window ).setTimeout;
+
 		web.overrideSetTimeout=function(){
 			var sound = 'data:audio/wav;base64,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';
 			var audio = new Audio(sound); // create the HTML5 audio element
@@ -5178,7 +5500,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 				return btoa(unescape(encodeURIComponent(input))) //see SET's comment http://stackoverflow.com/questions/246801/how-can-you-encode-a-string-to-base64-in-javascript
 			}
 			throw 'not implemented'
-			return
+			//return
 		}
 
 		//http://pablotron.org/?cid=1557
@@ -5645,21 +5967,39 @@ this.web=(function(web,global,environmentFlags,undefined){
 // //var remoteURL=new URI().fragment("#connectTo="+web.GUID().replace('-',''));
 // var remoteURL=web.connection(web.url()['?']['connectTo'],function(myID){})
 
-
+web.connect=function(){
+	//placeholder
+}
 web.connection=function(connectTo,options,callback){ //not fully tested
 	if(web.isFunction(options)){
 		callback=options
 		options={reliable:true}
+	}
+	var server;
+	if(options.server){
+		server=options.server
+		delete options.server
 	}
 	//support websockets,webrtc 
 	var face = function(){
 
 	}
 	var peerID=null //web.UUID('xxxxxxxx')
-	var peer = new Peer(peerID,{key:'5q5oypvkzbk2o6r'});
+	var peer;
+	if(server){
+		peer = new Peer({host: server, port:options.port|| ((web.isSecure())?443:80) });
+	}else{
+		peer = new Peer(peerID,{key:'5q5oypvkzbk2o6r'});
+	}
+
+	
 	if(callback){
 		//var fn = 
-		peer.on('open',function(id){face.id=peerID||id;callback.call(face,'open')})
+		peer.on('open',function(id){
+			face.id=id||peerID;
+			web.connections.primary=web.connections.primary||face
+			callback.call(face,'open');
+		})
 		peer.on('connection',function(connection){face.connection=connection;callback.call(face,'connection')})
 		peer.on('call',_.bind(callback,face))
 		peer.on('close',_.bind(callback,face))
@@ -5671,9 +6011,13 @@ web.connection=function(connectTo,options,callback){ //not fully tested
 	}
 
 
-	face.toString=function(){return web.url().apply('?',{'connectTo':peerID}).toString() }
+	face.toString=function(){return web.url().apply('?',{'connectTo':face.id}).toString() }
 	return face
 }
+web.connections={}
+web.connections.primary=undefined
+web.connections.toServer={}
+web.connections.toUsers={}
 
 //Message schema
 //ping
@@ -6027,7 +6371,6 @@ web.router=function(arrayMap){
 		//callback map accepts either a map object of what types it accepts as well as how to handle them or it is an open any file and will return a list to the hanlder
 		//todo implement filter for open any file format
 		web.inputFile=function(element,options,fileHandlers){
-			debugger
 			//web to fileDrop api
 			// bin = binary
 			// dataURI = 'url', 'uri' or 'src' reads Data URI (very nice for generating thumbnails)
@@ -6045,7 +6388,7 @@ web.router=function(arrayMap){
 				fileHandlers=options
 				options=null
 			}
-			debugger
+			
 			// var callback=(web.isFunction(fileHandlers))?fileHandlers:null
 			fileHandlers=web.router(fileHandlers||web.fileHandlers)
 
@@ -6427,7 +6770,7 @@ web.router=function(arrayMap){
 				web.log.history.shift()
 			}
 			if(arguments.length){
-				console.log.apply(console,arguments); //if arguments.lenght==0 nothing shows in console
+				console.trace.apply(console,arguments); //if arguments.lenght==0 nothing shows in console
 			}else{
 				console.trace('web.log(){arguments.length==0}') //fallback to trace cause we assume something will happen?
 			}
@@ -6448,7 +6791,7 @@ web.router=function(arrayMap){
 		//TODO OMG ADD COLORS!!!
 		//http://trac.webkit.org/changeset/130941
 		//http://jsfiddle.net/yg6hk/5/
-		function styledConsoleLog() {
+		web.htmlConsole=function styledConsoleLog() {
 			if(!web.isNodeJS()){
 				var argArray = [];
 
@@ -6472,31 +6815,9 @@ web.router=function(arrayMap){
 			console.log.apply(console, argArray);
 		}
 
-		styledConsoleLog('<span style="color:hsl(0, 100%, 90%);background-color:hsl(0, 100%, 50%);"> Red </span> <span style="color:hsl(39, 100%, 85%);background-color:hsl(39, 100%, 50%);"> Orange </span> <span style="color:hsl(60, 100%, 35%);background-color:hsl(60, 100%, 50%);"> Yellow </span> <span style="color:hsl(120, 100%, 60%);background-color:hsl(120, 100%, 25%);"> Green </span> <span style="color:hsl(240, 100%, 90%);background-color:hsl(240, 100%, 50%);"> Blue </span> <span style="color:hsl(300, 100%, 85%);background-color:hsl(300, 100%, 25%);"> Purple </span> <span style="color:hsl(0, 0%, 80%);background-color:hsl(0, 0%, 0%);"> Black </span>');
+		//styledConsoleLog('<span style="color:hsl(0, 100%, 90%);background-color:hsl(0, 100%, 50%);"> Red </span> <span style="color:hsl(39, 100%, 85%);background-color:hsl(39, 100%, 50%);"> Orange </span> <span style="color:hsl(60, 100%, 35%);background-color:hsl(60, 100%, 50%);"> Yellow </span> <span style="color:hsl(120, 100%, 60%);background-color:hsl(120, 100%, 25%);"> Green </span> <span style="color:hsl(240, 100%, 90%);background-color:hsl(240, 100%, 50%);"> Blue </span> <span style="color:hsl(300, 100%, 85%);background-color:hsl(300, 100%, 25%);"> Purple </span> <span style="color:hsl(0, 0%, 80%);background-color:hsl(0, 0%, 0%);"> Black </span>');
+		web.htmlConsole('<span style="color:hsl(0, 0%, 80%);background-color:hsl(0, 0%, 0%);"> # </span><span style="color:hsl(240, 100%, 90%);background-color:hsl(240, 100%, 50%);"> Web.js </span><span style="color:hsl(0, 0%, 80%);background-color:hsl(0, 0%, 0%);"> # </span> ')
 
-		function styledMODIFIEDConsoleLog() { //MODIFIED
-			var argArray = [];
-
-			if (arguments.length) {
-				var startTagRe = /<span\s+style=(["])([^"]*)\1\s*>/gi;
-				var endTagRe = /<\/span>/gi;
-
-				var reResultArray;
-				argArray.push(arguments[0].replace(startTagRe, '%c').replace(endTagRe, '%c'));
-				while (reResultArray = startTagRe.exec(arguments[0])) {
-					argArray.push(reResultArray[2]);
-					argArray.push('');
-				}
-
-				// pass through subsequent args since chrome dev tools does not (yet) support console.log styling of the following form: console.log('%cBlue!', 'color: blue;', '%cRed!', 'color: red;');
-				for (var j = 1; j < arguments.length; j++) {
-					argArray.push(arguments[j]);
-				}
-			}
-
-			console.log.apply(console, argArray);
-			return argArray
-		}
 
 		web.consoleIcon=function(){
 			if(!(this instanceof web.consoleIcon)){return new web.consoleIcon()}
@@ -6726,7 +7047,7 @@ web.router=function(arrayMap){
 				str=number
 				number=undefined
 			}
-			debugger
+		
 			str=web.splitAlphaNum(str)
 			if(str.length==2){
 				number=parseFloat(str.shift())
@@ -6809,6 +7130,16 @@ web.router=function(arrayMap){
 				instance.close()
 			})
 		})
+
+
+        //var stack_topleft = {"dir1": "down", "dir2": "right", "push": "top"};
+        //var stack_bottomleft = {"dir1": "right", "dir2": "up", "push": "top"};
+        //var stack_custom = {"dir1": "right", "dir2": "down"};
+        //var stack_custom2 = {"dir1": "left", "dir2": "up", "push": "top"};
+        //var stack_modal = {"dir1": "down", "dir2": "right", "push": "top", "modal": true, "overlay_close": true};
+        var stack_bar_top = {"dir1": "down", "dir2": "right", "push": "top", "spacing1": 0, "spacing2": 0};
+        var stack_bar_bottom = {"dir1": "up", "dir2": "right", "spacing1": 0, "spacing2": 0};
+
 		//https://github.com/jpillora/notifyjs.git
 		//send title = false to remove all
 		web.notify=function(title,message,options,callback){
@@ -6858,9 +7189,9 @@ web.router=function(arrayMap){
 				//}
 				options={icon:options}
 			}
-			
 
-			
+
+						
 			if(options.timeOut===true||options.timeOut===undefined){
 				options.timeOut=5000
 			}
@@ -6904,7 +7235,7 @@ web.router=function(arrayMap){
 							'</div>'
 					title=''
 				}
-				notice = new PNotify({
+				var opts={
 					title:title||'',
 					text: message||'',
 					icon: false,
@@ -6916,13 +7247,30 @@ web.router=function(arrayMap){
 						sticker: false
 					},
 					insert_brs: false
-				});
+				}
+				//force notice style for small screens
+				options.style = (web.q('window').width()<750)?'notice':options.style;
+				if(options.style=='notice'){
+					opts.addclass="stack-bar-top"
+					opts.cornerclass=""
+					opts.width="100%"
+					opts.stack=stack_bar_top
+				}else if(options.style=='toast'){
+					opts.addclass="stack-bar-bottom"
+					opts.cornerclass=""
+					opts.width="70%"
+					opts.stack=stack_bar_bottom
+				}
 
-				var windowWidth=web.q('window').width()
-				var maxWidth=(windowWidth>750)?web.goldenRatio('<%'):web.goldenRatio('>%');
 
-				notice.get().css('max-width',maxWidth+'%')
-				//notice.get().css('max-width',web.goldenRatio(windowWidth,300,'%')+'%')
+				notice = new PNotify(opts);
+			
+				if(!options.style||options.style=='inline'){
+					var maxWidth=(web.q('window').width()>750)?web.goldenRatio('100<%'):web.goldenRatio('100>%');
+					notice.get().css('max-width',maxWidth+'%')
+					//notice.get().css('max-width',web.goldenRatio(windowWidth,300,'%')+'%')
+				}
+
 
 				notice.get().click(function(e,v,t) { //REMOVE DOM Notice
 					this.remove && this.remove()
@@ -7135,12 +7483,17 @@ web.router=function(arrayMap){
 
 
 
-		web.chromeCast=function(applicationID,statusCallback){
+		web.chromeCastBeta=function(applicationID,statusCallback){
+			var initializeEvent=false
+			var loadedEvent=false
+			var joiningSession=false
 
 			if(web.isFunction(applicationID)){
 				statusCallback=applicationID
 				applicationID=undefined
 			}
+			var namespace=null
+			var namespaces=['event','execute']
 
 			var friendly={
 				'INITIALIZING':'Loading...'
@@ -7151,13 +7504,13 @@ web.router=function(arrayMap){
 			}
 			var setStatus=function(status){
 				if(!status){
-					status=(face.message) ||
-							(face.session&&"CONNECTED") ||
+					status=(face.session&&"CONNECTED") ||
 								(face.available&&"AVAILABLE") ||
 								(face.hasExtention&&"FOUNDEXTENTION")
 				}
 				face.status=status
-				statusCallback.call(face,status,friendly[status])
+				face.friendlyStatus=friendly[status]
+				statusCallback.call(face)
 			}
 
 			var terminationListener=function(isAlive){
@@ -7166,22 +7519,17 @@ web.router=function(arrayMap){
 					setStatus('DISCONNECTED')
 					face.status=null
 					setStatus()
+					trigger('disconnect')
 				}
 			}
 
 			var initChromeCast = function(face){
-				console.info('________')
-				console.dir(face)
-				console.info('________')
-
-
 				face.apiConfig = new chrome.cast.ApiConfig(
 					new chrome.cast.SessionRequest(face.applicationID)
-					,function sessionListener(e) { // no need to return session here
-						console.log('chromecast: joining an existing session ',e)
-						face.session = face.session||e;
-						e&&setStatus()
-						face.session.addUpdateListener(terminationListener)
+					,function sessionListener(session) { // no need to return session here
+						console.log('chromecast: joining an existing session ',session)
+						joiningSession=true;
+						bindToSession(session)
 						//callbacks.ready && callbacks.ready(session) //sesssion exists
 					}
 					,function receiverListener(e) {//The receiverListener callback only reports whether Cast devices are available; it does not report which devices are available. The available devices are known to the Cast extension.
@@ -7194,34 +7542,29 @@ web.router=function(arrayMap){
 						//	break;
 						//}
 						face.available=(e==key.AVAILABLE)
+						face.available && trigger('available')
 						setStatus()
 						//face.callbacks.available && face.callbacks.available(face.available)
 					}
 				);
 				face.sessionCallback=function(callback){
-					var e;
-					if(face.session){
-						aler('already got session pretest')
-						web.defer(callback)
-						return
-					}
 					if(!web.isFunction(callback)){
-						e=callback
+						console.error('callback isnt a function')
+						//e=callback
 						callback=undefined
 					}
 					chrome.cast.requestSession(function(session){
-							if(face.session){
-								alert('already got session! KTS posttest')
-								web.defer(callback)
+							if(!session){
 								return
 							}
-							face.session=face.session||session;
-							face.session.addUpdateListener(terminationListener)
-							setStatus()
-							callback&&callback()
+							initializeEvent=true
+							callback&&callback(session)
 						}
 						,function(e){ //error handler
-							web.raise(e,(callback||function(a){setStatus()}),face)
+							web.raise(e,(callback||function(a){
+								setStatus()
+								trigger('error',e)
+							}),face)
 						// if(!face.available){
 						// 	setTimeout(face.connect,5000)
 						// }
@@ -7229,10 +7572,14 @@ web.router=function(arrayMap){
 					} );
 				}
 				console.log('connecting');
+
 				chrome.cast.initialize(face.apiConfig
 					,function(){}/*face.sessionCallback*/
 					,function(e){
-						web.raise(e,function(){setStatus()},face)
+						web.raise(e,function(){
+							setStatus()
+							web.trigger('error')
+						},face)
 				})
 			}
 
@@ -7240,21 +7587,97 @@ web.router=function(arrayMap){
 
 			var face = {}
 			face.status='INITIALIZING'
-			face.on=function(event){
-
+			var handlers={}
+			face.on=function(event,callback){
+				var list=handlers[event]||(handlers[event]=[])
+				return list.push(callback)
+			}
+			var trigger = function(event,args,args1){
+				var list= handlers[event];
+				if(!list){
+					return
+				}
+				if(web.isValue(args)||web.isValue(args1)){
+					args=web.toArray(arguments)
+					args.shift()
+				}
+				for(var i=0,l=list.length;i<l;i++){
+					list[i].call(face,args)
+				}
+				return !!list.length
+			}
+			face.trigger=function(event,args,args1){
+				this.session.sendMessage(namespace+':events'
+					, JSON.stringify(arguments)
+					, null
+					, function(e){
+						web.error=e||'unknown error'
+						callback&&callback()
+						web.error=undefined
+					});
+			}
+			face.off=function(fn){
+				if(web.isFunction(fn)){
+					//TOOD search and remove
+				}else if(web.isString(fn)){
+					var val= !!handlers[fn]
+					delete handlers[fn]
+					return val
+				}
 			}
 
+			var pendingResponses={} //TODO if these time out run them and throw an error in them
+			var connectionID; //TODO use the PeerJS server to be sure we have unique ids ACUTALLY just generate them on the crhrome cast and issue them on connect
+			var messageID=0
+			var timesWeConnected=0
 			face.connect=function(callback){
-				face.sessionCallback(function(){
+				face.sessionCallback(function(session){
 					if(web.error){ //this typically happens is user does not select a chromecast and "cancels" the action
+						if(web.error.code=='cancel'){
+							trigger('selectionCancel',web.error)
+							return
+						}
 						console.log(web.error)
 						callback()
 						return
 					}
-
-					face.session.addMessageListener(face.namespace, function (ns, message){
-						connectToPeer(message)
-					})
+					bindToSession(session)
+				})
+			}
+			var bindToSession=function(session){
+					if(face.session){
+						alert('already got session pretest')
+						web.defer(callback)
+						return
+					}
+					face.session=session
+					face.session.addUpdateListener(terminationListener)
+					//trigger('connect',++timesWeConnected)
+					//for(var i=0,l=namespaces.length;i<l;i++){
+						face.session.addMessageListener(namespace, function (ns, message){
+							message=JSON.parse(message)
+							var messageID=message.ID
+							message=message.message
+							console.info(messageID,message,pendingResponses)
+							if(messageID=='init'){
+								connectionID=message
+								if(initializeEvent){
+									trigger('initialized')
+								}
+								trigger('connect',joiningSession)
+								return
+							}
+							trigger('message',message)
+							var resp = pendingResponses[messageID]
+							if(resp){
+								resp.call(face,message)
+								delete pendingResponses[messageID]
+							}else{
+								console.error('No response function waiting for message ',message,messageID)
+							}
+							
+						})
+					//}
 					// face.message('getIP()',function(response){
 					// 	if(web.error){
 					// 		web.notify('error see console')
@@ -7264,13 +7687,27 @@ web.router=function(arrayMap){
 					// 		console.log('To debug chromecast go to http://'+response+':9222')
 					// 	}
 					// })
-
-				})
+					setStatus()
 			}
+
 			face.message=function(message,callback){
-				this.session.sendMessage(face.namespace
-					, message
-					, callback
+
+				// if(message=='web.connect()'){
+				// 	callback=function(e){
+
+				// 	}
+				// }
+
+				var thisID=connectionID+':'+messageID++
+
+				if(callback){
+					pendingResponses[thisID]=callback
+				}
+				message={'message':message,'ID':thisID}
+
+				this.session.sendMessage(namespace
+					, JSON.stringify(message)
+					, null
 					, function(e){
 						web.error=e||'unknown error'
 						callback&&callback()
@@ -7313,6 +7750,7 @@ web.router=function(arrayMap){
 						,function(e){
 							web.raise(e,function(){setStatus()},face) //send to status callback
 							web.raise(e,callback,face) 	//send to callback
+							trigger('error',e)
 						}
 						);
 			}
@@ -7320,11 +7758,31 @@ web.router=function(arrayMap){
 			face.session=null
 			face.applicationID=applicationID
 
+			var available=function(loaded, errorInfo) {//when the API loads, or with errorInfo when load fails (e.g. when no extension is discovered).
+					//Finish face initialization that requires information from chromecast api
+					face.hasExtention=loaded //loaded lets us know if the extention exists
+					loaded && trigger('foundExtention') //DEV note: I expect that if loaded=false errorInfo also equals 'No cast extension found'
 
+					if(errorInfo){
+						console.warn(errorInfo)
+						trigger('error',errorInfo)
+						return
+					}
+					face.applicationID=face.applicationID||chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
+					if(web.caseInsensitive(face.applicationID,'youtube')){
+						face.applicationID='233637DE'
+					}
+					namespace=face.namespace='urn:x-cast:'+face.applicationID
+
+					loaded&&initChromeCast(face)
+				}
 			
 			var scriptSrc='https://www.gstatic.com/cv/js/sender/v1/cast_sender.js'
-			if(!web.get.call(window,'chrome.cast')){
-				if(!web.loading(scriptSrc)){ //also check for scripts!!!
+			if(!web.get.call(window,'chrome.cast')){ //if we dont have chromecast then load it
+
+				//https://developers.google.com/cast/docs/chrome_sender
+				self['__onGCastApiAvailable'] = available
+				if(web.resourceStatus(scriptSrc)===undefined){
 					web.load(scriptSrc) //,
 						//function(){ //check for loaded
 						// debugger
@@ -7337,40 +7795,14 @@ web.router=function(arrayMap){
 						//})
 				}
 
-				//https://developers.google.com/cast/docs/chrome_sender
-				self['__onGCastApiAvailable'] = function(loaded, errorInfo) {//when the API loads, or with errorInfo when load fails (e.g. when no extension is discovered).
-					//Finish face initialization that requires information from chromecast api
-					if(errorInfo){
-						web.log(errorInfo)
-						console.warn(errorInfo)
-						return
-					}
-					face.applicationID=face.applicationID||chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
-					if(web.caseInsensitive(face.applicationID,'youtube')){
-						face.applicationID='233637DE'
-					}
-					face.namespace='urn:x-cast:'+face.applicationID
-
-					face.hasExtention=loaded //loaded lets us know if the extention exists
-
-					if (loaded) {
-						//callbacks.hasExtention && callbacks.hasExtention(true)
-						initChromeCast(face)
-						return
-					}
-
-					//callbacks.hasExtention && callbacks.hasExtention(false)
-					//web.raise(errorInfo,callbacks.error,errorInfo,'loading api')
-					
-				}
-			}else{ //TODO this route has not been tested well
-				face.hasExtention=web.get.call(window,'chrome.cast.isAvailable')
-				initChromeCast(face)
+			}else{ //TODO this route has not been tested well it is assuming the api has already been loaded by something else
+				available(web.get.call(window,'chrome.cast.isAvailable'),undefined)
 			}
 
 			return face
 			
 		}
+
 
 //CALL THIS BEFORE DOCUMENT READY!
 //CALL IT AS SOON AS YOU CAN
@@ -7378,9 +7810,51 @@ web.chromeReceiver=function(namespace,callback){
 	if(!web.startsWith(namespace,'urn:x-cast:')){
 		namespace='urn:x-cast:'+namespace
 	}
+	//web.notify('starting chrome receiver with namespace ',namespace)
+
 
 	var face={}
-	face.message=function(senderId,message){ //arg1 can be event or sender id or true to brodcast to all
+	var handlers={}
+	face.on=function(event,callback){
+		var list=handlers[event]||(handlers[event]=[])
+		return list.push(callback)
+	}
+	var trigger = function(event,args,args1){
+		var list= handlers[event];
+		if(!list){
+			return
+		}
+		if(web.isValue(args)||web.isValue(args1)){
+			args=web.toArray(arguments)
+			args.shift()
+		}
+		for(var i=0,l=list.length;i<l;i++){
+			list[i].call(face,args)
+		}
+		return !!list.length
+	}
+	face.trigger=function(event,args,args1){
+		this.session.sendMessage(face.namespace+':events'
+					, JSON.stringify(arguments)
+					, null
+					, function(e){
+						web.error=e||'unknown error'
+						callback&&callback()
+						web.error=undefined
+					});
+	}
+	face.off=function(fn){
+		if(web.isFunction(fn)){
+			//TOOD search and remove
+		}else if(web.isString(fn)){
+			var val= !!handlers[fn]
+			delete handlers[fn]
+			return val
+		}
+	}
+
+	var users=[]
+	face.message=function(senderId,message,messageID){ //arg1 can be event or sender id or true to brodcast to all
 		if(!web.isString(senderId) && web.isString(senderId.senderId)){
 			senderId=senderId.senderId
 		}
@@ -7388,43 +7862,66 @@ web.chromeReceiver=function(namespace,callback){
 			face.messageBus.brodcast(message)
 			return
 		}
-		face.messageBus.send(senderId, message);
+
+		//face.setState(message); //This sets the text on chromecast extention within browser
+		
+		message={message:message,ID:messageID}
+		face.messageBus.send(senderId, JSON.stringify(message));
 	}
 	face.apis=[]
 	face.addAPI=function(api){
 		face.apis.push(api)
+	}
+	face.users=function(){
+		return face.castReceiverManager.getSenders()
 	}
 
 	//load api then apply all listeners and etc
 	web.load('//www.gstatic.com/cast/sdk/libs/receiver/2.0.0/cast_receiver.js',null,function(){
 		cast.receiver.logger.setLevelValue(0);
 
-		//face.mediaElement = document.getElementById('media');
-		//face.mediaManager = new cast.receiver.MediaManager(face.mediaElement);
+		face.mediaElement = document.createElement('video');//document.getElementById('media');
+		face.mediaManager = new cast.receiver.MediaManager(face.mediaElement);
 
 		console.log('Starting Receiver Manager');
-		web.notify('Starting Receiver Manager')
 		face.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
-		
+
+		face.setState=function(message){
+			face.castReceiverManager.setApplicationState(message)
+		}
+
 		// handler for the 'ready' event
 		face.castReceiverManager.onReady = function(event) {
+			face.ready=true
 			console.log('Received Ready event: ' + JSON.stringify(event.data));
-			face.castReceiverManager.setApplicationState("Application status is ready...");
+			face.setState("Application status is ready...");
+			callback && callback.call(face,event)
 		};
+		var senders={}
 		
 		// handler for 'senderconnected' event
 		face.castReceiverManager.onSenderConnected = function(event) {
+			web.notify('chromecast sender conected','senderId'+event.senderId)
 			console.log('Received Sender Connected event: ' + event.data);
 			console.log(face.castReceiverManager.getSender(event.data).userAgent);
+
+			web.defer(function(){ //DEVNOTE: must use defer or timeout
+			web.notify('sending id',event.senderId);
+			face.message(event,event.senderId,'init')
+			}) //delay is for rejoining session. The client needs more time //message connection isn't set up until after this fucntion so defer this call
+			
+			//TODO trigger('connected')
 		};
 		
 		// handler for 'senderdisconnected' event
-		// face.castReceiverManager.onSenderDisconnected = function(event) {
-		// 	console.log('Received Sender Disconnected event: ' + event.data);
-		// 	if (face.castReceiverManager.getSenders().length == 0) {
-		// 		window.close();
-		// 	}
-		// };
+		face.castReceiverManager.onSenderDisconnected = function(event) {
+			web.notify('chromecast sender disconnected')
+			// console.log('Received Sender Disconnected event: ' + event.data);
+			// if (face.castReceiverManager.getSenders().length == 0) {
+			// 	window.close();
+			// }
+
+		};
 		
 		// handler for 'systemvolumechanged' event
 		face.castReceiverManager.onSystemVolumeChanged = function(event) {
@@ -7433,31 +7930,42 @@ web.chromeReceiver=function(namespace,callback){
 		};
 		// create a CastMessageBus to handle messages for a custom namespace
 		face.messageBus = face.castReceiverManager.getCastMessageBus(namespace);
+
+
 		
 		// handler for the CastMessageBus message event
 		 face.messageBus.onMessage = function(event) {
 		 	console.log('Message [' + event.senderId + ']: ' + event.data);
 			
 		// 	// display the message from the sender
-			var message=event.data
-			console.log(message);
-			web.notify(message);
-			face.castReceiverManager.setApplicationState(message); //This sets the text on chromecast extention within browser
+			var message=JSON.parse(event.data)
+			var messageID=message.ID
+			message=message.message
+
+			web.notify('ChromeSender '+messageID+':',message);
+			web.notify('senderID',event.senderId)
+
+			//face.setState(message); //This sets the text on chromecast extention within browser
 
 
 			if(message=='getIP()'){
 				if(face.ip){
-					face.message(event,ip)
+					web.notify(face.ip)
+					face.message(event,face.ip)
 				}
 				web.ip(true,function(ip){face.message(event,face.ip=ip)})
+			}else if(message=='little'){
+				RogueDJ.videoSize('little')
 			}else if(message=='getPeerID()'){
-				face.message(event, peerID);
+				face.message(event, web.connections.primary.id,messageID);
 			}else if(web.startsWith(message,'setLocation')){
 				face.message(event,'set location to ')
 			}else if(face.apis.length){
 				for(var i=0,l=face.apis.length;i<l;i++){
-					face.apis[i](message,function(rep){face.message(event,rep)})
+					face.apis[i](message,function(rep){face.message(event,rep,messageID)})
 				}
+			}else{
+				web.notify('Chromecast Receiver does not have any APIs defined')
 			}
 
 
@@ -7469,11 +7977,34 @@ web.chromeReceiver=function(namespace,callback){
 		// initialize the CastReceiverManager with an application status message
 		face.castReceiverManager.start({statusText: "Application is starting"});
 		console.log('Receiver Manager started');
-		
-		callback && callback()
+		web.notify('Receiver Manager started');
 	})
+
+	//face.addAPI(web.api(web.chromeReceiver.API(face),true))
+
+
 	return face
 
+}
+web.chromeReceiver.API=function(face){
+	return {
+	getIP:function(){
+				if(face.ip){
+					web.notify(face.ip)
+					face.message(event,face.ip)
+				}
+				web.ip(true,function(ip){
+					face.message(event,face.ip=ip)
+					web.notify(face.ip)
+				})
+			}
+	,getPeerID:function(){
+				face.message(event, web.connections.primary.id,messageID);
+			}
+	,setLocation:function(){
+				face.message(event,'set location to ')
+		}
+	}
 }
 
 		//http://stackoverflow.com/questions/20840019/how-to-change-every-character-to-opposite-case-in-javascript
@@ -7619,30 +8150,64 @@ web.chromeReceiver=function(namespace,callback){
 				message=message[0]
 			}
 
+			//orgnaize options
 			options=options||{}
 			options.prompt=(options.prompt===undefined)?true:options.prompt
 			var isConfirm = !options.prompt
+			if(options.buttons){
+				isConfirm=true
+				var buttons= options.buttons.slice(0)
+				_.forEach(buttons,function(value,index){
+					buttons[index]={
+						text:value
+						,addClass:(index==1)?'btn-primary':''
+						,click:function(notice){
+							notice.remove()
+							callback(index)
+							return true
+						}
+					}
+				})
+				buttons.push(buttons.shift())
+				//buttons.reverse()
+		
+				options.buttons=buttons
+			}
+		
+
+
+
 
 			var notify=new PNotify({
-				title: title,
-				text: message,
+				title: title||'',
+				text: message||'',
 				//icon: 'glyphicon glyphicon-question-sign',
 				hide: false,
 				confirm: {
 					confirm:isConfirm
+					,buttons:options.buttons
 					,prompt:options.prompt
 					//,prompt_multi_line: true
 					,prompt_default: defaultValue
 				},
 				buttons: {
-					closer: false
-					,sticker: false
+					closer:true
+					,closer_hover: true //Only show the closer button on hover.
+					,sticker: false //Provide a button for the user to manually stick the notice.
+					//,sticker_hover: true //Only show the sticker button on hover.
+					//,show_on_nonblock: false //Show the buttons even when the nonblock module is in use.
+					//,labels: {close: "Close", stick: "Stick"} - L
 				},
 				history: {
 					history: false
 				}
 			})
-			web.callback(notify,callback)
+			//NOTE do not use web.callback for web.prompt web.callback(notify,callback)
+			notify.get().on('pnotify.confirm', function(e, notice, val) {
+							callback.call(notice,val,e)
+						}).on('pnotify.cancel', function(e, notice) {
+							return false //callback.call(notice,false,e)
+						});
 			return notify
 		}
 		web.shadowBox=function(elem,html,callback){
@@ -7743,15 +8308,43 @@ web.chromeReceiver=function(namespace,callback){
 			return setA
 		}
 
-		//https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection
-		web.collisionRectangle=function(rect1,rect2,difference){
-			web.depricated('use web.isRectangleCollision')
-			return web.isRectangleCollision(rect1,rect2,difference)
-		}
-		web.isRectangleCollision=function(rect1,rect2,difference){ //http://stackoverflow.com/questions/12066870/how-to-check-if-an-element-is-overlapping-other-elements
-			if(difference){
-				return
+		
+		web.area=function(rect){
+			if(rect.width){
+				if(rect.width.call){
+					return rect.width()*rect.height()
+				}else{
+					return rect.width*rect.height
+				}
 			}
+			return (rect.bottom-rect.top)*(rect.right-rect.left)
+			// if(web.isElement(rect)){//assume it is a div
+			// 	return rect.width*rect.height
+			// }else if(web.isInstance(rect,jQuery)){
+			// 	return rect.width()*rect.height()
+			// }else{ //it is a bounding rectangle?
+			// 	return (rect.bottom-rect.top)*(rect.right-rect.left)
+			// }
+		}
+
+
+		web.isRectangleCollision=function(rect1,rect2,arg1){ //http://stackoverflow.com/questions/12066870/how-to-check-if-an-element-is-overlapping-other-elements
+			if(arg1){ //http://math.stackexchange.com/questions/99565/simplest-way-to-calculate-the-intersect-area-of-two-rectangles
+				var width = Math.max(0, Math.min(rect1.right,rect2.right) - Math.max(rect1.left,rect2.left))
+				var height = Math.max(0, Math.min(rect1.bottom,rect2.bottom) - Math.max(rect1.top,rect2.top));
+				if(arg1=='area'){
+					return width*height;
+				}else if(arg1=='intersection'){//TODO debug //http://stackoverflow.com/questions/17067061/calculate-div-overlap-area-and-position
+					var top = Math.max(rect1.top,rect2.top);
+					var left=(rect2.left>rect1.left && rect2.left<(rect1.right)) ? rect2.left : (rect1.left>rect2.left && rect1.left<(rect2.right)) ? rect1.left : 0;
+						return {top:top
+							,right:left+width
+							,bottom:top+height
+							,left:left
+							}
+				}
+			}
+			////https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection
 			return /*overlap=*/ !(rect1.right < rect2.left ||
 				rect1.left > rect2.right ||
 				rect1.bottom < rect2.top ||
@@ -7772,6 +8365,8 @@ web.chromeReceiver=function(namespace,callback){
 			}
 			return {}
 		}
+
+
 		//tells if your object is completely in viewport. if jquery then it will return true if all elements are in the viewport
 		//http://stackoverflow.com/questions/123999/how-to-tell-if-a-dom-element-is-visible-in-the-current-viewport
 		//http://www.codechewing.com/library/dimension-and-offset-of-html-element-javascript/
@@ -7837,67 +8432,17 @@ web.chromeReceiver=function(namespace,callback){
 			return elem
 		}
 
-		web.notice=function(){
-			function show_stack_bar_top(type) {
-			var opts = {
-				title: "Over Here",
-				text: "Check me out. I'm in a different stack.",
-				addclass: "stack-bar-top",
-				cornerclass: "",
-				width: "100%",
-				stack: stack_bar_top
-			};
-			switch (type) {
-			case 'error':
-				opts.title = "Oh No";
-				opts.text = "Watch out for that water tower!";
-				opts.type = "error";
-				break;
-			case 'info':
-				opts.title = "Breaking News";
-				opts.text = "Have you met Ted?";
-				opts.type = "info";
-				break;
-			case 'success':
-				opts.title = "Good News Everyone";
-				opts.text = "I've invented a device that bites shiny metal asses.";
-				opts.type = "success";
-				break;
-			}
-			new PNotify(opts);
-		}
-		}
-		web.toast=function(){
-			function show_stack_bar_bottom(type) {
-			var opts = {
-				title: "Over Here",
-				text: "Check me out. I'm in a different stack.",
-				addclass: "stack-bar-bottom",
-				cornerclass: "",
-				width: "70%",
-				stack: stack_bar_bottom
-			};
-			switch (type) {
-			case 'error':
-				opts.title = "Oh No";
-				opts.text = "Watch out for that water tower!";
-				opts.type = "error";
-				break;
-			case 'info':
-				opts.title = "Breaking News";
-				opts.text = "Have you met Ted?";
-				opts.type = "info";
-				break;
-			case 'success':
-				opts.title = "Good News Everyone";
-				opts.text = "I've invented a device that bites shiny metal asses.";
-				opts.type = "success";
-				break;
-			}
-			new PNotify(opts);
-		}
-		}
 
+		web.time=function(time){
+			if(!(this instanceof web.time)){return new web.time(time)}
+			 //http://stackoverflow.com/questions/3733227/javascript-seconds-to-minutes-and-seconds
+			this.hours  =~~(time / 3600)
+			this.minutes=~~((time % 3600) / 60)
+			this.seconds=time % 60
+			this.value=time
+		}
+		web.time.prototype.valueOf=function(){return this.value}
+		web.time.prototype.toString=function(){return this.hours+':'+this.minutes+':'+this.seconds}
 
 
 		var cssMap={
@@ -8083,8 +8628,35 @@ web.chromeReceiver=function(namespace,callback){
 
 		web.Buttons=web.Buttons||{}
 		web.Buttons.close=function(){return $('<button type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>')}
-		web.button=function(text,action,parent){
-
+		web.button=function(text,options,callback){
+			if(!(this instanceof web.button)) {return new web.button(text,options,callback)}
+			if(web.isFunction(text)){
+				callback=text
+				text=null
+			}
+			if(web.isFunction(options)){
+				callback=options
+				options={}
+			}else if(web.isString(options)){
+				options={image:options}
+			}
+			if(web.isObject(text)){
+				callback=options
+				options=text
+				text=null
+			}
+			if(web.isString(callback)){
+				this.href=callback
+				callback=null
+			}
+			this.callback=callback
+			this.text=text
+			this.options=options
+		}
+		web.button.prototype.appendTo=function(parent){
+			this.element = $('<button type="button"><span aria-hidden="true">&times;</span><span class="sr-only">'+this.text+'</span></button>')
+			this.callback && this.element.on(this.callback)
+			parent.append(element)
 		}
 		web.form=function(form,arg1){
 
@@ -8137,60 +8709,162 @@ web.chromeReceiver=function(namespace,callback){
 		}
 		web.form.handlers={}
 
+web.hasCustomProperties=function(obj){
 
-		web.extern=function(o){
-				var _escapeable = /["\\\x00-\x1f\x7f-\x9f]/g;
-				var quoteString = function (string) {
-					if (string.match(_escapeable)) {
-						return '"' + string.replace(_escapeable, function(a) {
-							var c = _meta[a];
-							if (typeof c === 'string') return c;
-							c = a.charCodeAt();
-							return '\\u00' + Math.floor(c / 16).toString(16) + (c % 16).toString(16);
-						}) + '"';
-					}
-					return '"' + string + '"';
-				};
-				var extern =function (obj) {
-					var msg = "";
-					var appendBrace = typeof obj == "object" || web.isFunction(obj);
-					if (appendBrace)
-						msg += "{";
-					for (var p in obj) {
-						if(!obj.hasOwnProperty(p)){continue} // this rule is only for externing web.js object?
-						if(obj===obj[p]||obj===window||obj===document||obj===document.documentElement){continue} //if recursive then break
-						if (msg.length > 1)
-							msg += ",";
-						//else {
-						//if (Object.prototype.toString.call(obj) !== "[object Array]") {
-							console.log(p)
-						msg += quoteString(p) + " : ";
-						if (typeof obj[p] == "object"){
-							var r = extern(obj[p]);
-							if (r == "{}"){ //treat empty objects as if they are functions
-								msg += "function(){}";
-							}else{
-								msg += r;
-							}
-						}else {
-							if(isFunction(obj[p])){
-								msg += 'function('+web.functionArguments(obj[p]).toString()+'){}';
-							}else{
-								msg += "{}";
-							}
-						}
-						//}
-						//				}
-					}
-					if (appendBrace)
-						msg += "}";
-					return msg;
-				}
-				
-				
-				//$('#result').html(js_beautify(result, { indent_size: 4, indent_char: ' ', preserve_newlines: true, space_after_anon_function: true }));
-				return extern(o)
+}
+
+web.extern2=function(val){
+	var seen=[]
+	var obj;
+	if(typeof val !='string'){
+		for(var prop in window){
+			if(window[prop]===val){
+				val=prop
+				obj=window[prop]
+			}
 		}
+
+	}else{
+		obj =window[val]
+	}
+
+	if(obj==null){
+		throw 'error'
+	}
+
+
+
+	function ext(obj){
+		if(_.findIndex(seen,function(a){return a===obj})!=-1){
+			return (function(){alert('recursive')})
+		}
+		seen.push(obj)
+
+		var propNames = web.keys(obj);
+		var type = typeof obj
+		if(propNames.length){
+			var ans={}
+			for(var i=0,l=propNames.length;i<l;i++) {
+				var prop = propNames[i]
+				var value=obj[prop]
+				if(!value){
+					continue
+				}
+				var tmp=ext(value)
+				if(tmp){
+					ans[prop]=tmp
+				}
+			}
+			if(web.keys(ans).length){
+				return ans
+			}else{
+				return (function(){alert('no significant properties')})
+			}
+		}else if (type=='function'||type=='object'){
+			return (function(){alert('wee')})
+		}
+	}
+
+
+	var ans=ext(obj)
+
+	var str=JSON.stringify(ans, function(key, val) {
+		if (typeof val === 'function') {
+			return val + ''; // implicitly `toString` it
+		}
+		return val;
+	},2);
+
+	return {object:ans} //,string:'var '+val+'='+str}
+}
+
+web.extern=function(val){
+	var queue=[]
+
+	function isFunction(obj) {
+			return Object.prototype.toString.call(obj) === "[object Function]";
+		}
+		var _escapeable = /["\\\x00-\x1f\x7f-\x9f]/g;
+		function quoteString(string) {
+			if (string.match(_escapeable)) {
+				return '"' + string.replace(_escapeable, function(a) {
+					var c = _meta[a];
+					if (typeof c === 'string') return c;
+					c = a.charCodeAt();
+					return '\\u00' + Math.floor(c / 16).toString(16) + (c % 16).toString(16);
+				}) + '"';
+			}
+			return '"' + string + '"';
+		};
+		function extern(obj) {
+			var msg = "";
+			var appendBrace = typeof obj == "object" || isFunction(obj);
+			if (appendBrace)
+				msg += "{";
+			for (var p in obj) {
+				if (msg.length > 1)
+					msg += ",";
+				//else {
+				//if (Object.prototype.toString.call(obj) !== "[object Array]") {
+				msg += quoteString(p) + " : ";
+				if (typeof obj[p] == "object") {
+					var r = extern(obj[p]);
+					if (r == "{}")
+						msg += "function(){}";
+					else msg += r;
+				}
+				else {
+					if (isFunction(obj[p]))
+						msg += "function(){}";
+					else msg += "{}";
+				}
+				//}
+				//				}
+			}
+			if (appendBrace)
+				msg += "}";
+			return msg;
+		}
+		function extract(txt) {
+			var result = "", obj, undefined;
+			if (!txt)
+				result = "Please specify the object you want to export!";
+			else {
+				obj = window[txt];
+				if (obj == null){
+						result += "\n" + txt + " cannot be null or undefined";
+				}else {
+					result = "var " + txt + " = " + extern(obj);
+				}
+			}
+
+			console.log(result) //$('#result').html(js_beautify(result, { indent_size: 4, indent_char: ' ', preserve_newlines: true, space_after_anon_function: true }));
+			return false;
+		}
+		function log(msg) {
+			console.log(msg) //$("#loadLog").prepend(msg + "<br/>");
+		}
+		var time;
+		// function load(data) {
+		// 	time = new Date().getTime();
+		// 	$.xLazyLoader($.extend(data, {
+		// 		success: logDiff,
+		// 		error: function(errors) {
+		// 			alert('failed');
+		// 			log("Load Failed: " + errors);
+		// 		}
+
+		// 	}));
+
+		// };
+		// function logDiff(arg) {
+		// 	var time1 = new Date().getTime() - time;
+		// 	log("Loaded: " + arg + " in " + time1 + ' ms');
+		// }; 
+
+		extract(val)
+
+	}
 
 
 
@@ -8372,19 +9046,20 @@ web.chromeReceiver=function(namespace,callback){
 			 *a modified version of Mark A. Ziesemer's namespace function.
 			 */
 			 web.assign = function(name,container,onError){
+
 							//normalize onError to lowercase unless it is a function
-							if(type(onError)=='String'){
+							if(web.isType(onError)=='String'){
 								onError=onError.toUpperCase();
 							}
 							var delimiter=delimiter || ".";
 
-							if(type(delimiter)!="String"){
+							if(web.isType(delimiter)!="String"){
 								onError=container,container=delimiter,delimiter=undefined;
 							}
 
 							var o = container || window;
 							if(!name){return o;}
-							var ns = (type(name)!="Array")?
+							var ns = (web.isType(name)!="Array")?
 							web.toDataString(name).split(delimiter):
 							name;
 							switch(onError){ //all cases should be lowercase
@@ -8573,9 +9248,36 @@ web.chromeReceiver=function(namespace,callback){
 
 			return o;
 		};
+	web.parseJSON=function(str){
+		if(web.isString(str)){
+			str=str.trim()
+			if(str=='null'){
+				return null
+			}else if(str=='true'){
+				return true
+			}else if(str=='false'){
+				return false
+			}else if(web.isNumeric(str)){
+				return parseFloat(str)
+			}else if((web.startsWith(str,'{')&&web.endsWith(str,'}'))||(web.startsWith(str,'[')&&web.endsWith(str,']'))){
+				try {
+					return JSON.parse(str);
+				} catch (e) {
+					return undefined;
+				}
+			}
+		}
+		return undefined
+	}
+
 
 	//expressions are always asyncronous so we can send them to webworkers, server or other places if needed
 	//returns exception (if false everything is good, otherwise there will be an exception telling error)
+	//Arguments are parsed similar to JSON.parse so we only accept arguments of true,false,null,and object
+	//Note: this also means that arguments must use double quotes and properties on objects must be strings denoted with double q
+	//undefined: I believe are converted to null
+	//This is the heart of web.api calls
+
 	web.expression=function(key,callback){ //todo http://jsep.from.so/
 		if(key==null){
 			return undefined
@@ -8586,15 +9288,15 @@ web.chromeReceiver=function(namespace,callback){
 		}
 
 	
-		var regExp = /\(([^)]*?)\)/;
-		var matches = regExp.exec(key);
+		var paren1 = key.indexOf('(')
+		var paren2 = key.lastIndexOf(')')
 		var path,args;
-		if(matches){
-			path=key.replace(matches[0],'')
-			args=matches[1]
-		}else{
+		if(paren1==-1 || paren2==-1){
 			path=key
 			args=undefined
+		}else{
+			args = key.substring(paren1+1,paren2)
+			path= key.substring(0,paren1)
 		}
 
 		console.log(obj,path)
@@ -8602,7 +9304,32 @@ web.chromeReceiver=function(namespace,callback){
 		if(web.isFunction(fn)){
 			//NOTE: if using _.bind(web.expression,window,'web.isPopup()') there is a chance that the callback could become a mouse or keyboard event if 
 			//the bounded function is used on a listener
-			callback&&web.defer(function(){callback(fn.apply(fn,web.toArguments(args)))})
+			
+			//this is a modified web.parseJSON rutine
+			args=args.trim()
+			if(args){
+				if(args=='null'){
+					args= [null]
+				}else if(args=='true'){
+					args= [true]
+				}else if(args=='false'){
+					args= [false]
+				}else if(web.isNumeric(args)){
+					args= [parseFloat(args)]
+				}else{
+					try {
+						args= JSON.parse('['+args+']');
+					} catch (e) {
+						throw 'web.expression was given a syntax error OR a nested expression which this version does not handle' //TODO expand here to include multi calls
+					}
+				}
+			}else{
+				args=undefined
+			}
+			debugger
+			callback&&web.defer(function(){
+				callback(fn.apply(fn,args))
+			})
 			return false
 		}else{
 			return 'Not a function'
@@ -8614,26 +9341,34 @@ web.chromeReceiver=function(namespace,callback){
 		return answer
 	}
 
-web.namespace.storageEvents='web.api-message'
-web.listen=function(target,handler){
-	if(web.isArray(target)){
-		throw 'web.listen does not acceptarrays yet'
-	}else if(target=='tabs'){
-		web.onEvent('storage', function(e) { //TODO use web.onevent
-				var o=e.originalEvent||e
-				console.info('storage event',o)
-				if(web.startsWith(o.newValue,prefix)){
-					if (o.key == web.namespace.storageEvents && o.newValue!='') {//do not respond to empty string because it is a reset for the previous message
-						handler.call(e,o.newValue,o.srcElement)
-					}
-				}
-			});
+
+
+web.announce=function(targets){
+		var args = web.toArray(arguments)
+		args.shift()
+		args=JSON.stringify(args)
+		var target;
+		for(var i=0,l=targets.length;i<l;i++){
+			target=targets[i]
+			switch(target){
+				case 'opener':
+					window.opener && web.post(window.opener,args)
+					break;
+				case 'parents':
+					target=web.global.parent
+					while(target && target!=web.global){
+						target.postMessage(args,'*')
+						target= target.parent
+					}// && target!=window.top)
+					break;
+				case 'intances':
+					break;
+				case 'tabs':
+					break;
+			}
 		}
 }
-
-
-web.post=function(target,message,reply){
-	var reply;
+web.post=function(target,message,reply,arg1){
 	//handlingarray is true when an array is passed in. ensures we only do first level of array
 	if(!web.post.handlingArray && web.isArray(target)){
 		web.post.handlingArray=true
@@ -8646,7 +9381,12 @@ web.post=function(target,message,reply){
 		localStorage.setItem(web.namespace.storageEvents, message); //triggers storage event
 		localStorage.setItem(web.namespace.storageEvents, ''); //clear storage event so we can send more later
 	}else if(target.postMessage && web.isFunction(target.postMessage)){
-		target.postMessage(message)
+		
+		if(web.isString(reply)){
+			target.postMessage(message,reply) //todo make arg1 recieve reply (it is a function callback)
+		}else{
+			console.trace('here is the error')
+		}
 	}else if(web.isFunction(target)){
 		web.defer(target,message)
 	}else{
@@ -8672,6 +9412,16 @@ web.post.handlingArray=false;
 			}
 
 			options=options||{}
+			var hasOwnProperty=(Object.prototype.hasOwnProperty.call(options,'hasOwnProperty'))?options.hasOwnProperty:true; //default is true now
+
+			// if(options.check){
+			// 	options.checks=options.checks||[]
+			// 	options.checks.unshift(options.check)
+			// 	delete options.check
+			// 	console.warn('web.get does not support options.check anymore. Instead use options.checks')
+			// }
+			// if(options.checks)
+
 			if(web.isValue(obj)){
 				if (obj instanceof web.url){
 					if(web.isFunction(key)){
@@ -8704,7 +9454,7 @@ web.post.handlingArray=false;
 					}
 				}
 
-				if(type){ //has resp been set? //TODO idtenify if it is a string using web.extractURL
+				if(type){ //has resp been set? //TODO identify if it is a string using web.extractURL
 					//web.extractURL(key)
 
 					//Default to obj is object and key typeof== string and split as needed
@@ -8714,9 +9464,21 @@ web.post.handlingArray=false;
 					var path=parts[0]
 					for (var i = 0; i < parts.length; i += 1) {
 						if(resp[parts[i]]){
+							if(hasOwnProperty && !resp.hasOwnProperty(parts[i])){
+								return undefined
+							}
+
+							// var j=0
+							// while(options.checks && j<options.checks.length){
+							// 	if(options.checks[j] && !options.checks[j](resp[parts[i]],path,obj)){
+							// 		return undefined
+							// 	}
+							// 	j++
+							// }
+
 							if(options.check && !options.check(resp[parts[i]],path,obj)){
 									return undefined
-								}
+							}
 							resp = resp[parts[i]];
 							path+='.'+parts[i]
 						}else{
@@ -8979,7 +9741,33 @@ web.post.handlingArray=false;
 			}
 			return input
 		}
-		web.toJSON=function(obj){
+
+		//uses special rules to parse json data back into a useful structure
+		web.fromDataNotation=function(json,meta){
+			json=JSON.parse(json)
+
+			for(var i=0,l=meta.length;i<l;i++){
+				//handle each meta command properly and apply to json
+
+			}
+			return json
+		}
+
+		web.toJSON=function(obj,properties){ //TODO delete this
+			if(properties){
+				var o = {}
+				for(var i=0,l=properties.length;i<l;i++){
+					web.put.call(o,properties[i],web.get.call(obj,properties[i]))
+				}
+				return JSON.stringify(o)
+
+			}
+			return web.toData(obj)
+		}
+
+
+		//Retuns a json like structure but it is now known as a data and supports circular refernces 
+		web.toDataNotation=function(obj){
 			if(web.isjQuery(obj)){
 				if(obj.length==0){
 					return {}
@@ -9067,8 +9855,9 @@ web.post.handlingArray=false;
 
 				}//end is form
 			} //end is element
-
-
+			else if(web.isFunction(obj) ||web.isObject(obj)){ //TODO else do a special stringify that preserves function properties and retains refrences in cirucular structure
+				//see web.extern2 in order to traverse properly and save functions properties on objects.
+			}	
 			return JSON.stringify(obj)
 		}
 		web.prettyPrint=function(obj,indention){
@@ -9080,6 +9869,10 @@ web.post.handlingArray=false;
 		web.toXML=function(){
 
 		}
+
+		//TODO use this transpose method 
+		//http://jsfiddle.net/MrPolywhirl/NH42z/
+		//
 		web.transpose=function(matrix){
 			return matrix[0].map(function(col, i) {
 			  return matrix.map(function(row) { 
@@ -9099,6 +9892,11 @@ web.post.handlingArray=false;
 				}
 			}*/
 		}
+
+
+
+
+
 		web.toCSV=function(array,options){
 			//TODO ensure array is matrix
 			//if(web.isArray(array)){
@@ -9821,8 +10619,31 @@ web.post.handlingArray=false;
 
 
 
-			web.orientation=function(handler){ 
-
+			web.orientation=function(handler){
+				if(web.isString(handler)){
+					if(!window.screen){
+						return false
+					}
+					if(handler=='user'){
+						handler=web.get('web.userPreferedOrientation') //get prefered orientaiton from storage
+					}
+					if(handler=='lock'){
+						handler=web.orientation.device+'-'+web.orientation.rankString
+					}
+					if(handler=='unlock'){
+						if(window.screen.unlockOrientation && window.screen.unlockOrientation()){
+							return true
+						}else{
+							return window.orientation && window.orientation.unlock && window.orientation.unlock()
+						}
+					}else{ //allows for default and other commands to be handled by browser //if(web.startsWith(handler,'portrait')||web.startsWith(handler,'landscape')){
+						if(window.screen.lockOrientation && window.screen.lockOrientation()){
+							return true
+						}else{
+							return window.orientation && window.orientation.lock && window.orientation.lock(handler)
+						}
+					}
+				}
 				//THIS VAR IS NOT CONSISTANT ACROSS DEVICES!!
 				//Reason: http://www.matthewgifford.com/blog/2011/12/22/a-misconception-about-window-orientation/
 				//alert(window.orientation); //0 = portrate -90 landscape right 90 landscape left
@@ -9836,50 +10657,60 @@ web.post.handlingArray=false;
 				// 		mql.addListener(function(m){return handler(!m.matches,m)});
 				//				window.addEventListener("orientationchange", web.orientation, false);
 				// }
-				orientationHandlers.push(handler)
-				handler(web.orientation) //go ahead and execute it in order to catchup
+				if(web.isFunction(handler)){
+					orientationHandlers.push(handler)
+					handler(web.orientation) //go ahead and execute it in order to catchup
+				}
 				return web.orientation
 			}
 
 		var orientation = (screen.orientation || screen.mozOrientation || screen.msOrientation || window.orientation)
 		function setOrientation(){//orientation does 2 types of orientaitons. Device Orientaiton or Page orientation.
-				var page,device;
-				if(orientation){
+
+
+				//set orientation landscape/portrait 
+				//this will trigger for resize
+				var page=(qWindow.width()>qWindow.height())?'landscape':'portrait';
+				var device=(window.screen.width>window.screen.height)?'landscape':'portrait';
+				if(web.orientation.page==page && web.orientation.device==device){
 					if(web.orientation.angle==orientation.angle){
-						return web.orientation
+						return false //didn't update
+					}else{ //device did update
+						device=((orientation&&orientation.type)||'').split('-').shift()
 					}
 				}
 
-				//set orientation landscape/portrait
-				page=(qWindow.width()>qWindow.height())?'landscape':'portrait';
-				device=(window.screen.width>window.screen.height)?'landscape':'portrait';
-				if(!orientation && web.orientation.page==page && web.orientation.device==device){
-					return web.orientation
-				}
+
+
+
+
 				
 				web.orientation.page=page
 				web.orientation.device=device
 				var rank= ((orientation&&orientation.type)||'').split('-').pop()
 				web.orientation.angle=orientation.angle
 				web.orientation.primary=(rank=='primary')?true:false;
+				web.orientation.rankString=rank
 				web.orientation.timeStamp=Date.now()
-				return web.orientation
+				return true //updated
 		}
 		setOrientation()
 	
 		//Listen for orientation changes
 		var pastOrientationTimeStamp=web.orientation.timeStamp
-		qWindow.on("resize orientationchange", _.debounce(function(){
-			var orientation = setOrientation()
-			var timeStamp=orientation.timeStamp
+		qWindow.on("resize orientationchange", _.debounce(function(evnt){
+			if(!setOrientation()){ //didnt update so do nothing
+				return
+			}
+			var timeStamp=web.orientation.timeStamp
 			
 			if(pastOrientationTimeStamp!=timeStamp){
 				pastOrientationTimeStamp=timeStamp
 				for(var i=0,l=orientationHandlers.length;i<l;i++){
-					orientationHandlers[i](orientation)
+					orientationHandlers[i](web.orientation)
 				}
 			}
-		}));
+		},100));
 
 		web.orientation(function(){
 			var pageLandscape=web.orientation.page=='landscape'
@@ -9888,7 +10719,6 @@ web.post.handlingArray=false;
 			.toggleClass('page-portrait',!pageLandscape)
 			.toggleClass('device-landscape',deviceLandscape)
 			.toggleClass('device-portrait',!deviceLandscape);
-
 		})
 
 
@@ -9919,80 +10749,10 @@ web.post.handlingArray=false;
 
 
 
-		web.on=function(elem,event,handler,bool,arg){
-			if(web.isString(elem)){
-				arg=bool
-				bool=handler
-				handler=event
-				event=elem
-				elem=undefined
-			}
-
-			
-
-			if(!web.isBoolean(bool)){
-				arg=bool
-				bool=arg
-			}
-
-			// if(web.contains(event,'||')){
-			// 	var events = event.split('||')
-			// 	function (onclick) {
-			// 		this.bind("touchstart", function (e) { onclick.call(this, e); e.stopPropagation(); e.preventDefault(); });
-			// 		this.bind("click", function (e) { onclick.call(this, e); });   //substitute mousedown event for exact same result as touchstart         
-			// 		return this;
-			// 	};
-			// }
-			//if(event=='dragStart')
-			if(event=='longClick'){ //http://stackoverflow.com/questions/2625210/long-press-in-javascript
-				elem=$( (elem||document) );
-				var mouseButtonsDown={};
-
-				(function(){
-					$(elem).mouseup(function(e){
-						var buttons = web.whichMouseButtons(e) //TODO update this function so it returns more than one 
-						for(var i=0,l=buttons.length;i<l;i++){
-							clearTimeout(mouseButtonsDown[buttons[i]])
-						}
-						// Clear timeout
-						return false;
-					}).mousedown(function(e){
-						// Set timeout
-						var buttons = web.whichMouseButtons(e) //TODO update this function so it returns more than one 
-						for(var i=0,l=buttons.length;i<l;i++){
-							if(mouseButtonsDown[buttons[i]]){
-								clearTimeout(mouseButtonsDown[buttons[i]])
-							}
-							mouseButtonsDown[buttons[i]]=window.setTimeout(_.bind(handler,this,e),arg||1000)
-						}
-						return false; 
-					});
-				})()
-				return
-			}else if(event =='scrollDown'){ //TODO implmente this
-				elem=$( (elem||document) )
-				var lastScrollTop = 0, delta = 5;
-				$(window).scroll(function(event){
-					var st = $(this).scrollTop();
-					
-					if(Math.abs(lastScrollTop - st) <= delta)
-						return;
-					
-					if (st > lastScrollTop){
-						// downscroll code
-						console.log('scroll down');
-					} else {
-						// upscroll code
-						console.log('scroll up');
-					}
-					lastScrollTop = st;
-				});
-
-			}
-
-
-
-
+		web.on=function(elem,event,handler,arg){
+			return web.onEvent(event,elem,handler,arg)
+		}
+		web.addListener=function(elem,event,handler,bool){
 			if (elem.addEventListener) { // Modern
 				elem.addEventListener(event, handler, !!bool);
 			} else if (elem.attachEvent) { // Internet Explorer
@@ -10000,7 +10760,8 @@ web.post.handlingArray=false;
 			} else { // others
 				elem["on" + event] = handler;
 			}
-		};
+		}
+
 		//http://stackoverflow.com/questions/4127118/can-you-detect-dragging-in-jquery
 		// var isDragging = false;
 		// $("a")
@@ -10018,7 +10779,9 @@ web.post.handlingArray=false;
 		// 		$("#throbble").show();
 		// 	}
 		// });
-
+		web.trigger=function(elem,event,params){
+			return $(elem).trigger(event,params)
+		}
 
 
 		//http://perfectionkills.com/detecting-event-support-without-browser-sniffing/
@@ -10080,10 +10843,39 @@ web.post.handlingArray=false;
 
 		var mappedEvents={}
 		//window events, view events, resource events, storage events;
-		mappedEvents.DOMWindowCreated=mappedEvents.DOMWindowClose=mappedEvents.DOMTitleChanged=mappedEvents.MozBeforeResize=mappedEvents.SSWindowClosing=mappedEvents.SSWindowStateReady=mappedEvents.SSWindowStateBusy=mappedEvents.close=mappedEvents.fullscreen=mappedEvents.fullscreenchange=mappedEvents.fullscreenerror=mappedEvents.MozEnteredDomFullscreen=mappedEvents.MozScrolledAreaChanged=mappedEvents.resize=mappedEvents.scroll=mappedEvents.sizemodechange=mappedEvents.abort=mappedEvents.cached=mappedEvents.error=mappedEvents.load=mappedEvents.storage=window
+		mappedEvents.DOMWindowCreated=mappedEvents.DOMWindowClose=mappedEvents.DOMTitleChanged=mappedEvents.MozBeforeResize=mappedEvents.SSWindowClosing=mappedEvents.SSWindowStateReady=mappedEvents.SSWindowStateBusy=mappedEvents.close=mappedEvents.fullscreen=mappedEvents.fullscreenchange=mappedEvents.fullscreenerror=mappedEvents.MozEnteredDomFullscreen=mappedEvents.MozScrolledAreaChanged=mappedEvents.resize=mappedEvents.scroll=mappedEvents.sizemodechange=mappedEvents.abort=mappedEvents.cached=mappedEvents.error=mappedEvents.load=mappedEvents.storage=mappedEvents.message=window
 		//Document Events , DOM mutation events
 		mappedEvents.DOMLinkAdded=mappedEvents.DOMLinkRemoved=mappedEvents.DOMMetaAdded=mappedEvents.DOMMetaRemoved=mappedEvents.DOMWillOpenModalDialog=mappedEvents.DOMModalDialogClosed=mappedEvents.unload=mappedEvents.DOMAttributeNameChanged=mappedEvents.DOMAttrModified=mappedEvents.DOMCharacterDataModified=mappedEvents.DOMContentLoaded=mappedEvents.DOMElementNameChanged=mappedEvents.DOMNodeInserted=mappedEvents.DOMNodeInsertedIntoDocument=mappedEvents.DOMNodeRemoved=mappedEvents.DOMNodeRemovedFromDocument=mappedEvents.DOMSubtreeModified=window.document
 
+
+
+		web.namespace.storageEvents='web.api-message'
+		var postMessageHandler=function(event){
+						var json=event.data||event.originalEvent.data
+						if(json==='web_setImmediate'){ //ignore these calls //I probably dont need this cause I consume with Event.stopImmediatePropagation()
+							return
+						}
+						//some post messages are json because either the browser does not support transferable objects or the programmer just uses json. fix that for them
+						if(web.isString(json)){
+							json=json.trim()
+							if( (web.startsWith(json,'{')&&web.endsWith(json,'}')) || (web.startsWith(json,'[')||web.endsWith(json,']')) ){
+								try{
+									json=JSON.parse(json)
+								}catch(e){
+									json=event.data||event.originalEvent.data
+								}
+							}else{
+								json=event.data||event.originalEvent.data
+							}
+						}
+						var evt = jQuery.Event( event.type, event); //make a new event so we can overwrite things without bothering anyone else using the original jquery event
+						evt.data=json||event.data||event.originalEvent.data
+						var array = jQuery.data( this, "web_onMessage")
+						var i=(array && array.length)||0
+						while(i--){
+							web.defer.call(event.target,array[i],evt)
+						}
+					}
 		//reference for events 
 		//https://developer.mozilla.org/en-US/docs/Web/Events
 		//note: passing document to a paste will be different than omiting it. If you want to attach to document then just omit
@@ -10102,6 +10894,8 @@ web.post.handlingArray=false;
 			if(pluginName!=-1){
 				pluginName= web.trimLeft(eventName,'.')
 				eventName = web.deepTrimRight(eventName,'.')
+			}else{
+				pluginName=''
 			}
 
 			if(web.isFunction(element)){
@@ -10216,12 +11010,84 @@ web.post.handlingArray=false;
 				pluginName='' //TODO handle plugin name correctly
 			}else if(eventName=='storage'){
 				//debugger
-				//if (window.addEventListener) {
-				//	window.addEventListener(eventName, callback, false);// Normal browsers
-				//} else {
-				//	window.attachEvent("on"+eventName, callback);// for IE (why make your life more difficult)
-				//};
-				//return callback
+				if (window.addEventListener) {
+					window.addEventListener(eventName, callback, false);// Normal browsers
+				} else {
+					window.attachEvent("on"+eventName, callback);// for IE (why make your life more difficult)
+				};
+				return callback
+			}else if(eventName=='instances'){
+				var lastTimeStamp=web.startTime
+				web.onEvent('storage', function(e) { //TODO use web.onevent
+					var o=e.originalEvent||e
+					web.notify('storage event',o)
+					if (o.key == web.namespace.storageEvents){
+						var json=JSON.parse(o.newValue) //expecting object {timeStamp:1245434,value:'RogueDJ.play()',id:23090124,identity:4398309} //id is a unique id to the message, identity is the id of the instance
+						if(json && web.startTime<json.timeStamp&&json.timeStamp>lastTimeStamp) {
+							callback.call(e,json.value,function(reply){web.post(o.srcElement,reply)}) //TODO fix this so we dont create functions every call
+						}
+					}
+				});
+			}else if(eventName=='message'){ //TODO this needs a removal feature
+				debugger
+				//TODO currently postMessage does not handle any postMessage.application syntax
+				// var eventHandlers=jQuery._data( element, "events" )
+				// var hooked=false
+				// if(eventHandlers.message){
+				// 	hooked=eventHandlers.message.some(function(o){o.handler===postMessageHandler})
+				// }
+
+				var array = jQuery.data( element, "web_onMessage")||[];
+				var hooked=array.length
+				array.push(callback)
+				jQuery.data(element,"web_onMessage",array)
+
+				if(hooked){ //only add our special handler once to an element
+					return
+				}else{
+					callback=postMessageHandler
+				}
+			}else if(eventName=='longClick'){ //http://stackoverflow.com/questions/2625210/long-press-in-javascript
+				element=$( (element||document) );
+				
+				var mouseButtonsDown={};
+				element.mouseup(function(e){
+					var buttons = web.whichMouseButtons(e) //TODO update this function so it returns more than one 
+					for(var i=0,l=buttons.length;i<l;i++){
+						clearTimeout(mouseButtonsDown[buttons[i]])
+					}
+					// Clear timeout
+					return false;
+				}).mousedown(function(e){
+					// Set timeout
+					var buttons = web.whichMouseButtons(e) //TODO update this function so it returns more than one 
+					for(var i=0,l=buttons.length;i<l;i++){
+						if(mouseButtonsDown[buttons[i]]){
+							clearTimeout(mouseButtonsDown[buttons[i]])
+						}
+						mouseButtonsDown[buttons[i]]=window.setTimeout(_.bind(callback,this,e),arg0||1000)
+					}
+					return false; 
+				});
+
+				return
+			}else if(eventName =='scrollDown'){ //TODO implmente this
+				var lastScrollTop = 0, delta = 5;
+				$(window).scroll(function(event){
+					var st = $(this).scrollTop();
+					
+					if(Math.abs(lastScrollTop - st) <= delta)
+						return;
+					
+					if (st > lastScrollTop){
+						// downscroll code
+						console.log('scroll down');
+					} else {
+						// upscroll code
+						console.log('scroll up');
+					}
+					lastScrollTop = st;
+				});
 			}
 
 			if(!web.isjQuery(element) || !web.isNode(element)){
@@ -10253,7 +11119,6 @@ web.post.handlingArray=false;
 			// 	console.warn('This event was not hooked'+eventName)
 			// }
 			return callback; //in case we modified it
-
 		}
 		web.off=function(eventName,element,callback){
 			console.warn('detaching',eventName)
@@ -10269,6 +11134,10 @@ web.post.handlingArray=false;
 
 
 		web.redirectEvents=function(events,from,to,handler){
+		if(!web.isBrowser('Chrome')){
+			console.warn('web.redirectEvents only works for chrome currently')
+			return
+		}
 		$(from).on(events
 			,function(e){
 				var event =e.originalEvent
@@ -10319,7 +11188,7 @@ web.post.handlingArray=false;
 		web.onResize.endListeners=[]
 
 
-
+		
 		/**************************
 		Web.zeroTimeout
 		//Original http://dbaron.org/log/20100309-faster-timeouts
@@ -10332,15 +11201,17 @@ web.post.handlingArray=false;
 				return setImmediate
 			}
 			var timeouts = [];
-			var messageName = "zero-timeout-message";//TODO generate random message id(reduce collisions)
-			web.on(window,'message',handleMessage,true)
+			var messageName = "web_setImmediate";//TODO generate random message id(reduce collisions)
+			web.addListener(window,'message',handleMessage,true) //DO NOT USE web.onEvent here!!!! 
 			return setImmediate;
 
 
 			// Like setTimeout, but only takes a function argument.  There's
 			// no time argument (always zero) and no arguments (you have to
 			// use a closure).
-			function setImmediate(func){
+			//func can be an event such as ready or loaded this will signal to defer that those events have gone
+			//if func is a string then arg1 is a handler waiting to run ensueingly after event or run async if they have happened
+			function setImmediate(func,arg1){
 				if(func==null ){ //create defer object if called with no arguments! //this object is used directly to defer stuff
 					//if(arguments.length==0){
 						var queue=[]
@@ -10369,8 +11240,8 @@ web.post.handlingArray=false;
 					//}else{
 					//	return undefined
 					//}
-				}else if(!web.isFunction(func)){
-					return
+				}else if(!func.call){ //if func is a string then treat this call like web.subsequent
+					return web.subsequent(func,arg1)
 				}
 
 				var scope=(this===web||this===web.global)?undefined:this;
@@ -10390,6 +11261,7 @@ web.post.handlingArray=false;
 			function handleMessage(event) {
 				if(event.source === web.global && event.data == messageName) {
 					event.stopPropagation(); //consume it
+					event.stopImmediatePropagation();
 					if (timeouts.length > 0) {
 						var args=timeouts.shift();
 						if(args.call){
@@ -10402,6 +11274,7 @@ web.post.handlingArray=false;
 			}
 		})();
 
+
 		/******************************
 		Web.defer
 		 was integrated into setImmediate.
@@ -10410,6 +11283,51 @@ web.post.handlingArray=false;
 		 https://github.com/jashkenas/underscore/blob/9c1c3ea4fcafe82d546e190c5f0edd02940808e5/underscore.js#L719
 		*******************************/
 		web.defer=setImmediate;
+
+		var subsequentRun=function(evt){
+			var run =  web.subsequent.logged[evt];
+			
+			if(run){
+				var list = subsequentEventsToDo[evt];
+				while(list && list.length){
+					evt=list.shift()
+					evt && web.defer(evt)
+				}
+			}
+			return run
+		}
+
+		var subsequentEventsToDo={}
+		web.subsequent=function(evt,func){ //TODO make userencounter use subsequent
+			if(web.isString(evt)){
+				//if(web.isString(evnt)){
+				//	evt=evt.toLowerCase()
+				//}
+				
+				if(func && web.isFunction(func)){
+					(subsequentEventsToDo[evt] || (subsequentEventsToDo[evt]=[])).push(func)
+				}else if(func===undefined){ //query
+					return web.subsequent.logged[evt]
+				}
+			}		
+			return subsequentRun(evt)
+		}
+		web.subsequent.trigger=function(evnt,set){
+			if(web.isEvent(evnt)){
+				evnt=evnt.type
+			}
+			if(!web.isString(evnt)){
+				return
+			}
+			web.subsequent.logged[evnt]=(set===false)?false:true
+			return subsequentRun(evnt)
+		}
+		web.subsequent.logged={} 
+
+		$(function($){//note this does not pass the event object but instead it passes jqueryf
+			web.subsequent.trigger('ready')
+		}) //on ready
+		$(window).on('load',web.subsequent.trigger) //on load
 
 		//works like defer only runs when page is thought to be in a low cpu usage state
 		var demote=null
@@ -10435,6 +11353,31 @@ web.post.handlingArray=false;
 			return demote
 		}
 
+		web.padding=function(css,css1,css2,css3){
+			if(web.isNumber(css)){
+				if(web.isNumber(css1)){
+					css={'padding-top':css+'px','padding-left':css1+'px','padding-right':css1+'px','padding-bottom':css+'px'}
+					if(web.isNumber(css2)){
+						css['padding-bottom']=css2+'px'
+						if(web.isNumber(css3)){
+							css['padding-left']=css3+'px'
+						}
+					}
+				}else{
+					css = {'padding':css+'px'}
+				}
+			}else if (web.isString(css)){
+				throw 'implement this'
+			}
+			if(web.isObject(css)){
+				_.forEach(css,function(value,key){
+					if(!web.startsWith(key,'padding')){
+						delete css[key]
+					}
+				})
+			}
+			$(document.body).css(css)
+		}
 
 
 		web.dragging=function(item,target,start,dragging,end){
@@ -10740,12 +11683,12 @@ web.post.handlingArray=false;
 // var h = ("000000000000000" + number.toString(16)).substr(-16);
 // 		}
 
-		web.padding=function(str,padding,letter,additional){
+		web.zeroPad=function(str,padding,letter,additional){
 			letter=letter||' '
 			if(web.isArray(str)){
 				var a=[]
 				for(var i=0,l=str.length;i<l;i++){
-					a.push(web.padding(str[i],padding,letter))
+					a.push(web.zeroPad(str[i],padding,letter))
 				}
 				return a;
 			}
@@ -10823,6 +11766,9 @@ web.post.handlingArray=false;
 		and will be converted using slice method.
 		*/
 		web.toArray=function(obj,keys,index2){
+			if(web.isString(obj)){
+				return obj.split(','||keys)
+			}
 			if(typeof keys=='string'){
 				keys = keys.split(',')
 			}else if(keys==null||typeof keys=='number'){ //assume obj is array like so make it array
@@ -10840,31 +11786,6 @@ web.post.handlingArray=false;
 			return array;
 		}
 
-
-		web.toArguments=function(string){
-			if( (string.charAt(0)!='[' && string.charAt(string.length-1)!=']' ) ){
-				string='['+string+']'
-				//arg = arg.substring(1, arg.length-1)string.split(/[ ,]+/);
-			}
-			return JSON.parse(string)
-
-
-			// var string = string.split(/[ ,]+/); //no need to trim
-			// var args=web.Array(),arg;
-			// for(var i=0,l=args.length;i<l;i++){
-			// 	arg=args[i]
-			// 	if( (arg.charAt(0)=='"' && arg.charAt(args.length-1)=='"')  ||  (arg.charAt(0)=="'" && arg.charAt(arg.length-1)=="'") ){
-			// 		arg = arg.substring(1, arg.length-1);
-			// 	}else if(web.isNumeric(arg)){
-			// 		arg=web.toNumber(arg)
-			// 	}else if( (arg.charAt(0)=='[' && arg.charAt(string.length-1)==']' ) ){
-			// 		arg=web.toArguments(arg)
-			// 	}
-			// 	args.push(arg)
-				
-			// }
-			//return args
-		}
 
 		web.split=function(string,occurance,position,keep){ //TODO implment keep. keep will be (undefined||false) 'left', 'right', or true. Left and right append delimiter accordingly true keeps it but it is its own entry in the array
 			if(position==1){
@@ -11142,7 +12063,7 @@ web.token=function(input,type,converter){
 			if(asNumber){
 				return ans
 			}else{
-				return web.padding(ans.toString(16),8,'0')
+				return web.zeroPad(ans.toString(16),8,'0')
 			}
 		}
 
@@ -11498,7 +12419,7 @@ web.token=function(input,type,converter){
 			return hash
 		};
 		/*tests*/
-		(function(tests){
+		/*(function(tests){
 			console.warn('!!!!unit testing for web.getYoutubeHash')
 			_.forEach(tests,function(answer,url,urls){
 				var hash = web.getYoutubeHash(url);
@@ -11586,7 +12507,7 @@ web.token=function(input,type,converter){
 		'http://www.youtube.com/embed/watch?feature=player_embedded&v=r5nB9u4jjy4'									:'r5nB9u4jjy4',
 		'http://www.youtube.com/watch?v=t-ZRX8984sc'																:'t-ZRX8984sc',
 		'http://youtu.be/t-ZRX8984sc'																				:'t-ZRX8984sc'
-		}) 
+		}) */
 
 
 
@@ -11662,7 +12583,7 @@ web.token=function(input,type,converter){
 		// Turn a syncronius function to Async
 		////////////////////////////////////
 
-		web.toAsync=function(fn){ 
+		web.toAsync=web.async=function(fn){ 
 			if (!isFunction(fn)) {
 				throw new TypeError;
 			}
@@ -12226,21 +13147,47 @@ web.token=function(input,type,converter){
 			return string;
 		}
 
+		var UUIDs={}
 
 		//http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript
-		web.UUID=function(format,source,callback){ //TODO use performant and cryptographically random  number
+		web.UUID=function(namespace,options,callback){ //TODO use performant and cryptographically random  number
+			if(web.isObject(namespace)){
+				callback=options
+				options=namespace
+				namespace=''
+			}
+			if(web.isFunction(namespace)){
+				callback=namespace
+				namespace=''
+			}
+			if(web.isFunction(options)){
+				callback=options
+				options=null
+			}
+
+			options=options||{}
+			var format=options.format
 			if(web.isNumber(format)){
 				format=Array(format+1).join('x')
 			}else{
 				format=format||/*web.numberToRadix(web.UID('GUID'),16)+*/'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
 			}
+			var delimiter = options.delimiter||':'
+			if(namespace){
+				format=namespace+delimiter+format
+			}
 
-			var d = new Date().getTime();
-			return format.replace(/[xy]/g, function(c) {
-				var r = (d + Math.random()*16)%16 | 0;
-				d = Math.floor(d/16);
-				return (c=='x' ? r : (r&0x3|0x8)).toString(16);
-			});
+			var d,id;
+			do{
+				d = new Date().getTime();
+				id= format.replace(/[xy]/g, function(c) {
+					var r = (d + Math.random()*16)%16 | 0;
+					d = Math.floor(d/16);
+					return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+				});
+			}while(UUIDs[id])
+			UUIDs[id]=true
+			return id
 		}
 
 
@@ -12270,10 +13217,10 @@ web.token=function(input,type,converter){
 			//	throw 'Implement this'
 			//}
 			//if(option=='tail'){
-			//	return '#'+web.padding(hash,6,'0')
+			//	return '#'+web.zeroPad(hash,6,'0')
 			//}
 			//if(option=='head'){
-			return '#'+web.padding(hash,-6,'0')
+			return '#'+web.zeroPad(hash,-6,'0')
 			//}
 		}
 
@@ -12283,7 +13230,7 @@ web.token=function(input,type,converter){
 			if(pound){
 				hex='0x'+hex.slice(1)
 			}
-			return pound+ web.padding((0xffffff ^ parseInt(hex,16)).toString(16),6,'0')
+			return pound+ web.zeroPad((0xffffff ^ parseInt(hex,16)).toString(16),6,'0')
 		}
 		web.colorLuma=function(hex){
 			var pound=(web.startsWith(hex,'#'))?'#':''
@@ -12474,9 +13421,9 @@ web.token=function(input,type,converter){
 			var code=data.charAt(0)
 
 			if(code==0){
-				var endPartitionDelims=web.indexOf(data,data.charAt(1),2,1)
+				var endPartitionDelims=data.indexOf(data.charAt(1),2) //web.indexOf(data,data.charAt(1),2,1)
 				var delims = data.slice(1,endPartitionDelims)
-				var constructors = data.slice(endPartitionDelims+1,web.indexOf(data,data.charAt(1),endPartitionDelims+1))
+				var constructors = data.slice(endPartitionDelims+1,data.indexOf(data.charAt(1),endPartitionDelims+1)) // web.indexOf(data,data.charAt(1),endPartitionDelims+1))
 				//var startOfData=web.indexOf(data,data.charAt(1),2,3) //position of delimiter
 			}
 		}
@@ -12984,16 +13931,33 @@ web.token=function(input,type,converter){
 
 
 
-		web.comparator = web.comparator || {}
+		web.comparator = web.comparator || function(property,decending){ //TODO decening
+			return function(){
+				function compare(a,b) {
+					return a[property]-b[property]
+				}
+			}
+		}
 		//use with Array.sort
 		web.comparator.numerical = function(a,b) {
 			return a - b;
 		}
 
+
 		//Inspiration http://web.archive.org/web/20130826203933/http://my.opera.com/GreyWyvern/blog/show.dml/1671288
 		web.naturalSort=function(array,caseInsensitive,negitives){
-			for(var i=0,l=array.length;i<l;i++){
-				array[i]=web.splitAlphaNum(array[i],negitives)
+			var obj;
+
+			//Create ids for sorting
+			for(var i=0,l=array.length;i<l;i++){ //convert to partitioned number and character array
+				if(!array[i].match){ //if it is a number turn it into a string in an array
+					obj=[array[i].toString()]
+					obj.isNumber=1
+				}else{
+					obj = web.splitAlphaNum( ((caseInsensitive)?array[i].toLowerCase():array[i]) ,negitives)
+				}
+				obj.value=array[i]
+				array[i]=obj
 			}
 			// for (var z = 0, t; t = array[z]; z++) {
 			// 	array[z] = [];
@@ -13009,24 +13973,40 @@ web.token=function(input,type,converter){
 			// 	}
 			// }
 
+			//Sort
 			array.sort(function(a, b) {
-				for (var x = 0, aa, bb; (aa = a[x]) && (bb = b[x]); x++) {
-					if (caseInsensitive) {
-						aa = aa.toLowerCase();
-						bb = bb.toLowerCase();
+				if(a.isNumber && b.isNumber){
+					return a-b
+				}
+				if(a.value==b.value){ //DEV Note: compare value because remember a and b are numerically and alphabedically partitioned also use == to compare string to number
+					if(a.isNumber||b.isNumber){
+						if(a.isNumber){ //sort numbers in front of strings
+							return -1
+						}else{
+							return 1
+						}
+					}else{
+						return 0
 					}
+				}
+
+				for (var x = 0, aa, bb; (aa = a[x]) && (bb = b[x]); x++) {
 					if (aa !== bb) {
-						var c = Number(aa), d = Number(bb);
-						if (c == aa && d == bb) {
+						var c = Number(aa), d = Number(bb); //turn the object into a number if you can
+						if (c == aa && d == bb) { //see if the number is equal to the previous value (but not equal in type)
 							return c - d;
-						} else return (aa > bb) ? 1 : -1;
+						}else{
+							return (aa > bb) ? 1 : -1;
+						}
 					}
 				}
 				return a.length - b.length;
 			});
 
+			//Remove ids and restore original value
 			for(var i=0,l=array.length;i<l;i++){
-				array[i] = array[i].join("");
+				//array[i] = array[i].join(""); original concat code
+				array[i] = array[i].value //now get original value and dump our id system
 			}
 			return array
 		}
@@ -13040,7 +14020,13 @@ web.token=function(input,type,converter){
 		}
 		web.sort=function(array,comparator,a,b,c,d,e,f,g){
 			if(!comparator){
-				comparator=web.comparator.numerical
+				if(a===undefined){
+					a=true
+				}
+				if(b===undefined){
+					b=true
+				}
+				return web.naturalSort(array,a,b,c,d,e,f,g)
 			}else if(web.isString(comparator)){
 				if(comparator=='natural'){
 					return web.naturalSort(array,a,b,c,d,e,f,g)
@@ -13477,10 +14463,11 @@ web.token=function(input,type,converter){
 				callback=tmp
 			}
 
-			if(!web.isValue(onOff)){ //toggle
-				onOff=!web.isFullScreen()
-			}
+			var current = (document.fullscreenElement|| document.webkitFullscreenElement|| document.mozFullScreenElement)
 
+			if(onOff=='toggle'){
+				onOff=!current
+			}
 			if(onOff){
 				if (elem.requestFullscreen) {
 					elem.requestFullscreen();
@@ -13523,20 +14510,25 @@ web.token=function(input,type,converter){
 			if(!userAgent && isMobile!=null){
 				return isMobile
 			}
-			userAgent=userAgent||navigator.userAgent||navigator.vendor||window.opera
-			var type  = uaparser.getDevice().type=='mobile'
-			if(type!=undefined){
+			var parser;
+			if(userAgent){
+				parser = new UAParser();
+				parser.setUA(userAgent);
+			}else{
+				parser=uaparser
+
+			}
+			userAgent=userAgent||parser.getUA() //navigator.userAgent||navigator.vendor||window.opera
+			
+			var type  = parser.getDevice().type=='mobile'
+			if(type){
 				return isMobile=type
 			}
-			type=(function(a){
-				if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i.test(a)
-					||/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0,4))
-					)
-				return true
-				})(userAgent);
-			//while(type==undefined){
-			//	type=confirm('Would you like to visit the mobile site?')
-			//}
+			type=
+(function(a){return (/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i.test(a)
+			||/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0,4)) )}) (userAgent)
+
+
 			return isMobile=!!type
 		}
 		web.isDesktop=function(){
@@ -13569,13 +14561,10 @@ web.token=function(input,type,converter){
 			return variableHash[v]
 		}
 		web.isFullScreen=function(){
-			if (document.fullscreenElement ||    // alternative standard method
+			return (document.fullscreenElement ||    // alternative standard method
 				document.webkitFullscreenElement ||
 				document.mozFullScreenElement ||
-				document.msFullscreenElement ) {  // current working methods
-				return true
-			}
-			return false
+				document.msFullscreenElement )  // current working methods
 		}
 
 		web.isMaximized=function(tolerance){
@@ -13885,28 +14874,52 @@ Tan, and its inverse arctan, are described in Trigonometry Overview
 			return number
 		}
 
-		web.getLine=function(str,number){
-			return web.getChunk(str,number,'\n')
-		}
-		web.getChunk=function(str,number,delimiter){
-			var end=web.indexOf(str,delimiter,0,number),start=web.lastIndexOf(str,delimiter,end-1)
-			return str.substr(start,end);
-		}
+		//web.getLine=function(str,number){
+		//	return web.getChunk(str,number,'\n')
+		//}
+		//web.getChunk=function(str,number,delimiter){
+		//	var end=web.indexOf(str,delimiter,0,number),start=web.lastIndexOf(str,delimiter,end-1) //old syntax
+		//	return str.substr(start,end);
+		//}
 
 		//Supports regexp
 		//http://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr
 		//if match is not found we will return the last match as a netitive. This value will be respective of the end of the string.
-		web.indexOf= function(str,regex,startpos,nth) {
-			var ans,tmp;
-			if(nth==null){
-				nth=1
+		web.indexOf= function(str,regex,instance,startpos) {
+			var i,tmp;
+			if(instance==null){
+				instance=1
 			}
 			if(startpos==null){
 				startpos=0
 			}else if(startpos<0){
 				startpos=str.length+startpos
 			}
-			while(nth--){
+
+			var i,h,direction=(instance<0)?1:-1;
+			while(instance!=0){
+				h=i
+				i=(instance<0)?str.lastIndexOf(word):str.indexOf(word);
+				if(i<0){ //was not found
+					if(countType=='<'){ //return last answer or '' if instances where more than found ins tring
+						i=h
+						break
+					}else if(countType=='='){
+						return ''
+					}else if(countType=='!'){
+						return str
+					}else{
+						throw 'error countType in trimStart is unknown symbol'+countType
+					}
+				}
+				instance=instance+direction
+			}//end while
+
+			return i
+
+
+
+			while(instance--){
 				if(regex instanceof RegExp){ //TODO test this
 					var indexOf = str.substring(startpos).search(regex);
 					tmp=(indexOf >= 0) ? (indexOf + (startpos)) : indexOf;
@@ -13914,24 +14927,24 @@ Tan, and its inverse arctan, are described in Trigonometry Overview
 					tmp=str.indexOf(regex,startpos)
 				}
 				if(tmp<0){
-					return ans-str.length //return position from end of the string
+					return i-str.length //return position from end of the string
 				}
-				ans=tmp
-				startpos=ans+1;
+				i=tmp
+				startpos=i+1;
 			}
-			return ans
+			return i
 		}
-		web.lastIndexOf= function(str,regex,startpos,nth) {
+		web.lastIndexOf= function(str,regex,startpos,instance) {
 			var ans,tmp;
-			if(nth==null){
-				nth=1
+			if(instance==null){
+				instance=1
 			}
 			if(startpos==null){
 				startpos=str.length
 			}else if(startpos<0){
 				startpos=str.length+startpos
 			}
-			while(nth--){
+			while(instance--){
 				if(regex instanceof RegExp){ //TODO test this
 					regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : "")); //force it to be global
 			
@@ -14106,7 +15119,7 @@ Tan, and its inverse arctan, are described in Trigonometry Overview
 		//var timeStampOffset=0
 		var idleFunctions=[]
 		var ranIdleFunctions=[]
-		$(function(){
+		$(function(){ //web.js ondocument ready
 			//if(loadEvent.timeStamp){ //if it isnt 0 then
 			//	//date.now is deffinately epoch 
 			//	timeStampOffset=Date.now()-loadEvent.timeStamp
@@ -14117,6 +15130,13 @@ Tan, and its inverse arctan, are described in Trigonometry Overview
 				thereWasUserInput=true;
 				//lastTimeStamp=e.timeStamp
 			}));
+
+			if(web.isChromecast()){
+				web.q('body').addClass('Chromecast')
+			}
+			if(web.isMobile()){
+				web.q('body').addClass('Mobile')
+			}
 		});
 		web.setInterval(function(){
 			if(thereWasUserInput){
@@ -14606,47 +15626,47 @@ Tan, and its inverse arctan, are described in Trigonometry Overview
 			return val;
 		}
 
+		web.isBrowser=function(regEx,caseSensitive){ //TODO add electron?
+			if(!regEx){
+				return UAParser.browser.name
+			}
+			if(web.isString(regEx)){
+				switch(regEx){
+					case 'IE':
+						regEx=/IE/gi
+						break
+					case 'Safari':
+						regEx=/Safari/gi
+						break
+					case 'Chrome':
+						regEx=/chrome|chromeium/gi
+						break
+					case 'Firefox':
+						regEx=/Firefox/gi
+						break
+					case 'Opera':
+						regEx=/Opera/gi
+						break
+				}
+			}
+			if(!web.isRegExp(regEx)){
+				regEx = new RegExp(regEx, ((caseSensitive)?'i':'')+"g");
+			}
+			return regEx.test(UAParser().browser.name)
+		}
 
-		web.isIE=function(){
-			return web.browserType()=='InternetExplorer'
-		}
-		web.isSafari=function(){
-			return web.browserType()=='Safari'
-		}
-		web.isChrome=function(){
-			//return web.browserType()=='InternetExplorer'
-		}
-		web.isFireFox=function(){
-			return web.browserType()=='FireFox'
-		}
-		web.isOpera=function(){
-			return web.browserType()=='Opera'
+		web.isOS=function(regEx,caseSensitive){
+			if(!regEx){
+				return UAParser.getOS().name
+			}
+			if(!web.isRegExp(regEx)){
+				regEx = new RegExp(regEx, ((caseSensitive)?'i':'')+"g");
+			}
+			return regEx.test(UAParser().getOS().name)
 		}
 
-		web.browserType=function(){
-			var str = window.navigator.userAgent.toLowerCase()
-			if(str.indexOf("opera") != -1) {
-				return "Opera";
-			}
-			if(str.indexOf("msie") != -1) {
-				return "InternetExplorer";
-			}
-			if(str.indexOf("firefox") != -1) {
-				return "FireFox";
-			}
-			if(str.indexOf("safari") != -1) {
-				return "Safari";
-			}
-		}
 		web.osType=function(){
-			var ua = window.navigator.userAgent.toLowerCase();
-			if(ua.indexOf("macintosh") != -1) {
-				return "Mac";
-			} else if(ua.indexOf("windows") != -1) {
-				return "Windows";
-			} else if(ua.indexOf("linux i686") != -1) {
-				return "Linux";
-			}
+			web.depricated('use web.isOS')
 		}
 
 		web.checksum=function(input,args,callback){
