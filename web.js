@@ -1149,7 +1149,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 					var camelCase = web.camelCase(this.id)
 					var obj = $(this)
 					if(web.q[this.id] || web.Q[camelCase]){
-						throw 'duplicate id in HTML!'
+						throw 'duplicate id in HTML! '+this.id
 					}
 					web.q[this.id]=obj
 					web.layout.id[this.id]=obj
@@ -12673,6 +12673,37 @@ web.token=function(input,type,converter){
 		// String.fromCharCode(0)==String.fromCharCode(65536)
 
 
+
+//ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&'()*+,;=
+//"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:!$&'()*+,;="
+//"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._*+"
+
+//a-zA-Z0-9!$&'()*+,;=:@~_.- //https://www.quora.com/Is-it-safe-to-use-a-colon-in-the-path-of-a-URL
+
+//http://stackoverflow.com/questions/4669692/valid-characters-for-directory-part-of-a-url-for-short-links
+
+//so my radix space should be
+
+//"-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+//reserved but not currently using !$'*;_,+=&
+
+//graffinity reserved characters in path
+// : for seperating x:y:z
+// @ for message user
+// ~ for home (user:user)
+// , for multi user messages invites etc (group)
+//() for group?
+
+//in query string
+//. reserved for .gif .png .pdf
+//graffinity.io:3458fj9aKLJDf:j89vnk438:50?.png
+
+//graffinity.io/3458fj9aKLJDf:j89vnk438 =location = graffinity.io:3458fj9aKLJDf:j89vnk438:50
+//
+//graffinity.io/~pcowdogg  == graffinity.io/pcowdogg:pcowdogg
+//graffinity.io/@pcowdogg == message
+//graffinity.io/8vsfD:8Je89f.png = image
+
 		//number system can be a fn,array, or string
 		//		if array||string it is expected to be in assending order
 
@@ -12697,7 +12728,7 @@ web.token=function(input,type,converter){
 				//now since we filtered out special commands 
 				if(web.isString(radix)||web.isArray(radix)){
 					numberSystem = radix
-					radix=numberSystem.length
+					radix=numberSystem.length-2
 				}else{
 					throw 'error toRadix'
 				}
@@ -12720,48 +12751,76 @@ web.token=function(input,type,converter){
 			fn=fn||function(R){return numberSystem.charAt(R+2)}
 
 			var first0=true
-			var HexN="",Q=Math.floor(Math.abs(N)),Q2=parseFloat(web.trimLeft(N.toString(),'.')),R,i=0,letter,diff;
+			var HexN=""
+				,Q=Math.floor(Math.abs(N))
+				,Q2=N.toString()
+				,R
+				,i=0
+				,letter
+				,diff;
+			if(web.contains(Q2,'.')){
+				throw 'web.numberToRadix currently does not support decimals'
+				Q2=parseFloat(web.trimLeft(Q2,'.'))
+			}
 			while(true){
 				R=Q%radix;
 				letter= fn(R,i++,N)
 				HexN = letter+ HexN;
 				Q=(Q-R)/radix;
-				if(Q==0){
-					if(first0){
-						alert(Q)
-						Q=Q2 //TODO still needs work
-						alert(Q)
-						HexN+=fn(-2); //get dot
-						first0=false
-					}else{
-						break
-					}
+			 	if(Q==0){
+			// 		if(first0){
+			// //			alert(Q)
+			// 			Q=Q2 //TODO still needs work
+			// //			alert(Q)
+			// 			HexN+=fn(-2); //get dot
+			// 			first0=false
+			// 		}else{
+			 			break
+			// 		}
 				}
 			}
+
 			return ((N<0) ? fn(-1)+HexN : HexN); //fn(-1) gets negitive symbol for numbersystem
 		}
 		web.radixToNumber=function(str,radix,numberSystem){
-			if(radix==null){ //compression command
-				radix=65535
+			if(web.isArray(radix)||web.isString(radix)){
+				numberSystem=radix
+				//numberSystem.split && (numberSystem=numberSystem.split(''))
+				radix=numberSystem.length-2
 			}
+			var characterValue={},characterNegitive,characterDecimal;
+			_.forEach(numberSystem,function(char,index){
+				if(index==0){
+					characterNegitive=char
+					return
+				}else if(index==1){
+					characterDecimal=char
+					return
+				}
+				characterValue[char]=index-2
+			})
 
+			if(radix==null){ //compression command
+				radix=numberSystem.length-2 || 65535
+			}
 			if(radix<=36 && !numberSystem && !web.isDecimal(N)){ //because parseint will trunkcate decimal numbers
 				return parseInt(str,radix)
 			}
 
 			//TODO fix the . and - conversion add numbersystem
-
+			debugger
 			var sign=1
-			//if(str.charAt(0)=='-'){
-			//	sign=-1,
-			//	str=str.slice(1);
-			//}
-
-			var value=0,l=str.length-1;
-			for (var i=l; i>=0; i--) {
-				var code=str.charCodeAt(i)
-				value+=code*Math.pow(radix,l-i)
+			if(str.charAt(0)==characterNegitive){
+				sign=-1,
+				str=str.slice(1);
 			}
+
+			var value=0;
+			for (var l=str.length,i=l-1; i>=0; --i) {
+
+				value+=characterValue[str.charAt(i)]*Math.pow(radix,(l-i)-1)
+			}
+
 			return sign*value
 
 		}
