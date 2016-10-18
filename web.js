@@ -173,6 +173,10 @@ var GreatCircle = {
 ************************/
 
 		(function($) {
+			if(!$){
+				console.warn('jQuery isn\'t loaded')
+				return
+			}
 			$.fn.disabled = function(bool){
 				return this.each(function(){
 					if(bool===undefined){
@@ -334,7 +338,7 @@ var GreatCircle = {
 // }
 
 
-var uaparser = new UAParser();
+var uaparser = (window.UAParser)?new UAParser():console.warn("UAParser isn't loaded")&&{};
 window.Stallion=window.Stallion||{};
 
 Stallion.compare=Stallion.compare||function(){};
@@ -831,6 +835,10 @@ this.web=(function(web,global,environmentFlags,undefined){
 				case 'nodejs':
 				case 'node.js':
 					return environmentFlags.platform=='nodejs';
+				case 'commonjs':
+				case 'jscommon':
+				case 'jscommons':
+					return (typeof web.global.module !== 'undefined' && web.global.module.exports)
 				case 'browser':
 					return !['electron','nodejs'].some(web.isEnvironment)
 			}
@@ -844,15 +852,16 @@ this.web=(function(web,global,environmentFlags,undefined){
 			}
 			//http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
 			web.isJSCommons=function(){
-				return (typeof web.global.module !== 'undefined' && web.global.module.exports)
+				web.depricated('use web.isEnvironment')
+				return web.isEnvironment('jscommon')
 			}
-			web.env = (web.isNodeJS())?process.env.NODE_ENV : 'development' //TODO allow setting of this for webpages. maybe use a tag or something? maybe hashFragment? idk
+			web.env = (web.isEnvironment('nodejs'))?process.env.NODE_ENV : 'development' //TODO allow setting of this for webpages. maybe use a tag or something? maybe hashFragment? idk
 
 			web.global = global;
 			global.web=web
 			web.environment=environmentFlags;
-			var _=(web.global._)?web.global._:require('lodash')
-			var $=(web.global.$)?web.global.$:require('cheerio')
+			var _=(web.global._)?web.global._:console.warn("lodash isn't loaded")&&require&&require('lodash')
+			var $=(web.global.$)?web.global.$:console.warn("jQuery isn't loaded")&&require&&require('cheerio')
 
 
 
@@ -974,7 +983,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 
 
 
-		if(web.isNodeJS()){
+		if(web.isEnvironment('nodejs')){
 			if(web.environment.stores){
 				var store=web.keys(web.environment.stores)
 				for(var i=0,list=store,l=list.length;i<l;i++){
@@ -1002,7 +1011,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		var args = web.toArray(arguments)
 		var variable = args.pop()
 		var obj,arg;
-		if(web.isNodeJS()){
+		if(web.isEnvironment('nodejs')){
 			obj=require('minimist')(process.argv.slice(2));
 		}else{
 			obj={}
@@ -4286,6 +4295,7 @@ this.web=(function(web,global,environmentFlags,undefined){
 		}
 	}
 
+
 	web.api=function(prefix,channels,permissions){
 		if(channels==true){
 			channels=['tabs','DOM']
@@ -6792,7 +6802,7 @@ web.router=function(arrayMap){
 		//http://trac.webkit.org/changeset/130941
 		//http://jsfiddle.net/yg6hk/5/
 		web.htmlConsole=function styledConsoleLog() {
-			if(!web.isNodeJS()){
+			if(!web.isEnvironment('nodejs')){
 				var argArray = [];
 
 				if (arguments.length) {
@@ -6982,7 +6992,7 @@ web.router=function(arrayMap){
 
 
 			var selectorEngine;
-			if(web.isNodeJS()){
+			if(web.isEnvironment('nodejs')){
 				selectorEngine=require('cheerio');
 			}else{
 				selectorEngine=global.Sizzle||global.jQuery;
@@ -7116,10 +7126,10 @@ web.router=function(arrayMap){
 
 
 
-		if(typeof PNotify!='undefined'){
+		if(window.PNotify){
 			PNotify.prototype.options.styling = "fontawesome";
 		}else{
-			console.warn('PNotify not found!')
+			console.warn('PNotify not loaded')
 		}
 
 		qWindow.on('beforeunload', function() {
@@ -10543,7 +10553,7 @@ web.post.handlingArray=false;
 
 
 		var CLASS = function(path){
-			if(web.isNodeJS()){
+			if(web.isEnvironment('nodejs')){
 				return require('java')['import'](path); 
 			}else if(web.isRhino()){
 				//var pack=('Packages.'+path).split('.');
@@ -11197,7 +11207,7 @@ web.post.handlingArray=false;
 		// Only add setZeroTimeout to the window object, and hide everything
 		// else in a closure.
 		var setImmediate =web.setImmediate=(function() {
-			if(web.isNodeJS()){ //if this is nodejs platform then return our fn
+			if(web.isEnvironment('nodejs')){ //if this is nodejs platform then return our fn
 				return setImmediate
 			}
 			var timeouts = [];
@@ -11252,7 +11262,7 @@ web.post.handlingArray=false;
 					callback=func
 				}
 
-				if(web.isNodeJS()){
+				if(web.isEnvironment('nodejs')){
 					return setTimeout(callback,0);
 				}
 				return timeouts.push(callback),window.postMessage(messageName, "*");
@@ -12684,7 +12694,7 @@ web.token=function(input,type,converter){
 
 //so my radix space should be
 
-//"-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+//".-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 //reserved but not currently using !$'*;_,+=&
 
 //graffinity reserved characters in path
@@ -12783,23 +12793,34 @@ web.token=function(input,type,converter){
 			return ((N<0) ? fn(-1)+HexN : HexN); //fn(-1) gets negitive symbol for numbersystem
 		}
 		web.radixToNumber=function(str,radix,numberSystem){
+			var characterValue,characterNegitive,characterDecimal;
 			if(web.isArray(radix)||web.isString(radix)){
 				numberSystem=radix
-				//numberSystem.split && (numberSystem=numberSystem.split(''))
+				numberSystem.join && (numberSystem=numberSystem.join(''))
 				radix=numberSystem.length-2
 			}
-			var characterValue={},characterNegitive,characterDecimal;
-			_.forEach(numberSystem,function(char,index){
-				if(index==0){
-					characterNegitive=char
-					return
-				}else if(index==1){
-					characterDecimal=char
-					return
-				}
-				characterValue[char]=index-2
-			})
 
+			if(web.isString(numberSystem)){
+				if(web.radixToNumber.cache[numberSystem]){
+					characterValue=web.radixToNumber.cache[numberSystem]
+					characterNegitive=numberSystem.charAt(1)
+					characterDecimal=numberSystem.charAt(0)
+				}
+			}
+			if(!characterValue){
+				characterValue={}
+				_.forEach(numberSystem,function(char,index){
+					if(index==0){
+						characterDecimal=char
+						return
+					}else if(index==1){
+						characterNegitive=char
+						return
+					}
+					characterValue[char]=index-2
+				})
+				web.radixToNumber.cache[numberSystem]=characterValue
+			}
 			if(radix==null){ //compression command
 				radix=numberSystem.length-2 || 65535
 			}
@@ -12807,8 +12828,7 @@ web.token=function(input,type,converter){
 				return parseInt(str,radix)
 			}
 
-			//TODO fix the . and - conversion add numbersystem
-			debugger
+			//TODO fix the . decimal notation
 			var sign=1
 			if(str.charAt(0)==characterNegitive){
 				sign=-1,
@@ -12824,6 +12844,7 @@ web.token=function(input,type,converter){
 			return sign*value
 
 		}
+		web.radixToNumber.cache={}
 
 
 		//Source: http://stackoverflow.com/questions/11089399/count-with-a-b-c-d-instead-of-0-1-2-3-with-javascript
@@ -13789,7 +13810,7 @@ web.token=function(input,type,converter){
 				        });
 				    }
 				})();
-				}else if(web.isNodeJS()){
+				}else if(web.isEnvironment('nodejs')){
 					web.exe(command,callback)
 				}else{
 					callback(null,command);
@@ -15939,5 +15960,11 @@ ga('create', web.google.analytics.trackingID||'', 'auto');
 ga('send', 'pageview');*/
 
 
-
+	function createDummyStandinObject(obj,fn){
+		var dummy={}
+		_.forEach(web.keys(obj,1),function(val,key){
+			dummy[key]=fn
+		})
+		return dummy
+	}
 
