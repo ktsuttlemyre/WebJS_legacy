@@ -1,0 +1,501 @@
+/*****************/
+/* global styles */
+/*****************/
+
+input[disabled],
+select[disabled],
+textarea[disabled]{
+	cursor: not-allowed;
+	background-color:#eee !important;
+}
+
+
+html.full-view, html.full-view body{
+	height: 100%;
+	width:100%;
+	margin:0;padding: 0;
+}
+
+
+*:fullscreen {
+  position:fixed;
+  top:0; 
+  right:0; 
+  bottom:0; 
+  left:0;
+  margin:0;
+  box-sizing:border-box;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+
+/******************/
+/*  WebJS classes */
+/******************/
+.scroll-no	{overflow: hidden;}
+.scroll-x	{overflow-x: auto;}
+.scroll-y	{overflow-y: auto;}
+.scroll-both{overflow:scroll;}
+
+	/*helper classes*/
+	.display-none{
+		display:none;
+	}
+	.click-through{
+		pointer-events: none;
+	}
+	.click-allow{
+		pointer-events: auto;
+	}
+	.square-top {
+		-webkit-border-top-right-radius: 0 !important;
+		-moz-border-radius-topright: 0 !important;
+		border-top-right-radius: 0 !important;
+		-webkit-border-top-left-radius: 0 !important;
+		-moz-border-radius-topleft: 0 !important;
+		border-top-left-radius: 0 !important;
+	}
+	.square-bottom {
+		-webkit-border-bottom-left-radius: 0 !important;
+		-moz-border-radius-bottomleft: 0 !important;
+		border-bottom-left-radius: 0 !important;
+		-webkit-border-bottom-right-radius: 0 !important;
+		-moz-border-radius-bottomright: 0 !important;
+		border-bottom-right-radius: 0 !important;
+	}
+	.square-top-right {
+		-webkit-border-top-right-radius: 0 !important;
+		-moz-border-radius-topright: 0 !important;
+		border-top-right-radius: 0 !important;
+	}
+	.square-top-left {
+		-webkit-border-top-left-radius: 0 !important;
+		-moz-border-radius-topleft: 0 !important;
+		border-top-left-radius: 0 !important;
+	}
+	.square-bottom-right {
+		-webkit-border-bottom-right-radius: 0 !important;
+		-moz-border-radius-bottomright: 0 !important;
+		border-bottom-right-radius: 0 !important;
+	}
+	.square-bottom-left {
+		-webkit-border-bottom-left-radius: 0 !important;
+		-moz-border-radius-bottomleft: 0 !important;
+		border-bottom-left-radius: 0 !important;
+	}
+	.round-top{
+		-webkit-border-top-right-radius: 4px !important;
+		-moz-border-radius-topright: 4px !important;
+		border-top-right-radius: 4px !important;
+		-webkit-border-top-left-radius: 4px !important;
+		-moz-border-radius-topleft: 4px !important;
+		border-top-left-radius: 4px !important;
+	}
+	.round-bottom{
+		-webkit-border-bottom-right-radius: 4px !important;
+		-moz-border-radius-bottomright: 4px !important;
+		border-bottom-right-radius: 4px !important;
+		-webkit-border-bottom-left-radius: 4px !important;
+		-moz-border-radius-bottomleft: 4px !important;
+		border-bottom-left-radius: 4px !important;
+	}
+	.round-top-right {
+		-webkit-border-top-right-radius: 4px !important;
+		-moz-border-radius-topright: 4px !important;
+		border-top-right-radius: 4px !important;
+	}
+	.round-top-left {
+		-webkit-border-top-left-radius: 4px !important;
+		-moz-border-radius-topleft: 4px !important;
+		border-top-left-radius: 4px !important;
+	}
+	.round-bottom-right {
+		-webkit-border-bottom-right-radius: 4px !important;
+		-moz-border-radius-bottomright: 4px !important;
+		border-bottom-right-radius: 4px !important;
+	}
+	.round-bottom-left {
+		-webkit-border-bottom-left-radius: 4px !important;
+		-moz-border-radius-bottomleft: 4px !important;
+		border-bottom-left-radius: 4px !important;
+	}
+
+
+
+	.faded-black{
+		background: -webkit-linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)); /* For Safari 5.1 to 6.0 */
+		background: -o-linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)); /* For Opera 11.1 to 12.0 */
+		background: -moz-linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)); /* For Firefox 3.6 to 15 */
+		background: linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)); /* Standard syntax */
+	}
+	.faded-white{
+		background: -webkit-linear-gradient(rgba(255,255,255,0.5),rgba(255,255,255,0.5)); /* For Safari 5.1 to 6.0 */
+		background: -o-linear-gradient(rgba(255,255,255,0.5),rgba(255,255,255,0.5)); /* For Opera 11.1 to 12.0 */
+		background: -moz-linear-gradient(rgba(255,255,255,0.5),rgba(255,255,255,0.5)); /* For Firefox 3.6 to 15 */
+		background: linear-gradient(rgba(255,255,255,0.5),rgba(255,255,255,0.5)); /* Standard syntax */
+	}
+
+	.affix-top{
+		position:absolute;
+		top:0;
+		left:0;
+	}
+	.affix-bottom{
+		position:absolute;
+		bottom:0;
+		left:0;
+	}
+
+	.fill-width{
+		width:100%;
+	}
+	.fill-height{
+		height:100%;
+	}
+	.fill{
+		width:100%;
+		height:100%;
+	}
+	.fill-auto{
+		width:100%;
+		height:100%;
+	}
+	.flood-outer{
+		position: relative;
+	}
+	.flood-inner{
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		padding:0;
+		margin:0;
+		/*width:100%;
+		height:100%;*/
+	}
+	.inline-block{
+		display:inline-block ;
+	}
+	.block{
+		display: block ;
+	}
+	.margin-right{
+		margin-right: 1em
+	}
+	.no-padding{
+		padding:0 !important;
+	}
+	.no-margin{
+		margin: 0;
+	}
+	.stop-propagation{
+		/*just a place holder for the search that will stop all propigationss*/
+	}
+	.no-wrap{
+		white-space: nowrap;
+	}
+
+	.text-center{
+		text-align:center
+	}
+	.text-right{
+		text-align: right
+	}
+	.text-left{
+		text-align: left
+	}
+
+
+
+	.disabled {
+		cursor:not-allowed;
+		pointer-events:none;
+		opacity: 0.65;
+		filter: alpha(opacity=65);
+		-webkit-box-shadow: none;
+		box-shadow: none;
+	}
+	a.disabled {
+		text-decoration:line-through;
+
+	}
+
+	.btn.disabled, .btn[disabled]{
+		cursor:default;
+		pointer-events:auto;
+	}
+
+/* a.disabled::after{
+	font-family: 'Glyphicons Halflings';
+	-webkit-font-smoothing: antialiased;
+	font-style: normal;
+	font-weight: normal;
+	line-height: 1;
+	color:red;
+	content: "\e090 ";
+	}*/
+
+
+
+
+	.shadow {
+		-moz-box-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+		-webkit-box-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+		box-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+	}
+
+	.unselectable{
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		-khtml-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
+		user-select: none;
+	}
+
+	/* possibly add javascript?
+	//source http://stackoverflow.com/questions/2700000/how-to-disable-text-selection-using-jquery
+	(function($){
+		$.fn.disableSelection = function() {
+			return this
+					 .attr('unselectable', 'on')
+					 .css('user-select', 'none')
+					 .on('selectstart', false);
+		};
+	})(jQuery);
+	*/
+
+	.scrollable{
+		overflow: auto;
+		-webkit-transition-property: top, bottom;
+		transition-property: top, bottom;
+		-webkit-transition-duration: .2s, .2s;
+		transition-duration: .2s, .2s;
+		-webkit-transition-timing-function: linear, linear;
+		transition-timing-function: linear, linear;
+		-webkit-overflow-scrolling: touch;
+	}
+
+
+
+/********************************/
+/*	Dependency Customization	*/
+/********************************/
+
+/****************************/
+/*	Twitter typeahead style */
+/****************************/
+
+/*http://stackoverflow.com/questions/20198247/twitters-typeahead-js-suggestions-are-not-styled-have-no-border-transparent-b*/
+
+	.twitter-typeahead .tt-query,
+	.twitter-typeahead .tt-hint {
+		margin-bottom: 0;
+	}
+	.tt-hint {
+		display: block;
+		width: 100%;
+		padding: 8px 12px;
+		font-size: 14px;
+		line-height: 1.428571429;
+		color: #999;
+		vertical-align: middle;
+		background-color: #ffffff;
+		border: 1px solid #cccccc;
+		border-radius: 4px;
+		-webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+		box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+		-webkit-transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+		transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+	}
+	.tt-dropdown-menu {
+		min-width: 160px;
+		margin-top: 2px;
+		padding: 5px 0;
+		background-color: #ffffff;
+		border: 1px solid #cccccc;
+		border: 1px solid rgba(0, 0, 0, 0.15);
+		border-radius: 4px;
+		-webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+		box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+		background-clip: padding-box;
+	}
+	.tt-suggestion {
+		display: block;
+		padding: 3px 20px;
+	}
+	.tt-suggestion.tt-is-under-cursor {
+		color: #fff;
+		background-color: #dfdfdf;
+	}
+	.tt-suggestion.tt-is-under-cursor a {
+		color: #fff;
+	}
+	.tt-suggestion p {
+		margin: 0;
+	}
+
+
+/************************/
+/*		SlickTable		*/
+/************************/
+	.slick-header-column, .slick-column-name{ /*make the headers high enough to display full height of text*/
+		height:100% !important;
+		background-color: #CCC;
+	}
+
+	/*if elements are not lining up correctly it may be because of the new standard (enforced by bootstrap 3) of box-sizing changing to border-box rather than content-box. In order to fix those classes/elements then add them here
+	https://github.com/twbs/bootstrap/issues/12351
+
+	add all classes of .slick-*
+	http://stackoverflow.com/questions/21540490/resizing-a-slickgrid-column-header-causes-it-to-be-misaligned-with-body*/
+
+	.slick-header, .slick-headerrow, .slick-top-panel-scroller, .slick-viewport,.slick-header-columns, .slick-header-column, .slick-headerrow-columns, *[class^='slick-'],*[class*=' slick-']{ /*Select all classes begining with slick-  http://stackoverflow.com/questions/13352080/match-all-class-selectors-that-begin-with*/
+		/*
+		*,
+		*:before,
+		*:after {*/
+		-webkit-box-sizing: content-box;
+		-moz-box-sizing: content-box;
+		box-sizing: content-box;
+		/*}*/
+	}
+	/*fix inputs for text editing within slick-grid*/
+	.slick-viewport input {
+		width: 100%;
+		min-width: 200px;
+		position: relative;
+		top:-2px;
+		left:-2px;
+		margin: 0;
+	}
+	.cell-selection {
+      border-right-color: silver;
+      border-right-style: solid;
+      background: #f5f5f5;
+      color: gray;
+      text-align: right;
+      font-size: 10px;
+    }
+    .slick-row.selected .cell-selection {
+      background-color: transparent; /* show default selected row background */
+    }
+
+
+
+
+/************************/
+/*		File Drop		*/
+/************************/
+	/*
+	Styles below are only required if you're using <iframe> fallback in
+	addition to HTML5 drag & drop (only working in Firefox/Chrome).
+	*/
+
+	/* Essential FileDrop zone element configuration: */
+	.fd-zone {
+		position: relative;
+		overflow: hidden;
+		/* The following are not required but create a pretty box: */
+		width: 15em;
+		margin: 0 auto;
+		text-align: center;
+	}
+
+	/* Hides <input type="file"> while simulating "Browse" button: */
+	.fd-file {
+		opacity: 0;
+		font-size: 118px;
+		position: absolute;
+		right: 0;
+		top: 0;
+		z-index: 1;
+		padding: 0;
+		margin: 0;
+		cursor: pointer;
+		filter: alpha(opacity=0);
+		font-family: sans-serif;
+	}
+
+	/* Provides visible feedback when use drags a file over the drop zone: */
+	.fd-zone.over {
+		border-color: maroon; background: #eee;
+	}
+
+
+
+/*****************************/
+/*	Customization of Boostrap*/
+/*****************************/
+	.popover{ /*override default max width this allows developer to control it via the text*/
+		max-width: none
+	}
+
+	/*Fix the stupid hover and active colors that make toggle buttons difficult to understand*/
+	.btn:focus, .btn.focus {
+		background-color: #fff;
+	}
+	.btn.active {
+		background-color: rgb(230, 230, 230)
+	}
+	.btn.focus:hover {
+		background-color: rgb(230, 230, 230)
+	}
+
+
+
+/*slick grid helper classes*/
+/*add this to table in order to affect whole look*/
+.slickgrid-yGrid-off .slick-cell{
+	border-bottom-width:0; 
+}
+
+.slickgrid-solid-background .slick-row{
+	background-image:none;
+	background-color:transparent;
+}
+
+
+
+/*styles for web.abyss*/
+/*TODO maybe put this in web.js .css for abyss*/
+.selected{
+		background-color:rgb(96, 169, 232); /*rgb(66, 139, 202);*/
+		color:white;
+		-webkit-border-radius: 4px !important;
+		-moz-border-radius: 4px !important;
+		border-radius: 4px !important;
+		-webkit-border-radius: 4px !important;
+		-moz-border-radius: 4px !important;
+		border-radius: 4px !important;
+}
+
+.selected>div{
+	background-color: transparent !important;
+	filter: none !important;
+	background-image: none;
+}
+
+
+.web-highlighter{
+	background-color:yellow;
+}
+
+
+/*http://demosthenes.info/blog/744/Make-SVG-Responsive*/
+.svg-responsive {
+	display: inline-block;
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom:0;
+	right:0;
+}
+
+.glyphicon-blank:after {
+	content: "\00a0";
+}
+
